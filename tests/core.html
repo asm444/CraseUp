@@ -20,18 +20,23 @@
     igual([C.revisavel('ok'), C.revisavel('123 456'), C.revisavel('tudo certo')], [false, false, true]);
   });
 
-  caso('troca mais longa que o original é descartada fora de gramática', () => {
-    igual(filtra('o texto ruim', [s('palavra', 'ruim', 'péssimo'), s('clareza', 'texto', 'texto bom')]), []);
+  const longa = (n) => Array.from({ length: n }, (_, i) => `p${i}`).join(' ');
+
+  caso('qualquer tipo pode acrescentar até 10 palavras', () => {
+    igual(filtra('o texto ruim', [s('palavra', 'ruim', `ruim ${longa(10)}`)]).length, 1);
+    igual(filtra('eu vou mercado', [s('gramatica', 'vou mercado', 'vou até o mercado')]), [['gramatica', 'vou mercado', 'vou até o mercado', 3]]);
+  });
+
+  caso('troca com mais de 10 palavras a mais é descartada em qualquer tipo', () => {
+    igual(filtra('o texto ruim', [s('palavra', 'ruim', `ruim ${longa(11)}`), s('gramatica', 'texto', `texto ${longa(11)}`)]), []);
   });
 
   caso('troca do mesmo tamanho ou menor é aceita', () => {
-    igual(filtra('o texto ruim', [s('palavra', 'ruim', 'fraco')]), []);
     igual(filtra('o texto ruim', [s('palavra', 'ruim', 'mau')]), [['palavra', 'ruim', 'mau', 8]]);
   });
 
-  caso('gramática pode acrescentar só o indispensável', () => {
-    igual(filtra('eu vou mercado', [s('gramatica', 'vou mercado', 'vou ao mercado')]), [['gramatica', 'vou mercado', 'vou ao mercado', 3]]);
-    igual(filtra('eu vou mercado', [s('gramatica', 'vou mercado', 'vou até o mercado')]), []);
+  caso('conta palavras com acento, hífen, apóstrofo e número', () => {
+    igual([C.contarPalavras('fazê-lo à tarde'), C.contarPalavras("d'água 2026 ok"), C.contarPalavras('  ')], [3, 3, 0]);
   });
 
   caso('original que não existe no texto é descartado', () => {

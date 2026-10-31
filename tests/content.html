@@ -13,7 +13,7 @@
   const RESPOSTAS = {
     'eu vou mercado': [
       { tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'falta preposição' },
-      { tipo: 'palavra', original: 'eu', substituicao: 'nós todos', motivo: 'mais longo, deve sumir' },
+      { tipo: 'palavra', original: 'eu', substituicao: 'nós todos juntos e mais um grupo grande de pessoas felizes hoje', motivo: 'mais de 10 palavras a mais, deve sumir' },
     ],
     'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
@@ -72,7 +72,7 @@
 
       confere('envia só os campos comuns, nunca senha e cartão', enviados.slice().sort(), ['eu vou mercado', 'isso é açim mesmo']);
       const spans = [...sombra().querySelectorAll('.marca')];
-      confere('textarea: um sublinhado de gramática; a troca mais longa sumiu', spans.map((s) => [s.className, s.textContent]), [['marca marca-gramatica', 'vou mercado']]);
+      confere('textarea: um sublinhado de gramática; a troca com mais de 10 palavras a mais sumiu', spans.map((s) => [s.className, s.textContent]), [['marca marca-gramatica', 'vou mercado']]);
       confere('contenteditable: um highlight de gramática', CSS.highlights.get('revisor-gramatica')?.size, 1);
 
       passarMouse(spans[0].getBoundingClientRect());

@@ -23,7 +23,7 @@ self.fetch = async () => {
     {tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'Grafia correta é "assim".'},
     {tipo: 'clareza', original: 'e depois eu volto', substituicao: 'e volto', motivo: '"Depois eu" é redundante aqui.'},
     {tipo: 'tom', original: 'beleza?', substituicao: 'certo?', motivo: 'Mais neutro para o tom padrão.'},
-    {tipo: 'palavra', original: 'pra casa', substituicao: 'para o meu lar', motivo: 'Mais longo: o filtro descarta.'},
+    {tipo: 'palavra', original: 'pra casa', substituicao: 'para a minha casa, que fica longe daqui, perto do centro da cidade', motivo: 'Mais de 10 palavras a mais: o filtro descarta.'},
   ];
   const corpo = {candidates: [{content: {parts: [{text: JSON.stringify({sugestoes})}]}}]};
   return new Response(JSON.stringify(corpo), {status: 200, headers: {'Content-Type': 'application/json'}});

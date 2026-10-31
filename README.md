@@ -3,7 +3,7 @@
 Extensão gratuita para navegadores Chromium que revisa textos em português com a API do Gemini, enquanto você digita, em qualquer site.
 
 - Sugere só o necessário: troca a palavra ou o trecho ruim, sem reescrever o resto.
-- Nenhuma sugestão alonga o texto. A única exceção é um erro de gramática que exige acrescentar algo, como uma preposição ou uma vírgula; nesse caso entram no máximo 4 caracteres.
+- Nenhuma sugestão acrescenta mais de 10 palavras ao trecho que ela troca, venha de onde vier.
 - Cada tipo de sugestão tem uma cor e um traço próprios:
 
 | Tipo | Traço | Cor |

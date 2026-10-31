@@ -5,7 +5,7 @@
     neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',
     casual: 'casual (leve e próximo, como numa conversa)',
   };
-  const ACRESCIMO_MAXIMO_GRAMATICA = 4;
+  const PALAVRAS_A_MAIS_NO_MAXIMO = 10;
   const TAMANHO_MINIMO_PARAGRAFO = 3;
   const TAMANHO_MAXIMO_PARAGRAFO = 4000;
   const PALAVRAS_DO_DICIONARIO_NO_PROMPT = 200;
@@ -38,7 +38,7 @@
       '- Se o texto estiver correto e claro, devolva "sugestoes": [].',
       '- Cada sugestão troca só a palavra ou o trecho curto que ficou ruim; nunca reescreva a frase inteira nem o resto do texto.',
       '- "original" é uma cópia exata, caractere por caractere, de um trecho contíguo do texto recebido.',
-      '- "substituicao" tem o mesmo número de caracteres de "original" ou menos. A única exceção é o tipo "gramatica" quando a correção exige acrescentar algo (preposição, crase, vírgula); nesse caso, acrescente apenas o indispensável.',
+      `- "substituicao" acrescenta no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a "original"; prefira a troca mais curta que resolve.`,
       '- tipo "gramatica": erro de ortografia, acentuação, concordância, regência, crase ou pontuação.',
       '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
       '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
@@ -100,6 +100,10 @@
     });
   }
 
+  function contarPalavras(texto) {
+    return (texto.match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu) || []).length;
+  }
+
   function filtrarSugestoes(texto, brutas, { dicionario = [] } = {}) {
     const aceitas = [];
     for (const s of Array.isArray(brutas) ? brutas : []) {
@@ -107,8 +111,7 @@
       if (!TIPOS.includes(s.tipo)) continue;
       const { original, substituicao } = s;
       if (!original.trim() || original === substituicao) continue;
-      const limite = original.length + (s.tipo === 'gramatica' ? ACRESCIMO_MAXIMO_GRAMATICA : 0);
-      if (substituicao.length > limite) continue;
+      if (contarPalavras(substituicao) - contarPalavras(original) > PALAVRAS_A_MAIS_NO_MAXIMO) continue;
       if (contemPalavraDoDicionario(original, dicionario)) continue;
       const sobrepoe = (p) => aceitas.some((a) => p < a.fim && p + original.length > a.inicio);
       let posicao = texto.indexOf(original);
@@ -140,12 +143,12 @@
     TONS,
     MODELO,
     ENDPOINT,
-    ACRESCIMO_MAXIMO_GRAMATICA,
     dividirParagrafos,
     revisavel,
     montarRequisicao,
     lerResposta,
     contemPalavraDoDicionario,
+    contarPalavras,
     filtrarSugestoes,
     aplicarNoParagrafo,
   };
