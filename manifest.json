@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CraseUp",
-  "version": "0.1.0",
-  "description": "Revisão de textos em português com o Gemini: sugestões mínimas, só quando necessário.",
+  "version": "0.2.0",
+  "description": "Revisão de textos em português e inglês com dicionário offline, LanguageTool e Gemini: sugestões mínimas, só quando necessário.",
   "minimum_chrome_version": "105",
   "icons": {
     "16": "icons/icone-16.png",
