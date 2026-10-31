@@ -56,6 +56,19 @@
     igual(filtra('mas mas', [s('clareza', 'mas', ''), s('clareza', 'mas', '')]), [['clareza', 'mas', '', 0], ['clareza', 'mas', '', 4]]);
   });
 
+  caso('posição informada pela camada vale mesmo com a palavra repetida antes', () => {
+    igual(C.filtrarSugestoes('açim e açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 7, origem: 'offline' }]).map((x) => [x.inicio, x.origem]), [[7, 'offline']]);
+  });
+
+  caso('posição informada que não bate com o texto cai na busca pelo trecho', () => {
+    igual(filtra('casa açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 0 }]), [['gramatica', 'açim', 'assim', 5]]);
+  });
+
+  caso('primeira camada vence quando duas marcam o mesmo trecho; sem origem vira gemini', () => {
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 4, origem: 'offline' }, s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['offline']);
+    igual(C.filtrarSugestoes('vou açim', [s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['gemini']);
+  });
+
   caso('aplicar desloca as sugestões seguintes e remove a aplicada', () => {
     const t = 'eu vou mercado e açim';
     const sug = C.filtrarSugestoes(t, [s('gramatica', 'vou mercado', 'vou ao mercado'), s('gramatica', 'açim', 'assim')]);

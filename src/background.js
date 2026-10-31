@@ -1,10 +1,12 @@
-importScripts('core.js');
+importScripts('core.js', 'ortografia.js', 'vendor/hunspell.js');
 
 const { ENDPOINT, MODELO, montarRequisicao, lerResposta, filtrarSugestoes } = RevisorCore;
+const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
 const COR_SELO_COTA = '#EDAE49';
 const COR_SELO_PAUSA = '#6B6475';
+const ESTADOS_PASSAGEIROS = new Set(['falha', 'limite_por_minuto', 'cota']);
 
 const hoje = () => new Date().toLocaleDateString('sv');
 
@@ -60,12 +62,50 @@ function cotaDiaria(corpoDoErro) {
   return JSON.stringify(corpoDoErro).includes('PerDay');
 }
 
+let verificadores = null;
+function carregarVerificadores() {
+  verificadores ??= (async () => {
+    const modulo = await HunspellAsm.loadModule();
+    const ler = async (nome) => new Uint8Array(await (await fetch(chrome.runtime.getURL(`src/dicionarios/${nome}`))).arrayBuffer());
+    const carregados = {};
+    for (const idioma of IDIOMAS) {
+      const aff = modulo.mountBuffer(await ler(`${idioma}.aff`), `${idioma}.aff`);
+      const dic = modulo.mountBuffer(await ler(`${idioma}.dic`), `${idioma}.dic`);
+      carregados[idioma] = modulo.create(aff, dic);
+    }
+    return carregados;
+  })().catch((erro) => {
+    verificadores = null;
+    throw erro;
+  });
+  return verificadores;
+}
+
+async function camadaOffline(texto) {
+  try {
+    const carregados = await carregarVerificadores();
+    const idioma = detectarIdioma(texto, carregados);
+    return { estado: 'ativa', idioma, sugestoes: sugestoesOrtograficas(texto, idioma, carregados[idioma]) };
+  } catch {
+    return { estado: 'falha', idioma: IDIOMA_PADRAO, sugestoes: [] };
+  }
+}
+
 async function revisar(texto, abaId) {
-  const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte']);
-  if (!cfg.chave) return { erro: 'sem_chave' };
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  if (cfg.cota?.data === hoje()) return { erro: 'cota' };
-  if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { erro: 'limite_por_minuto' };
+  const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte']);
+  const offline = await camadaOffline(texto);
+  const gemini = await camadaGemini(texto, cfg);
+  return {
+    sugestoes: filtrarSugestoes(texto, [...offline.sugestoes, ...(gemini.sugestoes || [])], { dicionario: cfg.dicionario || [] }),
+    provisorio: [offline, gemini].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
+  };
+}
+
+async function camadaGemini(texto, cfg) {
+  if (!cfg.chave) return { estado: 'sem_chave' };
+  if (cfg.cota?.data === hoje()) return { estado: 'cota' };
+  if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { estado: 'limite_por_minuto' };
 
   await contarChamada();
   let resposta;
@@ -77,28 +117,28 @@ async function revisar(texto, abaId) {
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
   } catch {
-    return { erro: 'rede' };
+    return { estado: 'falha' };
   }
 
   if (resposta.status === 429) {
     const corpo = await resposta.json().catch(() => ({}));
     if (cotaDiaria(corpo)) {
       await chrome.storage.local.set({ cota: { data: hoje() } });
-      return { erro: 'cota' };
+      return { estado: 'cota' };
     }
     await chrome.storage.local.set({ esperaAte: Date.now() + ESPERA_LIMITE_POR_MINUTO_MS });
-    return { erro: 'limite_por_minuto' };
+    return { estado: 'limite_por_minuto' };
   }
-  if (!resposta.ok) return { erro: 'api', status: resposta.status };
+  if (!resposta.ok) return { estado: 'falha' };
 
   let brutas;
   try {
     brutas = lerResposta(await resposta.json());
   } catch {
-    return { erro: 'resposta' };
+    return { estado: 'falha' };
   }
   if (cfg.cota) await chrome.storage.local.remove('cota');
-  return { sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }) };
+  return { estado: 'ativa', sugestoes: brutas };
 }
 
 async function testarChave(chave) {

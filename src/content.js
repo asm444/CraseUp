@@ -17,6 +17,7 @@
   let ativo = false;
   const campos = new Map();
   const cache = new Map();
+  const provisorios = new Set();
   const emVoo = new Set();
   let camada = null;
   let cartao = null;
@@ -127,10 +128,21 @@
     return `${s.original}\u0000${s.substituicao}`;
   }
 
-  function guardarNoCache(paragrafo, sugestoes) {
+  function guardarNoCache(paragrafo, sugestoes, provisorio = false) {
     cache.delete(paragrafo);
     cache.set(paragrafo, sugestoes);
-    if (cache.size > ENTRADAS_NO_CACHE) cache.delete(cache.keys().next().value);
+    if (provisorio) provisorios.add(paragrafo);
+    else provisorios.delete(paragrafo);
+    if (cache.size > ENTRADAS_NO_CACHE) {
+      const maisAntigo = cache.keys().next().value;
+      cache.delete(maisAntigo);
+      provisorios.delete(maisAntigo);
+    }
+  }
+
+  function limparCache() {
+    cache.clear();
+    provisorios.clear();
   }
 
   function calcularMarcas(estado, texto) {
@@ -263,7 +275,7 @@
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
     const pendentes = dividirParagrafos(texto)
-      .filter((p) => revisavel(p.texto) && !cache.has(p.texto) && !emVoo.has(p.texto))
+      .filter((p) => revisavel(p.texto) && (!cache.has(p.texto) || provisorios.has(p.texto)) && !emVoo.has(p.texto))
       .sort((a, b) => Math.abs(a.inicio - cursor) - Math.abs(b.inicio - cursor))
       .slice(0, PARAGRAFOS_POR_PAUSA);
     await Promise.all(
@@ -271,7 +283,7 @@
         emVoo.add(paragrafo);
         try {
           const resposta = await chrome.runtime.sendMessage({ tipo: 'revisar', texto: paragrafo });
-          if (resposta?.sugestoes) guardarNoCache(paragrafo, resposta.sugestoes);
+          if (resposta?.sugestoes) guardarNoCache(paragrafo, resposta.sugestoes, Boolean(resposta.provisorio));
           if (resposta?.erro === 'pausado') definirAtivo(false);
         } catch {
           definirAtivo(false);
@@ -475,7 +487,7 @@
   chrome.storage.onChanged.addListener((mudancas, area) => {
     if (area !== 'local') return;
     if (mudancas.sitesExcluidos) avaliarAtivo();
-    if (mudancas.tom) cache.clear();
+    if (mudancas.tom || mudancas.chave) limparCache();
     if (mudancas.dicionario) filtrarCachePeloDicionario(mudancas.dicionario.newValue || []);
   });
 

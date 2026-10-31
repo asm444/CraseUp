@@ -1,5 +1,6 @@
 (function (raiz) {
   const TIPOS = ['gramatica', 'clareza', 'palavra', 'tom'];
+  const ORIGENS = ['offline', 'gemini'];
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
     neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',
@@ -114,11 +115,18 @@
       if (contarPalavras(substituicao) - contarPalavras(original) > PALAVRAS_A_MAIS_NO_MAXIMO) continue;
       if (contemPalavraDoDicionario(original, dicionario)) continue;
       const sobrepoe = (p) => aceitas.some((a) => p < a.fim && p + original.length > a.inicio);
-      let posicao = texto.indexOf(original);
-      while (posicao !== -1 && sobrepoe(posicao)) posicao = texto.indexOf(original, posicao + 1);
-      if (posicao === -1) continue;
+      let posicao;
+      if (Number.isInteger(s.inicio) && texto.startsWith(original, s.inicio)) {
+        if (sobrepoe(s.inicio)) continue;
+        posicao = s.inicio;
+      } else {
+        posicao = texto.indexOf(original);
+        while (posicao !== -1 && sobrepoe(posicao)) posicao = texto.indexOf(original, posicao + 1);
+        if (posicao === -1) continue;
+      }
       aceitas.push({
         tipo: s.tipo,
+        origem: ORIGENS.includes(s.origem) ? s.origem : 'gemini',
         original,
         substituicao,
         motivo: typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '',

@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/ortografia.js"></script>
+<script>
+  const O = RevisorOrtografia;
+  const casos = [];
+  const caso = (nome, fn) => casos.push([nome, fn]);
+  const igual = (a, b) => {
+    if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`esperado ${JSON.stringify(b)}, veio ${JSON.stringify(a)}`);
+  };
+  const verificador = (conhecidas, trocas = {}) => ({
+    spell: (p) => conhecidas.includes(p.toLocaleLowerCase()),
+    suggest: (p) => trocas[p] || [],
+  });
+  const PT = verificador(['eu', 'vou', 'ao', 'mercado', 'assim', 'que', 'der', 'casa'], { açim: ['assim'], mercadu: ['mercado'] });
+  const EN = verificador(['i', 'will', 'go', 'to', 'the', 'market', 'receive'], { recieve: ['receive'] });
+
+  caso('detecta o idioma pelo dicionário que reconhece mais palavras', () => {
+    igual(O.detectarIdioma('eu vou ao mercado', { 'pt-BR': PT, 'en-US': EN }), 'pt-BR');
+    igual(O.detectarIdioma('I will go to the market', { 'pt-BR': PT, 'en-US': EN }), 'en-US');
+  });
+
+  caso('empate ou texto sem palavras conhecidas fica em português', () => {
+    igual(O.detectarIdioma('xyz wqk', { 'pt-BR': PT, 'en-US': EN }), 'pt-BR');
+  });
+
+  caso('palavra desconhecida vira sugestão offline com a posição exata', () => {
+    igual(O.sugestoesOrtograficas('casa açim e açim', 'pt-BR', PT).map((s) => [s.original, s.substituicao, s.inicio, s.origem]),
+      [['açim', 'assim', 5, 'offline'], ['açim', 'assim', 12, 'offline']]);
+  });
+
+  caso('nome próprio no meio da frase e sigla não são marcados; início de frase é', () => {
+    igual(O.sugestoesOrtograficas('eu vou ao Mercadu. Mercadu da ABNT', 'pt-BR', verificador(['eu', 'vou', 'ao', 'da'], { Mercadu: ['Mercado'] }))
+      .map((s) => [s.original, s.inicio]), [['Mercadu', 19]]);
+  });
+
+  caso('palavra sem sugestão do dicionário não é marcada', () => {
+    igual(O.sugestoesOrtograficas('eu vou kkkk', 'pt-BR', PT), []);
+  });
+
+  const linhas = [];
+  let ok = 0;
+  for (const [nome, fn] of casos) {
+    try { fn(); ok++; linhas.push(`ok   ${nome}`); } catch (e) { linhas.push(`FALHA ${nome}: ${e.message}`); }
+  }
+  linhas.push(ok === casos.length ? `PASSED ${ok}/${casos.length}` : `FAILED ${ok}/${casos.length}`);
+  document.getElementById('resultado').textContent = linhas.join('\n');
+</script>

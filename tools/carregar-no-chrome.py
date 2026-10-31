@@ -16,7 +16,9 @@ PAGINA_DE_DEMO = """
 TEXTO_DE_DEMO = 'Oi, Ana! Eu vou mercado amanhã e depois eu volto pra casa açim que der, beleza?'
 GEMINI_SIMULADO = """
 self.__chamadas = 0;
-self.fetch = async () => {
+const fetchReal = self.fetch;
+self.fetch = async (url, opcoes) => {
+  if (!String(url).includes('generativelanguage.googleapis.com')) return fetchReal(url, opcoes);
   self.__chamadas++;
   const sugestoes = [
     {tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'Ir pede a preposição "a".'},
@@ -28,6 +30,7 @@ self.fetch = async () => {
   const corpo = {candidates: [{content: {parts: [{text: JSON.stringify({sugestoes})}]}}]};
   return new Response(JSON.stringify(corpo), {status: 200, headers: {'Content-Type': 'application/json'}});
 };
+0;
 """
 
 
@@ -44,6 +47,9 @@ def principal():
         id_extensao = trabalhador.url.split('/')[2]
         print(f'SERVICE_WORKER: ok {trabalhador.url}')
         print(f'SW_IMPORTS: {trabalhador.evaluate("typeof RevisorCore.filtrarSugestoes + \'|\' + RevisorCore.MODELO")}')
+        for frase in ('Eu volto pra casa açim que der.', 'I will recieve it tomorrow.'):
+            r = trabalhador.evaluate('async (t) => { const r = await camadaOffline(t); return [r.estado, r.idioma, r.sugestoes.map((s) => s.original + "->" + s.substituicao)]; }', frase)
+            print(f'OFFLINE: {r}')
         base = f'chrome-extension://{id_extensao}/src'
 
         abas_iniciais = [pg.url for pg in contexto.pages]
@@ -78,7 +84,8 @@ def principal():
         demo.keyboard.type(TEXTO_DE_DEMO, delay=5)
         demo.wait_for_selector('.marca', timeout=10000)
         marcas = demo.locator('.marca')
-        print(f'SUBLINHADOS: {[marcas.nth(i).get_attribute("class") for i in range(marcas.count())]}')
+        demo.wait_for_timeout(500)
+        print(f'SUBLINHADOS: {[(marcas.nth(i).get_attribute("class"), marcas.nth(i).text_content()) for i in range(marcas.count())]}')
         print(f'CHAMADAS_AO_GEMINI: {trabalhador.evaluate("self.__chamadas")}')
         caixa = marcas.first.bounding_box()
         demo.mouse.move(caixa['x'] + caixa['width'] / 2, caixa['y'] + caixa['height'] / 2)
