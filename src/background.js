@@ -155,6 +155,10 @@ async function testarChave(chave) {
   }
 }
 
+function paginaDaExtensao(remetente) {
+  return (remetente.url || '').startsWith(chrome.runtime.getURL(''));
+}
+
 chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   const abaId = remetente.tab?.id;
   if (msg?.tipo === 'revisar' && typeof msg.texto === 'string') {
@@ -165,11 +169,11 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
     abaPausada(abaId).then((pausado) => responder({ pausado }));
     return true;
   }
-  if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && !remetente.tab) {
+  if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && paginaDaExtensao(remetente)) {
     marcarPausa(msg.abaId, Boolean(msg.pausado)).then(() => responder({ ok: true }));
     return true;
   }
-  if (msg?.tipo === 'testarChave' && typeof msg.chave === 'string' && !remetente.tab) {
+  if (msg?.tipo === 'testarChave' && typeof msg.chave === 'string' && paginaDaExtensao(remetente)) {
     testarChave(msg.chave).then(responder);
     return true;
   }

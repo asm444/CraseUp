@@ -79,6 +79,8 @@ def principal():
         demo.set_viewport_size({'width': 760, 'height': 420})
         demo.goto('https://revisor.exemplo/')
         trabalhador.evaluate(GEMINI_SIMULADO)
+        resposta = opcoes.evaluate("chrome.runtime.sendMessage({tipo: 'testarChave', chave: 'chave-de-teste'})")
+        print(f'TESTAR_CHAVE_PELA_ABA_DE_OPCOES: {resposta}')
         opcoes.evaluate("chrome.storage.local.remove('cota').then(() => chrome.storage.local.set({chave: 'chave-de-teste'}))")
         demo.click('#area')
         demo.keyboard.type(TEXTO_DE_DEMO, delay=5)
