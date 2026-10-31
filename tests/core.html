@@ -81,7 +81,13 @@
     const req = C.montarRequisicao('oi', { tom: 'formal', dicionario: ['Jusgrok'] });
     const sistema = req.systemInstruction.parts[0].text;
     igual([sistema.includes('formal ('), sistema.includes('Jusgrok'), req.generationConfig.responseMimeType, req.generationConfig.responseSchema.properties.sugestoes.items.properties.tipo.enum],
-      [true, true, 'application/json', C.TIPOS]);
+      [true, true, 'application/json', ['clareza', 'palavra', 'tom']]);
+  });
+
+  caso('Gemini revisa no idioma detectado e deixa gramática para as outras camadas', () => {
+    const en = C.montarRequisicao('hi', { idioma: 'en-US' }).systemInstruction.parts[0].text;
+    const pt = C.montarRequisicao('oi').systemInstruction.parts[0].text;
+    igual([en.includes('textos em inglês'), pt.includes('textos em português do Brasil'), en.includes('tipo "gramatica"'), en.includes('Não aponte ortografia')], [true, true, false, true]);
   });
 
   caso('lê a resposta do Gemini e rejeita formato inesperado', () => {

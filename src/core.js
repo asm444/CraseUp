@@ -1,6 +1,8 @@
 (function (raiz) {
   const TIPOS = ['gramatica', 'clareza', 'palavra', 'tom'];
   const ORIGENS = ['offline', 'languagetool', 'gemini'];
+  const TIPOS_DO_GEMINI = ['clareza', 'palavra', 'tom'];
+  const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
     neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',
@@ -31,28 +33,28 @@
     );
   }
 
-  function instrucaoDoSistema(tom, dicionario) {
+  function instrucaoDoSistema(tom, dicionario, idioma) {
     const palavras = dicionario.slice(0, PALAVRAS_DO_DICIONARIO_NO_PROMPT).join(', ') || '(nenhuma)';
     return [
-      'Você revisa textos em português do Brasil e aponta só o que de fato precisa mudar.',
+      `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de clareza, de escolha de palavra e de tom.`,
       'Regras:',
       '- Se o texto estiver correto e claro, devolva "sugestoes": [].',
       '- Cada sugestão troca só a palavra ou o trecho curto que ficou ruim; nunca reescreva a frase inteira nem o resto do texto.',
       '- "original" é uma cópia exata, caractere por caractere, de um trecho contíguo do texto recebido.',
       `- "substituicao" acrescenta no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a "original"; prefira a troca mais curta que resolve.`,
-      '- tipo "gramatica": erro de ortografia, acentuação, concordância, regência, crase ou pontuação.',
       '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
       '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
       `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
-      '- Não marque nomes próprios, marcas, siglas, termos técnicos, gírias intencionais nem palavras em outro idioma.',
+      '- Não aponte ortografia, acentuação, concordância, regência, crase nem pontuação: outra ferramenta já cuida disso.',
+      '- Não marque nomes próprios, marcas, siglas, termos técnicos, gírias intencionais nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
-      '- "motivo" explica a troca em até 10 palavras.',
+      '- "motivo" explica a troca em português, em até 10 palavras.',
     ].join('\n');
   }
 
-  function montarRequisicao(texto, { tom = 'neutro', dicionario = [] } = {}) {
+  function montarRequisicao(texto, { tom = 'neutro', dicionario = [], idioma = 'pt-BR' } = {}) {
     return {
-      systemInstruction: { parts: [{ text: instrucaoDoSistema(tom, dicionario) }] },
+      systemInstruction: { parts: [{ text: instrucaoDoSistema(tom, dicionario, idioma) }] },
       contents: [{ role: 'user', parts: [{ text: texto }] }],
       generationConfig: {
         temperature: 0,
@@ -65,7 +67,7 @@
               items: {
                 type: 'OBJECT',
                 properties: {
-                  tipo: { type: 'STRING', enum: TIPOS },
+                  tipo: { type: 'STRING', enum: TIPOS_DO_GEMINI },
                   original: { type: 'STRING' },
                   substituicao: { type: 'STRING' },
                   motivo: { type: 'STRING' },

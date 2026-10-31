@@ -20,18 +20,21 @@
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
   const enviados = [];
+  const pedidos = [];
+  let ouvinte = null;
   globalThis.chrome = {
     runtime: {
       async sendMessage(msg) {
         if (msg.tipo === 'estadoAba') return { pausado: false };
         if (msg.tipo === 'revisar') {
           enviados.push(msg.texto);
+          if (msg.pedido) pedidos.push(msg.texto);
           return { sugestoes: RevisorCore.filtrarSugestoes(msg.texto, RESPOSTAS[msg.texto] || []) };
         }
         return {};
       },
       getURL: (p) => `../${p}`,
-      onMessage: { addListener() {} },
+      onMessage: { addListener(fn) { ouvinte = fn; } },
     },
     storage: { local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener() {} } },
   };
@@ -102,6 +105,11 @@
       digitar(area, 'texto bom demais');
       await espera(100);
       confere('ignorar vale para o texto do campo e não volta ao redesenhar', sombra().querySelectorAll('.marca').length, 0);
+
+      confere('sem pedido, nenhum parágrafo vai marcado como pedido', pedidos.length, 0);
+      ouvinte({ tipo: 'revisarPedido' });
+      await espera(300);
+      confere('pedido reenvia, marcados como pedido, os parágrafos já revisados dos campos', pedidos.slice().sort(), ['isso é assim mesmo', 'texto bom demais']);
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;

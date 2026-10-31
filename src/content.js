@@ -5,6 +5,7 @@
   const { TIPOS, dividirParagrafos, revisavel, contemPalavraDoDicionario, aplicarNoParagrafo } = RevisorCore;
   const ESPERA_DIGITACAO_MS = 1200;
   const PARAGRAFOS_POR_PAUSA = 3;
+  const PARAGRAFOS_POR_PEDIDO = 10;
   const ENTRADAS_NO_CACHE = 300;
   const FOLGA_VERTICAL_PX = 4;
   const ATRASO_PARA_ESCONDER_MS = 250;
@@ -270,19 +271,19 @@
     return item ? item.inicio + startOffset : texto.length;
   }
 
-  async function revisarCampo(estado) {
+  async function revisarCampo(estado, pedido) {
     if (!ativo || !estado.el.isConnected) return;
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
     const pendentes = dividirParagrafos(texto)
-      .filter((p) => revisavel(p.texto) && (!cache.has(p.texto) || provisorios.has(p.texto)) && !emVoo.has(p.texto))
+      .filter((p) => revisavel(p.texto) && (pedido || !cache.has(p.texto) || provisorios.has(p.texto)) && !emVoo.has(p.texto))
       .sort((a, b) => Math.abs(a.inicio - cursor) - Math.abs(b.inicio - cursor))
-      .slice(0, PARAGRAFOS_POR_PAUSA);
+      .slice(0, pedido ? PARAGRAFOS_POR_PEDIDO : PARAGRAFOS_POR_PAUSA);
     await Promise.all(
       pendentes.map(async ({ texto: paragrafo }) => {
         emVoo.add(paragrafo);
         try {
-          const resposta = await chrome.runtime.sendMessage({ tipo: 'revisar', texto: paragrafo });
+          const resposta = await chrome.runtime.sendMessage({ tipo: 'revisar', texto: paragrafo, pedido });
           if (resposta?.sugestoes) guardarNoCache(paragrafo, resposta.sugestoes, Boolean(resposta.provisorio));
           if (resposta?.erro === 'pausado') definirAtivo(false);
         } catch {
@@ -477,11 +478,19 @@
   document.addEventListener('scroll', aoRolarOuRedimensionar, { passive: true, capture: true });
   addEventListener('resize', aoRolarOuRedimensionar, { passive: true });
 
+  function revisarPorPedido() {
+    if (!ativo) return;
+    const focado = document.activeElement;
+    if (focado instanceof HTMLElement) estadoDe(focado.isContentEditable ? raizEditavel(focado) : focado);
+    for (const estado of campos.values()) revisarCampo(estado, true);
+  }
+
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.tipo === 'pausa') {
       if (msg.pausado) definirAtivo(false);
       else avaliarAtivo();
     }
+    if (msg?.tipo === 'revisarPedido') revisarPorPedido();
   });
 
   chrome.storage.onChanged.addListener((mudancas, area) => {

@@ -41,7 +41,7 @@
         inicio: m.offset,
       });
     }
-    return { sugestoes };
+    return { sugestoes, acusou: corpo.matches.length > 0 };
   }
 
   raiz.RevisorLanguageTool = { normalizarEndereco, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches };

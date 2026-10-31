@@ -92,12 +92,12 @@ async function camadaOffline(texto) {
   }
 }
 
-async function revisar(texto, abaId) {
+async function revisar(texto, abaId, pedido) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
   const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool']);
   const offline = await camadaOffline(texto);
   const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
-  const gemini = await camadaGemini(texto, cfg);
+  const gemini = await camadaGeminiCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
   const brutas = [offline, languagetool, gemini].flatMap((camada) => camada.sugestoes || []);
   return {
     sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }),
@@ -131,7 +131,13 @@ async function camadaLanguageTool(texto, idioma, base) {
   return consultarLanguageTool(base, texto, idioma);
 }
 
-async function camadaGemini(texto, cfg) {
+async function camadaGeminiCondicionada(texto, idioma, cfg, languagetool, pedido) {
+  if (languagetool.estado !== 'ativa') return { estado: 'bloqueado' };
+  if (!languagetool.acusou && !pedido) return { estado: 'ocioso' };
+  return camadaGemini(texto, idioma, cfg);
+}
+
+async function camadaGemini(texto, idioma, cfg) {
   if (!cfg.chave) return { estado: 'sem_chave' };
   if (cfg.cota?.data === hoje()) return { estado: 'cota' };
   if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { estado: 'limite_por_minuto' };
@@ -142,7 +148,7 @@ async function camadaGemini(texto, cfg) {
     resposta = await fetch(`${ENDPOINT}${MODELO}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.chave },
-      body: JSON.stringify(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario })),
+      body: JSON.stringify(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario, idioma })),
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
   } catch {
@@ -191,7 +197,7 @@ function paginaDaExtensao(remetente) {
 chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   const abaId = remetente.tab?.id;
   if (msg?.tipo === 'revisar' && typeof msg.texto === 'string') {
-    revisar(msg.texto, abaId).then(responder);
+    revisar(msg.texto, abaId, msg.pedido === true).then(responder);
     return true;
   }
   if (msg?.tipo === 'estadoAba') {

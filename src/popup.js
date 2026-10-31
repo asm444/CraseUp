@@ -22,6 +22,13 @@ async function iniciar() {
     chrome.runtime.sendMessage({ tipo: 'pausar', abaId: aba.id, pausado: !alternador.checked });
   });
 
+  const pedirRevisao = $('pedirRevisao');
+  pedirRevisao.hidden = !alternador.checked;
+  pedirRevisao.addEventListener('click', async () => {
+    await chrome.tabs.sendMessage(aba.id, { tipo: 'revisarPedido' }).catch(() => {});
+    window.close();
+  });
+
   const botaoSite = $('site');
   botaoSite.hidden = !host;
   botaoSite.textContent = excluido ? `Voltar a revisar em ${host}` : `Não revisar em ${host}`;

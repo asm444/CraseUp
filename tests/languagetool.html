@@ -43,6 +43,11 @@
       [['Vou a', 'Vou à', 0, 'gramatica', 'languagetool'], ['açim', 'assim', 46, 'gramatica', 'languagetool']]);
   });
 
+  caso('acusou conta qualquer match, até um só de estilo que não vira sugestão', () => {
+    const soEstilo = { matches: [RESPOSTA_LT.matches[2]] };
+    igual([L.lerMatches(soEstilo, TEXTO_LT).acusou, L.lerMatches(soEstilo, TEXTO_LT).sugestoes.length, L.lerMatches({ matches: [] }, 'ok').acusou], [true, 0, false]);
+  });
+
   caso('resposta sem matches é rejeitada', () => {
     let falhou = false;
     try { L.lerMatches({}, 'x'); } catch { falhou = true; }
