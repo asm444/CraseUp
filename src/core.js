@@ -1,6 +1,6 @@
 (function (raiz) {
   const TIPOS = ['gramatica', 'clareza', 'palavra', 'tom'];
-  const ORIGENS = ['offline', 'gemini'];
+  const ORIGENS = ['offline', 'languagetool', 'gemini'];
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
     neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',

@@ -1,7 +1,8 @@
-importScripts('core.js', 'ortografia.js', 'vendor/hunspell.js');
+importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js');
 
 const { ENDPOINT, MODELO, montarRequisicao, lerResposta, filtrarSugestoes } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
+const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
 const COR_SELO_COTA = '#EDAE49';
@@ -93,13 +94,41 @@ async function camadaOffline(texto) {
 
 async function revisar(texto, abaId) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte']);
+  const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool']);
   const offline = await camadaOffline(texto);
+  const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
   const gemini = await camadaGemini(texto, cfg);
+  const brutas = [offline, languagetool, gemini].flatMap((camada) => camada.sugestoes || []);
   return {
-    sugestoes: filtrarSugestoes(texto, [...offline.sugestoes, ...(gemini.sugestoes || [])], { dicionario: cfg.dicionario || [] }),
-    provisorio: [offline, gemini].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
+    sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }),
+    provisorio: [offline, languagetool, gemini].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
+}
+
+async function consultarLanguageTool(base, texto, idioma) {
+  let resposta;
+  try {
+    resposta = await fetch(enderecoDeVerificacao(base), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: montarCorpo(texto, idioma),
+      signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
+    });
+  } catch {
+    return { estado: 'falha', mensagem: 'sem resposta do servidor' };
+  }
+  if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
+  try {
+    return { estado: 'ativa', ...lerMatches(await resposta.json(), texto) };
+  } catch {
+    return { estado: 'falha', mensagem: 'resposta em formato inesperado' };
+  }
+}
+
+async function camadaLanguageTool(texto, idioma, base) {
+  if (!base) return { estado: 'sem_configuracao' };
+  if (!(await chrome.permissions.contains({ origins: [padraoDePermissao(base)] }))) return { estado: 'sem_permissao' };
+  return consultarLanguageTool(base, texto, idioma);
 }
 
 async function camadaGemini(texto, cfg) {
@@ -171,6 +200,10 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   }
   if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && paginaDaExtensao(remetente)) {
     marcarPausa(msg.abaId, Boolean(msg.pausado)).then(() => responder({ ok: true }));
+    return true;
+  }
+  if (msg?.tipo === 'testarLanguagetool' && typeof msg.base === 'string' && paginaDaExtensao(remetente)) {
+    consultarLanguageTool(msg.base, 'Teste do CraseUp.', IDIOMA_PADRAO).then((r) => responder({ ok: r.estado === 'ativa', mensagem: r.mensagem }));
     return true;
   }
   if (msg?.tipo === 'testarChave' && typeof msg.chave === 'string' && paginaDaExtensao(remetente)) {

@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/languagetool.js"></script>
+<script>
+  const L = RevisorLanguageTool;
+  const casos = [];
+  const caso = (nome, fn) => casos.push([nome, fn]);
+  const igual = (a, b) => {
+    if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`esperado ${JSON.stringify(b)}, veio ${JSON.stringify(a)}`);
+  };
+  caso('endereço do LanguageTool é normalizado e recusa esquema estranho', () => {
+    igual([
+      L.normalizarEndereco('skynet:8010/'),
+      L.normalizarEndereco('https://api.languagetool.org/v2'),
+      L.normalizarEndereco('ftp://x'),
+      L.normalizarEndereco(''),
+    ], ['http://skynet:8010', 'https://api.languagetool.org/v2', '', '']);
+  });
+
+  caso('endereço de verificação e permissão saem do endereço base', () => {
+    igual([
+      L.enderecoDeVerificacao('http://skynet:8010'),
+      L.enderecoDeVerificacao('https://api.languagetool.org/v2'),
+      L.padraoDePermissao('http://skynet:8010'),
+    ], ['http://skynet:8010/v2/check', 'https://api.languagetool.org/v2/check', 'http://skynet:8010/*']);
+  });
+
+  caso('corpo leva texto e idioma codificados', () => {
+    igual(Object.fromEntries(new URLSearchParams(L.montarCorpo('à pé & cia', 'pt-BR'))), { text: 'à pé & cia', language: 'pt-BR' });
+  });
+
+  const TEXTO_LT = 'Vou a praia amanhã e depois eu vou no mercado açim. Fui à pé.';
+  const RESPOSTA_LT = { matches: [
+    { offset: 0, length: 5, message: 'Esta palavra rege-se com a preposição “a”.', replacements: [{ value: 'Vou à' }], rule: { id: 'CRASE_CONFUSION', issueType: 'grammar' } },
+    { offset: 46, length: 4, message: 'Encontrado possível erro de ortografia.', replacements: [{ value: 'assim' }], rule: { id: 'MORFOLOGIK_RULE_PT_BR', issueType: 'misspelling' } },
+    { offset: 21, length: 6, message: 'Estilo.', replacements: [{ value: 'depois' }], rule: { id: 'ESTILO', issueType: 'style' } },
+    { offset: 56, length: 4, message: 'Sem troca.', replacements: [], rule: { id: 'X', issueType: 'grammar' } },
+  ] };
+
+  caso('match de gramática e ortografia vira sugestão com o trecho exato do texto', () => {
+    igual(L.lerMatches(RESPOSTA_LT, TEXTO_LT).sugestoes.map((s) => [s.original, s.substituicao, s.inicio, s.tipo, s.origem]),
+      [['Vou a', 'Vou à', 0, 'gramatica', 'languagetool'], ['açim', 'assim', 46, 'gramatica', 'languagetool']]);
+  });
+
+  caso('resposta sem matches é rejeitada', () => {
+    let falhou = false;
+    try { L.lerMatches({}, 'x'); } catch { falhou = true; }
+    igual(falhou, true);
+  });
+
+  const linhas = [];
+  let ok = 0;
+  for (const [nome, fn] of casos) {
+    try { fn(); ok++; linhas.push(`ok   ${nome}`); } catch (e) { linhas.push(`FALHA ${nome}: ${e.message}`); }
+  }
+  linhas.push(ok === casos.length ? `PASSED ${ok}/${casos.length}` : `FAILED ${ok}/${casos.length}`);
+  document.getElementById('resultado').textContent = linhas.join('\n');
+</script>

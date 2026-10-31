@@ -44,6 +44,16 @@
     </section>
 
     <section class="bloco">
+      <h2>Servidor LanguageTool</h2>
+      <div class="suave">Revisa gramática e crase. Sem endereço, essa camada fica desligada.</div>
+      <div class="linha-chave">
+        <input type="text" id="languagetool" placeholder="http://skynet:8010" autocomplete="off" spellcheck="false">
+        <button class="principal" id="salvarLanguagetool">Testar e salvar</button>
+      </div>
+      <p id="statusLanguagetool" class="suave" style="margin:10px 0 0"></p>
+    </section>
+
+    <section class="bloco">
       <h2>Tom padrão</h2>
       <p class="suave" style="margin:0 0 12px">Só os trechos que destoam dele são sublinhados.</p>
       <div class="segmentos" id="tons">
@@ -89,6 +99,7 @@
     </div>
   </main>
   <script src="config.js"></script>
+  <script src="languagetool.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
