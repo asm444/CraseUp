@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="ui.css">
+  <style>
+    body { width: 320px; padding: 16px; display: grid; gap: 12px; }
+    .linha { display: flex; justify-content: space-between; align-items: baseline; }
+    .numero { font-size: 22px; font-weight: 650; }
+    .rodape { display: flex; justify-content: space-between; gap: 8px; }
+    .rodape .botao { flex: 1; }
+    #site { width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="marca-titulo">
+    <img src="../icons/icone-48.png" alt="">
+    <h1>CraseUp</h1>
+  </div>
+
+  <div id="semChave" class="aviso" hidden>
+    Falta configurar a chave do Gemini.
+    <a id="configurarChave" href="#">Configurar agora</a>
+  </div>
+
+  <div id="cota" class="aviso" hidden>
+    <strong>A cota gratuita de hoje acabou.</strong>
+    <p class="suave" style="margin:6px 0 0">
+      A revisão está pausada até a cota voltar. Se preferir, troque para uma chave paga do Gemini:
+      ela é cobrada só pelo uso, e, nesse plano, os textos enviados não são usados pelo Google para
+      melhorar seus produtos. <a id="precos" href="#" target="_blank" rel="noopener">Ver preços</a>
+    </p>
+  </div>
+
+  <div class="bloco alternador">
+    <div>
+      <div>Revisar nesta aba</div>
+      <div class="suave" id="hostAtual"></div>
+    </div>
+    <label><input type="checkbox" id="abaAtiva"><span class="trilho"></span></label>
+  </div>
+
+  <button id="site">Não revisar neste site</button>
+
+  <div class="bloco">
+    <div class="linha">
+      <span class="suave">Chamadas hoje</span>
+      <span class="numero" id="chamadas">0</span>
+    </div>
+    <div class="suave" style="font-size:12px">Contagem feita pela extensão; a API não informa a cota restante.</div>
+  </div>
+
+  <div class="rodape">
+    <a class="botao" id="opcoes" href="#">Configurações</a>
+    <a class="botao principal" id="doacao" href="#" target="_blank" rel="noopener" hidden>Apoiar o projeto</a>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

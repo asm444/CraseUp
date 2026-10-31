@@ -1,0 +1,137 @@
+importScripts('core.js');
+
+const { ENDPOINT, MODELO, montarRequisicao, lerResposta, filtrarSugestoes } = RevisorCore;
+const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
+const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
+const COR_SELO_COTA = '#EDAE49';
+const COR_SELO_PAUSA = '#6B6475';
+
+const hoje = () => new Date().toLocaleDateString('sv');
+
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === 'install') chrome.tabs.create({ url: chrome.runtime.getURL('src/options.html?bemvindo=1') });
+  atualizarSeloGlobal();
+});
+chrome.runtime.onStartup.addListener(atualizarSeloGlobal);
+
+chrome.tabs.onRemoved.addListener(async (abaId) => {
+  const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
+  if (abasPausadas.includes(abaId)) {
+    await chrome.storage.session.set({ abasPausadas: abasPausadas.filter((id) => id !== abaId) });
+  }
+});
+
+chrome.storage.onChanged.addListener((mudancas, area) => {
+  if (area === 'local' && 'cota' in mudancas) atualizarSeloGlobal();
+});
+
+async function abaPausada(abaId) {
+  const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
+  return abasPausadas.includes(abaId);
+}
+
+async function atualizarSeloGlobal() {
+  const { cota } = await chrome.storage.local.get('cota');
+  const esgotada = cota?.data === hoje();
+  await chrome.action.setBadgeBackgroundColor({ color: COR_SELO_COTA });
+  await chrome.action.setBadgeText({ text: esgotada ? '!' : '' });
+}
+
+async function marcarPausa(abaId, pausado) {
+  const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
+  const resto = abasPausadas.filter((id) => id !== abaId);
+  await chrome.storage.session.set({ abasPausadas: pausado ? [...resto, abaId] : resto });
+  await chrome.action.setBadgeBackgroundColor({ tabId: abaId, color: COR_SELO_PAUSA });
+  await chrome.action.setBadgeText({ tabId: abaId, text: pausado ? 'off' : '' });
+  chrome.tabs.sendMessage(abaId, { tipo: 'pausa', pausado }).catch(() => {});
+}
+
+let filaDeContagem = Promise.resolve();
+function contarChamada() {
+  filaDeContagem = filaDeContagem.then(async () => {
+    const { uso } = await chrome.storage.local.get('uso');
+    const chamadas = uso?.data === hoje() ? uso.chamadas + 1 : 1;
+    await chrome.storage.local.set({ uso: { data: hoje(), chamadas } });
+  });
+  return filaDeContagem;
+}
+
+function cotaDiaria(corpoDoErro) {
+  return JSON.stringify(corpoDoErro).includes('PerDay');
+}
+
+async function revisar(texto, abaId) {
+  const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte']);
+  if (!cfg.chave) return { erro: 'sem_chave' };
+  if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
+  if (cfg.cota?.data === hoje()) return { erro: 'cota' };
+  if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { erro: 'limite_por_minuto' };
+
+  await contarChamada();
+  let resposta;
+  try {
+    resposta = await fetch(`${ENDPOINT}${MODELO}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.chave },
+      body: JSON.stringify(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario })),
+      signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
+    });
+  } catch {
+    return { erro: 'rede' };
+  }
+
+  if (resposta.status === 429) {
+    const corpo = await resposta.json().catch(() => ({}));
+    if (cotaDiaria(corpo)) {
+      await chrome.storage.local.set({ cota: { data: hoje() } });
+      return { erro: 'cota' };
+    }
+    await chrome.storage.local.set({ esperaAte: Date.now() + ESPERA_LIMITE_POR_MINUTO_MS });
+    return { erro: 'limite_por_minuto' };
+  }
+  if (!resposta.ok) return { erro: 'api', status: resposta.status };
+
+  let brutas;
+  try {
+    brutas = lerResposta(await resposta.json());
+  } catch {
+    return { erro: 'resposta' };
+  }
+  if (cfg.cota) await chrome.storage.local.remove('cota');
+  return { sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }) };
+}
+
+async function testarChave(chave) {
+  try {
+    const resposta = await fetch(`${ENDPOINT}${MODELO}`, {
+      headers: { 'x-goog-api-key': chave },
+      signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
+    });
+    if (resposta.ok) return { ok: true };
+    const corpo = await resposta.json().catch(() => ({}));
+    return { ok: false, mensagem: corpo?.error?.message || `HTTP ${resposta.status}` };
+  } catch {
+    return { ok: false, mensagem: 'Sem conexão com a API do Gemini.' };
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
+  const abaId = remetente.tab?.id;
+  if (msg?.tipo === 'revisar' && typeof msg.texto === 'string') {
+    revisar(msg.texto, abaId).then(responder);
+    return true;
+  }
+  if (msg?.tipo === 'estadoAba') {
+    abaPausada(abaId).then((pausado) => responder({ pausado }));
+    return true;
+  }
+  if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && !remetente.tab) {
+    marcarPausa(msg.abaId, Boolean(msg.pausado)).then(() => responder({ ok: true }));
+    return true;
+  }
+  if (msg?.tipo === 'testarChave' && typeof msg.chave === 'string' && !remetente.tab) {
+    testarChave(msg.chave).then(responder);
+    return true;
+  }
+  return false;
+});

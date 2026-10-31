@@ -1,0 +1,112 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  textarea, [contenteditable] { display: block; width: 400px; font: 16px/1.4 sans-serif; margin: 20px; padding: 8px; border: 1px solid #999; }
+</style>
+<textarea id="area"></textarea>
+<div id="editavel" contenteditable="true"></div>
+<input id="senha" type="password">
+<input id="cartao" type="text" autocomplete="cc-number">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/core.js"></script>
+<script>
+  const RESPOSTAS = {
+    'eu vou mercado': [
+      { tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'falta preposição' },
+      { tipo: 'palavra', original: 'eu', substituicao: 'nós todos', motivo: 'mais longo, deve sumir' },
+    ],
+    'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
+  };
+  globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
+  const enviados = [];
+  globalThis.chrome = {
+    runtime: {
+      async sendMessage(msg) {
+        if (msg.tipo === 'estadoAba') return { pausado: false };
+        if (msg.tipo === 'revisar') {
+          enviados.push(msg.texto);
+          return { sugestoes: RevisorCore.filtrarSugestoes(msg.texto, RESPOSTAS[msg.texto] || []) };
+        }
+        return {};
+      },
+      getURL: (p) => `../${p}`,
+      onMessage: { addListener() {} },
+    },
+    storage: { local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener() {} } },
+  };
+</script>
+<script src="../src/content.js"></script>
+<script>
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const sombra = () => document.querySelector('revisor-gemini-camada')?.shadowRoot;
+  const linhas = [];
+  let ok = 0, total = 0;
+  const confere = (nome, valor, esperado) => {
+    total++;
+    if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
+    else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
+  };
+  const digitar = (el, texto) => {
+    el.focus();
+    if ('value' in el) el.value = texto; else el.textContent = texto;
+    el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+  };
+  const passarMouse = (rect) => {
+    document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }));
+  };
+
+  (async () => {
+    try {
+      await espera(100);
+      const area = document.getElementById('area');
+      const editavel = document.getElementById('editavel');
+
+      digitar(area, 'eu vou mercado');
+      digitar(editavel, 'isso é açim mesmo');
+      digitar(document.getElementById('senha'), 'texto bom demais');
+      digitar(document.getElementById('cartao'), 'texto bom demais');
+      await espera(500);
+      confere('nada é enviado antes da pausa na digitação', enviados.length, 0);
+      await espera(1500);
+
+      confere('envia só os campos comuns, nunca senha e cartão', enviados.slice().sort(), ['eu vou mercado', 'isso é açim mesmo']);
+      const spans = [...sombra().querySelectorAll('.marca')];
+      confere('textarea: um sublinhado de gramática; a troca mais longa sumiu', spans.map((s) => [s.className, s.textContent]), [['marca marca-gramatica', 'vou mercado']]);
+      confere('contenteditable: um highlight de gramática', CSS.highlights.get('revisor-gramatica')?.size, 1);
+
+      passarMouse(spans[0].getBoundingClientRect());
+      await espera(100);
+      const cartao = sombra().querySelector('.cartao');
+      confere('passar o mouse abre o cartão com a troca', [cartao?.querySelector('.de')?.textContent, cartao?.querySelector('.para')?.textContent], ['vou mercado', 'vou ao mercado']);
+      cartao.querySelector('.aplicar').click();
+      confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');
+      await espera(1500);
+      confere('após aplicar, o parágrafo novo não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado').length, 0);
+      confere('após aplicar, o sublinhado some', sombra().querySelectorAll('.marca').length, 0);
+
+      const range = [...CSS.highlights.get('revisor-gramatica')][0];
+      passarMouse(range.getBoundingClientRect());
+      await espera(100);
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('aplicar troca o texto no contenteditable', editavel.textContent, 'isso é assim mesmo');
+
+      digitar(area, 'texto bom demais');
+      await espera(1500);
+      const marca = sombra().querySelector('.marca');
+      confere('remoção aparece como sublinhado de clareza', marca?.className, 'marca marca-clareza');
+      passarMouse(marca.getBoundingClientRect());
+      await espera(100);
+      [...sombra().querySelectorAll('.cartao button')].find((b) => b.textContent === 'Ignorar').click();
+      confere('ignorar some com o sublinhado', sombra().querySelectorAll('.marca').length, 0);
+      digitar(area, 'texto bom demais');
+      await espera(100);
+      confere('ignorar vale para o texto do campo e não volta ao redesenhar', sombra().querySelectorAll('.marca').length, 0);
+    } catch (e) {
+      linhas.push(`FALHA execução: ${e.message}`);
+      total++;
+    }
+    linhas.push(ok === total ? `PASSED ${ok}/${total}` : `FAILED ${ok}/${total}`);
+    document.getElementById('resultado').textContent = linhas.join('\n');
+  })();
+</script>

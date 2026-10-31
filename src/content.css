@@ -1,0 +1,20 @@
+::highlight(revisor-gramatica) {
+  text-decoration: underline wavy #E26D7C;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+::highlight(revisor-clareza) {
+  text-decoration: underline solid #2BB3C0;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+::highlight(revisor-palavra) {
+  text-decoration: underline dotted #EDAE49;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+::highlight(revisor-tom) {
+  text-decoration: underline dashed #A88BB8;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}

@@ -1,0 +1,4 @@
+dist/
+.env
+*.pem
+.ruff_cache/

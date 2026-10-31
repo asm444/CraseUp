@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>CraseUp — configurações</title>
+  <link rel="stylesheet" href="ui.css">
+  <style>
+    main { max-width: 680px; margin: 40px auto; padding: 0 20px; display: grid; gap: 18px; }
+    h2 { font-size: 16px; margin-bottom: 4px; }
+    .passos { margin: 12px 0 0; padding-left: 22px; display: grid; gap: 10px; }
+    .linha-chave { display: flex; gap: 8px; margin-top: 12px; }
+    .linha-chave input { flex: 1; }
+    .adicionar { display: flex; gap: 8px; margin: 12px 0; }
+    .adicionar input { flex: 1; }
+    #boasVindas h1 { font-size: 24px; margin-bottom: 6px; }
+    .rodape { display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="marca-titulo">
+      <img src="../icons/icone-48.png" alt="">
+      <h1>CraseUp</h1>
+    </div>
+
+    <section class="bloco" id="boasVindas" hidden>
+      <h1>Bem-vindo</h1>
+      <p class="suave">O CraseUp usa a sua própria chave do Gemini. Ela fica salva só neste navegador.</p>
+      <ol class="passos">
+        <li>Abra o <a id="linkAiStudio" href="#" target="_blank" rel="noopener">Google AI Studio</a> e clique em <em>Create API key</em>.</li>
+        <li>Copie a chave e cole no campo abaixo.</li>
+        <li>Clique em <strong>Testar e salvar</strong>. Pronto: comece a digitar em qualquer site.</li>
+      </ol>
+    </section>
+
+    <section class="bloco">
+      <h2>Chave do Gemini</h2>
+      <div class="suave">Salva só neste navegador, nunca enviada a outro lugar além da API do Google.</div>
+      <div class="linha-chave">
+        <input type="password" id="chave" placeholder="Cole a chave aqui" autocomplete="off" spellcheck="false">
+        <button class="principal" id="salvarChave">Testar e salvar</button>
+      </div>
+      <p id="statusChave" class="suave" style="margin:10px 0 0"></p>
+    </section>
+
+    <section class="bloco">
+      <h2>Tom padrão</h2>
+      <p class="suave" style="margin:0 0 12px">Só os trechos que destoam dele são sublinhados.</p>
+      <div class="segmentos" id="tons">
+        <label><input type="radio" name="tom" value="formal"><span>Formal</span></label>
+        <label><input type="radio" name="tom" value="neutro"><span>Neutro</span></label>
+        <label><input type="radio" name="tom" value="casual"><span>Casual</span></label>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <h2>Como ler os sublinhados</h2>
+      <div class="legenda" style="margin-top:10px">
+        <span class="gramatica"><i></i>Ortografia e gramática</span>
+        <span class="clareza"><i></i>Clareza</span>
+        <span class="palavra"><i></i>Troca de palavra</span>
+        <span class="tom"><i></i>Tom</span>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <h2>Dicionário pessoal</h2>
+      <p class="suave" style="margin:0">Nomes, termos de empresa e palavras que nunca devem ser marcadas.</p>
+      <form class="adicionar" id="formDicionario">
+        <input type="text" id="novaPalavra" placeholder="Adicionar palavra" autocomplete="off">
+        <button type="submit">Adicionar</button>
+      </form>
+      <div class="chips" id="dicionario"></div>
+    </section>
+
+    <section class="bloco">
+      <h2>Sites sem revisão</h2>
+      <p class="suave" style="margin:0">A extensão atua em todos os sites, menos nestes.</p>
+      <form class="adicionar" id="formSite">
+        <input type="text" id="novoSite" placeholder="exemplo.com.br" autocomplete="off">
+        <button type="submit">Adicionar</button>
+      </form>
+      <div class="chips" id="sites"></div>
+    </section>
+
+    <div class="rodape">
+      <span class="suave">Gratuito e de código aberto.</span>
+      <a class="botao principal" id="doacao" href="#" target="_blank" rel="noopener" hidden>Apoiar o projeto</a>
+    </div>
+  </main>
+  <script src="config.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

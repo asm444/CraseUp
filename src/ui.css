@@ -1,0 +1,174 @@
+:root {
+  --fundo: #1F1D24;
+  --fundo-elevado: #2A2731;
+  --fundo-campo: #17151B;
+  --borda: #3A3642;
+  --texto: #EDE6DA;
+  --texto-suave: #B8AFA3;
+  --gramatica: #E26D7C;
+  --clareza: #2BB3C0;
+  --palavra: #EDAE49;
+  --tom: #A88BB8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--clareza); }
+
+h1, h2 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+
+.marca-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.marca-titulo img { width: 28px; height: 28px; border-radius: 8px; }
+
+.bloco {
+  background: var(--fundo-elevado);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+
+.suave { color: var(--texto-suave); }
+
+button, .botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 8px 16px;
+  border: 1px solid var(--borda);
+  background: var(--fundo-elevado);
+  color: var(--texto);
+  text-decoration: none;
+  transition: border-color 120ms, filter 120ms;
+}
+button:hover, .botao:hover { border-color: var(--clareza); }
+button:focus-visible, .botao:focus-visible, input:focus-visible { outline: 2px solid var(--clareza); outline-offset: 2px; }
+button.principal, .botao.principal {
+  background: var(--clareza);
+  border-color: var(--clareza);
+  color: var(--fundo);
+  font-weight: 650;
+}
+button.principal:hover, .botao.principal:hover { filter: brightness(1.08); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+input[type="text"], input[type="password"] {
+  width: 100%;
+  font: inherit;
+  color: var(--texto);
+  background: var(--fundo-campo);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  background: var(--fundo-campo);
+  border: 1px solid var(--borda);
+}
+.chip button {
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--texto-suave);
+}
+.chip button:hover { color: var(--gramatica); }
+
+.aviso {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--palavra) 14%, var(--fundo-elevado));
+  border: 1px solid color-mix(in srgb, var(--palavra) 45%, var(--borda));
+}
+.ok { color: var(--clareza); }
+.erro { color: var(--gramatica); }
+
+.legenda { display: grid; gap: 6px; }
+.legenda span { display: flex; align-items: center; gap: 10px; }
+.legenda i {
+  font-style: normal;
+  white-space: pre;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: none;
+}
+.legenda i::before { content: "mmmmm"; color: transparent; }
+.legenda .gramatica i { text-decoration-style: wavy; text-decoration-color: var(--gramatica); }
+.legenda .clareza i { text-decoration-style: solid; text-decoration-color: var(--clareza); }
+.legenda .palavra i { text-decoration-style: dotted; text-decoration-color: var(--palavra); }
+.legenda .tom i { text-decoration-style: dashed; text-decoration-color: var(--tom); }
+
+.alternador {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.alternador input { display: none; }
+.alternador .trilho {
+  display: block;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #4A4553;
+  transition: background 150ms;
+  cursor: pointer;
+  flex: none;
+}
+.alternador .trilho::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--texto);
+  transition: transform 150ms;
+}
+.alternador input:checked + .trilho { background: var(--clareza); }
+.alternador input:checked + .trilho::after { transform: translateX(18px); }
+
+.segmentos {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--fundo-campo);
+  border: 1px solid var(--borda);
+}
+.segmentos label { cursor: pointer; }
+.segmentos input { display: none; }
+.segmentos span {
+  display: block;
+  padding: 6px 16px;
+  border-radius: 999px;
+  color: var(--texto-suave);
+}
+.segmentos input:checked + span { background: var(--tom); color: var(--fundo); font-weight: 650; }
+
+[hidden] { display: none !important; }

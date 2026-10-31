@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/core.js"></script>
+<script>
+  const C = RevisorCore;
+  const casos = [];
+  const caso = (nome, fn) => casos.push([nome, fn]);
+  const igual = (a, b) => {
+    if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`esperado ${JSON.stringify(b)}, veio ${JSON.stringify(a)}`);
+  };
+  const s = (tipo, original, substituicao) => ({ tipo, original, substituicao, motivo: 'm' });
+  const filtra = (texto, brutas, op) => C.filtrarSugestoes(texto, brutas, op).map((x) => [x.tipo, x.original, x.substituicao, x.inicio]);
+
+  caso('divide em parágrafos com o deslocamento de cada um', () => {
+    igual(C.dividirParagrafos('ab\n\ncd'), [{ texto: 'ab', inicio: 0 }, { texto: '', inicio: 3 }, { texto: 'cd', inicio: 4 }]);
+  });
+
+  caso('parágrafo sem letras ou curto não é revisado', () => {
+    igual([C.revisavel('ok'), C.revisavel('123 456'), C.revisavel('tudo certo')], [false, false, true]);
+  });
+
+  caso('troca mais longa que o original é descartada fora de gramática', () => {
+    igual(filtra('o texto ruim', [s('palavra', 'ruim', 'péssimo'), s('clareza', 'texto', 'texto bom')]), []);
+  });
+
+  caso('troca do mesmo tamanho ou menor é aceita', () => {
+    igual(filtra('o texto ruim', [s('palavra', 'ruim', 'fraco')]), []);
+    igual(filtra('o texto ruim', [s('palavra', 'ruim', 'mau')]), [['palavra', 'ruim', 'mau', 8]]);
+  });
+
+  caso('gramática pode acrescentar só o indispensável', () => {
+    igual(filtra('eu vou mercado', [s('gramatica', 'vou mercado', 'vou ao mercado')]), [['gramatica', 'vou mercado', 'vou ao mercado', 3]]);
+    igual(filtra('eu vou mercado', [s('gramatica', 'vou mercado', 'vou até o mercado')]), []);
+  });
+
+  caso('original que não existe no texto é descartado', () => {
+    igual(filtra('casa amarela', [s('gramatica', 'caza', 'casa')]), []);
+  });
+
+  caso('tipo desconhecido e troca idêntica são descartados', () => {
+    igual(filtra('casa amarela', [s('estilo', 'casa', 'lar'), s('palavra', 'casa', 'casa')]), []);
+  });
+
+  caso('palavra do dicionário não é marcada, mas substring dela sim', () => {
+    igual(filtra('a Arrudacorsi ganhou', [s('gramatica', 'Arrudacorsi', 'Arruda')], { dicionario: ['arrudacorsi'] }), []);
+    igual(filtra('o pix caiu', [s('palavra', 'pix', 'PIX')], { dicionario: ['pi'] }), [['palavra', 'pix', 'PIX', 2]]);
+  });
+
+  caso('a mesma palavra repetida marca ocorrências diferentes sem sobrepor', () => {
+    igual(filtra('mas mas', [s('clareza', 'mas', ''), s('clareza', 'mas', '')]), [['clareza', 'mas', '', 0], ['clareza', 'mas', '', 4]]);
+  });
+
+  caso('aplicar desloca as sugestões seguintes e remove a aplicada', () => {
+    const t = 'eu vou mercado e açim';
+    const sug = C.filtrarSugestoes(t, [s('gramatica', 'vou mercado', 'vou ao mercado'), s('gramatica', 'açim', 'assim')]);
+    const r = C.aplicarNoParagrafo(t, sug, sug[0]);
+    igual(r.texto, 'eu vou ao mercado e açim');
+    igual(r.sugestoes.map((x) => r.texto.slice(x.inicio, x.fim)), ['açim']);
+  });
+
+  caso('requisição leva o tom, o dicionário e o schema JSON', () => {
+    const req = C.montarRequisicao('oi', { tom: 'formal', dicionario: ['Jusgrok'] });
+    const sistema = req.systemInstruction.parts[0].text;
+    igual([sistema.includes('formal ('), sistema.includes('Jusgrok'), req.generationConfig.responseMimeType, req.generationConfig.responseSchema.properties.sugestoes.items.properties.tipo.enum],
+      [true, true, 'application/json', C.TIPOS]);
+  });
+
+  caso('lê a resposta do Gemini e rejeita formato inesperado', () => {
+    igual(C.lerResposta({ candidates: [{ content: { parts: [{ text: '{"sugestoes":[{"tipo":"tom"}]}' }] } }] }), [{ tipo: 'tom' }]);
+    let falhou = false;
+    try { C.lerResposta({ candidates: [] }); } catch { falhou = true; }
+    igual(falhou, true);
+  });
+
+  const linhas = [];
+  let ok = 0;
+  for (const [nome, fn] of casos) {
+    try { fn(); ok++; linhas.push(`ok   ${nome}`); } catch (e) { linhas.push(`FALHA ${nome}: ${e.message}`); }
+  }
+  linhas.push(ok === casos.length ? `PASSED ${ok}/${casos.length}` : `FAILED ${ok}/${casos.length}`);
+  document.getElementById('resultado').textContent = linhas.join('\n');
+</script>
