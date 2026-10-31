@@ -16,24 +16,24 @@ const TEXTOS_DE_ESTADO = {
 function textoDaCamada(camada) {
   if (!camada) return 'Ainda não usada';
   const texto = TEXTOS_DE_ESTADO[camada.estado];
-  return camada.estado === 'falha' ? `${texto} (${camada.mensagem})` : texto;
+  return ['falha', 'ativa'].includes(camada.estado) && camada.mensagem ? `${texto} (${camada.mensagem})` : texto;
 }
 
 async function iniciar() {
   const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
   const host = aba?.url?.startsWith('http') ? new URL(aba.url).hostname : '';
-  const local = await chrome.storage.local.get(['chave', 'uso', 'cota', 'sitesExcluidos']);
+  const local = await chrome.storage.local.get(['chaveOpenrouter', 'uso', 'cota', 'sitesExcluidos']);
   const { abasPausadas = [], camadas = {} } = await chrome.storage.session.get(['abasPausadas', 'camadas']);
   $('camadaOffline').textContent = textoDaCamada(camadas.offline);
   $('camadaLanguagetool').textContent = textoDaCamada(camadas.languagetool);
-  $('camadaGemini').textContent = textoDaCamada(camadas.gemini);
+  $('camadaOpenrouter').textContent = textoDaCamada(camadas.openrouter);
   const sitesExcluidos = local.sitesExcluidos || [];
   const excluido = sitesExcluidos.includes(host);
 
-  $('semChave').hidden = Boolean(local.chave);
-  $('cota').hidden = local.cota?.data !== hoje();
+  $('semChave').hidden = Boolean(local.chaveOpenrouter);
+  $('cota').hidden = !(local.cota?.ate > Date.now());
   $('chamadas').textContent = local.uso?.data === hoje() ? String(local.uso.chamadas) : '0';
-  $('precos').href = RevisorConfig.PRECOS_URL;
+  $('precos').href = RevisorConfig.LIMITES_URL;
   $('hostAtual').textContent = host || 'Página sem campos revisáveis';
 
   const alternador = $('abaAtiva');

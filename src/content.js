@@ -14,7 +14,7 @@
   const CAMPO_SENSIVEL = /senha|password|passwd|cart[aã]o|card.?(num|number)|cc-?(num|number|csc|exp)|cvv|cvc|security.?code|validade|expira/i;
   const BLOCOS = new Set(['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TR', 'SECTION', 'ARTICLE']);
   const ROTULOS = { gramatica: 'Ortografia e gramática', clareza: 'Clareza', palavra: 'Troca de palavra', tom: 'Tom' };
-  const ROTULOS_DE_ORIGEM = { offline: 'Dicionário offline', languagetool: 'LanguageTool', gemini: 'Gemini' };
+  const ROTULOS_DE_ORIGEM = { offline: 'Dicionário offline', languagetool: 'LanguageTool', openrouter: 'OpenRouter' };
 
   let ativo = false;
   const campos = new Map();
@@ -376,7 +376,7 @@
     );
     const origem = document.createElement('p');
     origem.className = 'origem';
-    origem.textContent = `via ${ROTULOS_DE_ORIGEM[marca.origem]}`;
+    origem.textContent = marca.modelo ? `via ${ROTULOS_DE_ORIGEM[marca.origem]} (${marca.modelo})` : `via ${ROTULOS_DE_ORIGEM[marca.origem]}`;
     cartao.append(tipo, troca, motivo, origem, acoes);
     cartao.addEventListener('mouseenter', () => clearTimeout(timerEsconder));
     cartao.addEventListener('mouseleave', agendarEsconder);
@@ -500,7 +500,7 @@
   chrome.storage.onChanged.addListener((mudancas, area) => {
     if (area !== 'local') return;
     if (mudancas.sitesExcluidos) avaliarAtivo();
-    if (mudancas.tom || mudancas.chave) limparCache();
+    if (mudancas.tom || mudancas.chaveOpenrouter) limparCache();
     if (mudancas.dicionario) filtrarCachePeloDicionario(mudancas.dicionario.newValue || []);
   });
 

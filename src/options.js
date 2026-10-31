@@ -54,9 +54,9 @@ function normalizarSite(valor) {
 
 async function iniciar() {
   const bemVindo = new URLSearchParams(location.search).has('bemvindo');
-  const { chave, tom = 'neutro' } = await chrome.storage.local.get(['chave', 'tom']);
+  const { chaveOpenrouter: chave, tom = 'neutro' } = await chrome.storage.local.get(['chaveOpenrouter', 'tom']);
   $('boasVindas').hidden = !(bemVindo || !chave);
-  $('linkAiStudio').href = RevisorConfig.AI_STUDIO_URL;
+  $('linkChaves').href = RevisorConfig.CHAVES_URL;
   if (chave) {
     $('chave').value = chave;
     $('statusChave').textContent = 'Chave configurada.';
@@ -75,7 +75,7 @@ async function iniciar() {
     const resposta = await chrome.runtime.sendMessage({ tipo: 'testarChave', chave: valor });
     $('salvarChave').disabled = false;
     if (resposta?.ok) {
-      await chrome.storage.local.set({ chave: valor });
+      await chrome.storage.local.set({ chaveOpenrouter: valor });
       status.className = 'ok';
       status.textContent = 'Chave funcionando e salva. Já pode digitar em qualquer site.';
     } else {

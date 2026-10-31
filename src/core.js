@@ -1,7 +1,7 @@
 (function (raiz) {
   const TIPOS = ['gramatica', 'clareza', 'palavra', 'tom'];
-  const ORIGENS = ['offline', 'languagetool', 'gemini'];
-  const TIPOS_DO_GEMINI = ['clareza', 'palavra', 'tom'];
+  const ORIGENS = ['offline', 'languagetool', 'openrouter'];
+  const TIPOS_DO_MODELO = ['clareza', 'palavra', 'tom'];
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
@@ -12,8 +12,35 @@
   const TAMANHO_MINIMO_PARAGRAFO = 3;
   const TAMANHO_MAXIMO_PARAGRAFO = 4000;
   const PALAVRAS_DO_DICIONARIO_NO_PROMPT = 200;
-  const MODELO = 'gemini-flash-latest';
-  const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  const ENDPOINT = 'https://openrouter.ai/api/v1/';
+  const MODELOS = [
+    'google/gemma-4-31b-it:free',
+    'nvidia/nemotron-3.5-super-vl:free',
+    'xingchen-agi/xing4.0-29b-a4b:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'dots-studio/dots-3-note-preview:free',
+  ];
+  const ESQUEMA_DA_RESPOSTA = {
+    type: 'object',
+    properties: {
+      sugestoes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            tipo: { type: 'string', enum: TIPOS_DO_MODELO },
+            original: { type: 'string' },
+            substituicao: { type: 'string' },
+            motivo: { type: 'string' },
+          },
+          required: ['tipo', 'original', 'substituicao', 'motivo'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['sugestoes'],
+    additionalProperties: false,
+  };
 
   function dividirParagrafos(texto) {
     const paragrafos = [];
@@ -49,45 +76,29 @@
       '- Não marque nomes próprios, marcas, siglas, termos técnicos, gírias intencionais nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
+      '- Responda só com o objeto JSON {"sugestoes": [...]}, sem texto fora dele.',
     ].join('\n');
   }
 
   function montarRequisicao(texto, { tom = 'neutro', dicionario = [], idioma = 'pt-BR' } = {}) {
     return {
-      systemInstruction: { parts: [{ text: instrucaoDoSistema(tom, dicionario, idioma) }] },
-      contents: [{ role: 'user', parts: [{ text: texto }] }],
-      generationConfig: {
-        temperature: 0,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            sugestoes: {
-              type: 'ARRAY',
-              items: {
-                type: 'OBJECT',
-                properties: {
-                  tipo: { type: 'STRING', enum: TIPOS_DO_GEMINI },
-                  original: { type: 'STRING' },
-                  substituicao: { type: 'STRING' },
-                  motivo: { type: 'STRING' },
-                },
-                required: ['tipo', 'original', 'substituicao', 'motivo'],
-              },
-            },
-          },
-          required: ['sugestoes'],
-        },
-      },
+      models: MODELOS,
+      messages: [
+        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma) },
+        { role: 'user', content: texto },
+      ],
+      temperature: 0,
+      response_format: { type: 'json_schema', json_schema: { name: 'revisao', strict: true, schema: ESQUEMA_DA_RESPOSTA } },
+      provider: { require_parameters: true },
     };
   }
 
   function lerResposta(corpo) {
-    const partes = corpo?.candidates?.[0]?.content?.parts;
-    if (!Array.isArray(partes)) throw new Error('resposta sem candidato');
-    const dados = JSON.parse(partes.map((p) => p.text || '').join(''));
+    const conteudo = corpo?.choices?.[0]?.message?.content;
+    if (typeof conteudo !== 'string') throw new Error('resposta sem conteúdo');
+    const dados = JSON.parse(conteudo);
     if (!Array.isArray(dados?.sugestoes)) throw new Error('resposta sem lista de sugestões');
-    return dados.sugestoes;
+    return { sugestoes: dados.sugestoes, modelo: typeof corpo.model === 'string' ? corpo.model : '' };
   }
 
   function escaparRegex(texto) {
@@ -128,7 +139,8 @@
       }
       aceitas.push({
         tipo: s.tipo,
-        origem: ORIGENS.includes(s.origem) ? s.origem : 'gemini',
+        origem: ORIGENS.includes(s.origem) ? s.origem : 'openrouter',
+        modelo: typeof s.modelo === 'string' ? s.modelo : '',
         original,
         substituicao,
         motivo: typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '',
@@ -151,7 +163,6 @@
   raiz.RevisorCore = {
     TIPOS,
     TONS,
-    MODELO,
     ENDPOINT,
     dividirParagrafos,
     revisavel,

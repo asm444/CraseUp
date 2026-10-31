@@ -15,7 +15,7 @@ PAGINA_DE_DEMO = """
 """
 TEXTO_DE_DEMO = 'Oi, Ana! Eu vou mercado amanhã e depois eu volto pra casa açim que der, beleza?'
 LANGUAGETOOL_SIMULADO = 'http://languagetool.exemplo:8010'
-GEMINI_SIMULADO = """
+OPENROUTER_SIMULADO = """
 const LANGUAGETOOL_SIMULADO = 'http://languagetool.exemplo:8010';
 self.__chamadas = 0;
 const fetchReal = self.fetch;
@@ -27,14 +27,14 @@ self.fetch = async (url, opcoes) => {
     const matches = offset < 0 ? [] : [{offset, length: 11, message: 'Ir pede a preposição "a".', replacements: [{value: 'vou ao mercado'}], rule: {issueType: 'grammar'}}];
     return new Response(JSON.stringify({matches}), {status: 200, headers: {'Content-Type': 'application/json'}});
   }
-  if (!String(url).includes('generativelanguage.googleapis.com')) return fetchReal(url, opcoes);
+  if (!String(url).startsWith('https://openrouter.ai/')) return fetchReal(url, opcoes);
   self.__chamadas++;
   const sugestoes = [
     {tipo: 'clareza', original: 'e depois eu volto', substituicao: 'e volto', motivo: '"Depois eu" é redundante aqui.'},
     {tipo: 'tom', original: 'beleza?', substituicao: 'certo?', motivo: 'Mais neutro para o tom padrão.'},
     {tipo: 'palavra', original: 'pra casa', substituicao: 'para a minha casa, que fica longe daqui, perto do centro da cidade', motivo: 'Mais de 10 palavras a mais: o filtro descarta.'},
   ];
-  const corpo = {candidates: [{content: {parts: [{text: JSON.stringify({sugestoes})}]}}]};
+  const corpo = {model: 'google/gemma-4-31b-it:free', choices: [{message: {content: JSON.stringify({sugestoes})}}]};
   return new Response(JSON.stringify(corpo), {status: 200, headers: {'Content-Type': 'application/json'}});
 };
 0;
@@ -53,7 +53,7 @@ def principal():
         trabalhador = contexto.service_workers[0] if contexto.service_workers else contexto.wait_for_event('serviceworker', timeout=15000)
         id_extensao = trabalhador.url.split('/')[2]
         print(f'SERVICE_WORKER: ok {trabalhador.url}')
-        print(f'SW_IMPORTS: {trabalhador.evaluate("typeof RevisorCore.filtrarSugestoes + \'|\' + RevisorCore.MODELO")}')
+        print(f'SW_IMPORTS: {trabalhador.evaluate("typeof RevisorCore.filtrarSugestoes")}')
         for frase in ('Eu volto pra casa açim que der.', 'I will recieve it tomorrow.'):
             r = trabalhador.evaluate('async (t) => { const r = await camadaOffline(t); return [r.estado, r.idioma, r.sugestoes.map((s) => s.original + "->" + s.substituicao)]; }', frase)
             print(f'OFFLINE: {r}')
@@ -72,7 +72,7 @@ def principal():
 
         opcoes.evaluate("""chrome.storage.local.set({
             uso: {data: new Date().toLocaleDateString('sv'), chamadas: 37},
-            cota: {data: new Date().toLocaleDateString('sv')}})""")
+            cota: {ate: Date.now() + 3600000}})""")
         popup = contexto.new_page()
         popup.set_viewport_size({'width': 352, 'height': 560})
         popup.goto(f'{base}/popup.html')
@@ -85,17 +85,17 @@ def principal():
         demo = contexto.new_page()
         demo.set_viewport_size({'width': 760, 'height': 420})
         demo.goto('https://revisor.exemplo/')
-        trabalhador.evaluate(GEMINI_SIMULADO)
+        trabalhador.evaluate(OPENROUTER_SIMULADO)
         resposta = opcoes.evaluate("chrome.runtime.sendMessage({tipo: 'testarChave', chave: 'chave-de-teste'})")
         print(f'TESTAR_CHAVE_PELA_ABA_DE_OPCOES: {resposta}')
-        opcoes.evaluate(f"chrome.storage.local.remove('cota').then(() => chrome.storage.local.set({{chave: 'chave-de-teste', languagetool: '{LANGUAGETOOL_SIMULADO}'}}))")
+        opcoes.evaluate(f"chrome.storage.local.remove('cota').then(() => chrome.storage.local.set({{chaveOpenrouter: 'chave-de-teste', languagetool: '{LANGUAGETOOL_SIMULADO}'}}))")
         demo.click('#area')
         demo.keyboard.type(TEXTO_DE_DEMO, delay=5)
         demo.wait_for_selector('.marca', timeout=10000)
         marcas = demo.locator('.marca')
         demo.wait_for_timeout(500)
         print(f'SUBLINHADOS: {[(marcas.nth(i).get_attribute("class"), marcas.nth(i).text_content()) for i in range(marcas.count())]}')
-        print(f'CHAMADAS_AO_GEMINI: {trabalhador.evaluate("self.__chamadas")}')
+        print(f'CHAMADAS_AO_OPENROUTER: {trabalhador.evaluate("self.__chamadas")}')
         caixa = marcas.first.bounding_box()
         demo.mouse.move(caixa['x'] + caixa['width'] / 2, caixa['y'] + caixa['height'] / 2)
         demo.wait_for_selector('.cartao', timeout=5000)
@@ -105,8 +105,8 @@ def principal():
         demo.click('.cartao .aplicar')
         print(f'TEXTO_APOS_APLICAR: {demo.input_value("#area")!r}')
         popup.reload()
-        popup.wait_for_function('document.getElementById("camadaGemini").textContent !== ""')
-        print(f'POPUP_CAMADAS: {[popup.text_content(i) for i in ("#camadaOffline", "#camadaLanguagetool", "#camadaGemini")]}')
+        popup.wait_for_function('document.getElementById("camadaOpenrouter").textContent !== ""')
+        print(f'POPUP_CAMADAS: {[popup.text_content(i) for i in ("#camadaOffline", "#camadaLanguagetool", "#camadaOpenrouter")]}')
         popup.screenshot(path=SAIDA / 'popup-camadas.png', full_page=True)
 
         contexto.close()

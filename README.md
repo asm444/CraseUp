@@ -21,10 +21,11 @@ Cada parágrafo editado passa por três camadas, da mais barata para a mais cara
 |---|---|---|---|
 | Dicionário offline | ortografia em pt-BR e en-US | dentro da extensão (Hunspell em WebAssembly) | sempre, mesmo sem internet |
 | LanguageTool | gramática, crase, pontuação | no servidor que você configurar | sempre que houver servidor configurado |
-| Gemini | clareza, troca de palavra, tom | na API do Google, com a sua chave | só quando o LanguageTool acusa algo no parágrafo, ou quando você pede |
+| OpenRouter | clareza, troca de palavra, tom | em modelos gratuitos do OpenRouter, com a sua chave | só quando o LanguageTool acusa algo no parágrafo, ou quando você pede |
 
 - O idioma de cada parágrafo é o do dicionário que reconhece mais palavras dele.
-- Com o LanguageTool indisponível, o Gemini não é chamado, nem por pedido. Sem servidor configurado, sobra só a ortografia offline.
+- O OpenRouter recebe uma lista de modelos gratuitos (`:free`) em ordem de preferência, em `src/core.js`. Se um modelo falhar por limite ou queda, o próprio OpenRouter passa para o seguinte, e o popup e o cartão mostram qual modelo atendeu. Só entram provedores que aceitam a resposta em JSON estruturado.
+- Com o LanguageTool indisponível, o OpenRouter não é chamado, nem por pedido. Sem servidor configurado, sobra só a ortografia offline.
 - Para pedir clareza e tom num texto em que o LanguageTool não acusou nada, use **Revisar clareza e tom nesta aba** no popup.
 - O popup mostra o estado de cada camada e, quando uma está indisponível, se o motivo é falta de conexão ou falha do serviço. O cartão de cada sugestão diz de qual camada ela veio.
 - O dicionário pessoal vale para as três camadas.
@@ -37,12 +38,12 @@ A extensão não está em nenhuma loja. A instalação é manual:
 2. Abra `chrome://extensions` (no Edge, `edge://extensions`; no Brave, `brave://extensions`).
 3. Ative o **Modo do desenvolvedor**, clique em **Carregar sem compactação** e escolha a pasta descompactada.
 
-Na primeira vez, abre uma tela para configurar a chave do Gemini:
+Na primeira vez, abre uma tela para configurar a chave do OpenRouter:
 
-1. Crie uma chave gratuita no [Google AI Studio](https://aistudio.google.com/apikey).
+1. Crie uma chave em [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). A conta gratuita basta, porque a extensão só usa modelos `:free`.
 2. Cole a chave e clique em **Testar e salvar**.
 
-A chave fica salva só no seu navegador (`chrome.storage.local`) e só é enviada para a API do Google.
+A chave fica salva só no seu navegador (`chrome.storage.local`) e só é enviada para o OpenRouter.
 
 ## Servidor LanguageTool
 
@@ -88,15 +89,15 @@ Para desligar a camada, apague o endereço e clique em **Testar e salvar**. Quem
 - Campos de senha e de cartão nunca são lidos.
 - Só o parágrafo que você alterou é revisado, depois de uma pausa de ~1,2 s na digitação.
 - O dicionário offline não envia nada para fora do navegador.
-- O parágrafo vai para o servidor LanguageTool que você configurou e, quando o Gemini é chamado, para a API do Google.
+- O parágrafo vai para o servidor LanguageTool que você configurou e, quando o OpenRouter é chamado, para o provedor do modelo gratuito que atender.
 - Você pode desligar a extensão numa aba pelo ícone dela, ou excluir sites inteiros nas configurações.
-- No plano gratuito do Gemini, o Google pode usar os textos enviados para melhorar os produtos dele. No plano pago (cobrado por uso), não usa.
+- Provedores de modelos gratuitos podem registrar os textos recebidos; a política de cada um aparece na página do modelo no OpenRouter. Não use a revisão de estilo em texto que não pode sair do seu controle.
 
 ## Cota
 
-O Gemini só é chamado quando o LanguageTool acusa algo ou quando você pede, o que poupa a cota. Quando a cota gratuita do dia acaba, o Gemini pausa sem atrapalhar a digitação e aparece um `!` no ícone. O popup mostra quantas chamadas a extensão fez no dia. Esse número é contado pela própria extensão, porque a API não informa quanto resta da cota.
+Os modelos gratuitos do OpenRouter têm limite por minuto e por dia; o limite diário sobe depois de comprar créditos ([tabela oficial](https://openrouter.ai/docs/api/reference/limits)). O OpenRouter só é chamado quando o LanguageTool acusa algo ou quando você pede, o que poupa a cota. Quando o limite do dia estoura, a camada pausa até o horário de volta informado pelo OpenRouter, sem atrapalhar a digitação, e aparece um `!` no ícone. O popup mostra quantas chamadas a extensão fez no dia, contadas pela própria extensão.
 
-## Limites da versão 0.2
+## Limites
 
 - Idiomas: português do Brasil e inglês americano.
 - Os dicionários carregam na primeira revisão depois que o navegador acorda a extensão, então essa revisão demora um pouco mais.
@@ -107,7 +108,7 @@ O Gemini só é chamado quando o LanguageTool acusa algo ou quando você pede, o
 
 ```bash
 bash tests/rodar.sh                      # testes no Chrome headless; sai 0 só se todas as páginas imprimirem PASSED
-python3 tools/carregar-no-chrome.py      # carrega a extensão no Chromium do Playwright, com LanguageTool e Gemini simulados, e salva capturas
+python3 tools/carregar-no-chrome.py      # carrega a extensão no Chromium do Playwright, com LanguageTool e OpenRouter simulados, e salva capturas
 bash tools/vendorizar-ortografia.sh      # regera src/vendor/hunspell.js e src/dicionarios/
 bash tools/empacotar.sh                  # gera dist/craseup-<versão>.zip para a release
 python3 tools/gerar-icones.py icons

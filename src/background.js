@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, MODELO, montarRequisicao, lerResposta, filtrarSugestoes } = RevisorCore;
+const { ENDPOINT, montarRequisicao, lerResposta, filtrarSugestoes } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
@@ -35,7 +35,7 @@ async function abaPausada(abaId) {
 
 async function atualizarSeloGlobal() {
   const { cota } = await chrome.storage.local.get('cota');
-  const esgotada = cota?.data === hoje();
+  const esgotada = cota?.ate > Date.now();
   await chrome.action.setBadgeBackgroundColor({ color: COR_SELO_COTA });
   await chrome.action.setBadgeText({ text: esgotada ? '!' : '' });
 }
@@ -57,10 +57,6 @@ function contarChamada() {
     await chrome.storage.local.set({ uso: { data: hoje(), chamadas } });
   });
   return filaDeContagem;
-}
-
-function cotaDiaria(corpoDoErro) {
-  return JSON.stringify(corpoDoErro).includes('PerDay');
 }
 
 let verificadores = null;
@@ -94,15 +90,15 @@ async function camadaOffline(texto) {
 
 async function revisar(texto, abaId, pedido) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = await chrome.storage.local.get(['chave', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool']);
+  const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool']);
   const offline = await camadaOffline(texto);
   const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
-  const gemini = await camadaGeminiCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
-  const brutas = [offline, languagetool, gemini].flatMap((camada) => camada.sugestoes || []);
-  await registrarCamadas({ offline, languagetool, gemini });
+  const openrouter = await camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
+  const brutas = [offline, languagetool, openrouter].flatMap((camada) => camada.sugestoes || []);
+  await registrarCamadas({ offline, languagetool, openrouter });
   return {
     sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }),
-    provisorio: [offline, languagetool, gemini].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
+    provisorio: [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
 }
 
@@ -141,62 +137,70 @@ async function camadaLanguageTool(texto, idioma, base) {
   return consultarLanguageTool(base, texto, idioma);
 }
 
-async function camadaGeminiCondicionada(texto, idioma, cfg, languagetool, pedido) {
+async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido) {
   if (languagetool.estado !== 'ativa') return { estado: 'bloqueado' };
   if (!languagetool.acusou && !pedido) return { estado: 'ocioso' };
-  return camadaGemini(texto, idioma, cfg);
+  return camadaModelo(texto, idioma, cfg);
 }
 
-async function camadaGemini(texto, idioma, cfg) {
-  if (!cfg.chave) return { estado: 'sem_chave' };
-  if (cfg.cota?.data === hoje()) return { estado: 'cota' };
+function momentoDeVolta(resposta) {
+  const segundos = Number(resposta.headers.get('Retry-After'));
+  if (segundos > 0) return Date.now() + segundos * 1000;
+  const reset = Number(resposta.headers.get('X-RateLimit-Reset'));
+  if (reset > 0) return reset < 1e12 ? reset * 1000 : reset;
+  return Date.now() + ESPERA_LIMITE_POR_MINUTO_MS;
+}
+
+async function camadaModelo(texto, idioma, cfg) {
+  if (!cfg.chaveOpenrouter) return { estado: 'sem_chave' };
+  if (cfg.cota?.ate > Date.now()) return { estado: 'cota' };
   if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { estado: 'limite_por_minuto' };
 
   await contarChamada();
   let resposta;
   try {
-    resposta = await fetch(`${ENDPOINT}${MODELO}:generateContent`, {
+    resposta = await fetch(`${ENDPOINT}chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.chave },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.chaveOpenrouter}`, 'X-Title': 'CraseUp' },
       body: JSON.stringify(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario, idioma })),
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
   } catch {
-    return semResposta('da API');
+    return semResposta('do OpenRouter');
   }
 
   if (resposta.status === 429) {
-    const corpo = await resposta.json().catch(() => ({}));
-    if (cotaDiaria(corpo)) {
-      await chrome.storage.local.set({ cota: { data: hoje() } });
+    const ate = momentoDeVolta(resposta);
+    if (ate - Date.now() > ESPERA_LIMITE_POR_MINUTO_MS) {
+      await chrome.storage.local.set({ cota: { ate } });
       return { estado: 'cota' };
     }
-    await chrome.storage.local.set({ esperaAte: Date.now() + ESPERA_LIMITE_POR_MINUTO_MS });
+    await chrome.storage.local.set({ esperaAte: ate });
     return { estado: 'limite_por_minuto' };
   }
   if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
 
-  let brutas;
+  let lida;
   try {
-    brutas = lerResposta(await resposta.json());
+    lida = lerResposta(await resposta.json());
   } catch {
     return { estado: 'falha', mensagem: 'resposta em formato inesperado' };
   }
   if (cfg.cota) await chrome.storage.local.remove('cota');
-  return { estado: 'ativa', sugestoes: brutas };
+  return { estado: 'ativa', mensagem: lida.modelo, sugestoes: lida.sugestoes.map((s) => ({ ...s, modelo: lida.modelo })) };
 }
 
 async function testarChave(chave) {
   try {
-    const resposta = await fetch(`${ENDPOINT}${MODELO}`, {
-      headers: { 'x-goog-api-key': chave },
+    const resposta = await fetch(`${ENDPOINT}key`, {
+      headers: { Authorization: `Bearer ${chave}` },
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
     if (resposta.ok) return { ok: true };
     const corpo = await resposta.json().catch(() => ({}));
     return { ok: false, mensagem: corpo?.error?.message || `HTTP ${resposta.status}` };
   } catch {
-    return { ok: false, mensagem: 'Sem conexão com a API do Gemini.' };
+    return { ok: false, mensagem: 'Sem conexão com o OpenRouter.' };
   }
 }
 

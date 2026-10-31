@@ -64,9 +64,9 @@
     igual(filtra('casa açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 0 }]), [['gramatica', 'açim', 'assim', 5]]);
   });
 
-  caso('primeira camada vence quando duas marcam o mesmo trecho; sem origem vira gemini', () => {
+  caso('primeira camada vence quando duas marcam o mesmo trecho; sem origem vira openrouter', () => {
     igual(C.filtrarSugestoes('vou açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 4, origem: 'offline' }, s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['offline']);
-    igual(C.filtrarSugestoes('vou açim', [s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['gemini']);
+    igual(C.filtrarSugestoes('vou açim', [s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['openrouter']);
   });
 
   caso('aplicar desloca as sugestões seguintes e remove a aplicada', () => {
@@ -77,24 +77,39 @@
     igual(r.sugestoes.map((x) => r.texto.slice(x.inicio, x.fim)), ['açim']);
   });
 
-  caso('requisição leva o tom, o dicionário e o schema JSON', () => {
+  const sistemaDe = (req) => req.messages.find((m) => m.role === 'system').content;
+
+  caso('requisição leva o tom, o dicionário, o texto e o schema JSON estrito', () => {
     const req = C.montarRequisicao('oi', { tom: 'formal', dicionario: ['Jusgrok'] });
-    const sistema = req.systemInstruction.parts[0].text;
-    igual([sistema.includes('formal ('), sistema.includes('Jusgrok'), req.generationConfig.responseMimeType, req.generationConfig.responseSchema.properties.sugestoes.items.properties.tipo.enum],
-      [true, true, 'application/json', ['clareza', 'palavra', 'tom']]);
+    const sistema = sistemaDe(req);
+    igual([sistema.includes('formal ('), sistema.includes('Jusgrok'), req.messages[1], req.response_format.type, req.response_format.json_schema.strict,
+      req.response_format.json_schema.schema.properties.sugestoes.items.properties.tipo.enum],
+    [true, true, { role: 'user', content: 'oi' }, 'json_schema', true, ['clareza', 'palavra', 'tom']]);
   });
 
-  caso('Gemini revisa no idioma detectado e deixa gramática para as outras camadas', () => {
-    const en = C.montarRequisicao('hi', { idioma: 'en-US' }).systemInstruction.parts[0].text;
-    const pt = C.montarRequisicao('oi').systemInstruction.parts[0].text;
+  caso('roteia só entre modelos gratuitos e só por provedores que aceitam o schema', () => {
+    const req = C.montarRequisicao('oi');
+    igual([req.models.length > 1, req.models.every((m) => m.endsWith(':free')), 'model' in req, req.provider.require_parameters], [true, true, false, true]);
+  });
+
+  caso('modelo revisa no idioma detectado e deixa gramática para as outras camadas', () => {
+    const en = sistemaDe(C.montarRequisicao('hi', { idioma: 'en-US' }));
+    const pt = sistemaDe(C.montarRequisicao('oi'));
     igual([en.includes('textos em inglês'), pt.includes('textos em português do Brasil'), en.includes('tipo "gramatica"'), en.includes('Não aponte ortografia')], [true, true, false, true]);
   });
 
-  caso('lê a resposta do Gemini e rejeita formato inesperado', () => {
-    igual(C.lerResposta({ candidates: [{ content: { parts: [{ text: '{"sugestoes":[{"tipo":"tom"}]}' }] } }] }), [{ tipo: 'tom' }]);
-    let falhou = false;
-    try { C.lerResposta({ candidates: [] }); } catch { falhou = true; }
-    igual(falhou, true);
+  caso('lê a resposta do OpenRouter com o modelo que atendeu e rejeita formato inesperado', () => {
+    igual(C.lerResposta({ model: 'google/gemma-4-31b-it:free', choices: [{ message: { content: '{"sugestoes":[{"tipo":"tom"}]}' } }] }),
+      { sugestoes: [{ tipo: 'tom' }], modelo: 'google/gemma-4-31b-it:free' });
+    let falhas = 0;
+    for (const corpo of [{ choices: [] }, { choices: [{ message: { content: 'não é json' } }] }, { choices: [{ message: { content: '{"outra":1}' } }] }]) {
+      try { C.lerResposta(corpo); } catch { falhas++; }
+    }
+    igual(falhas, 3);
+  });
+
+  caso('modelo que atendeu acompanha a sugestão filtrada', () => {
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('clareza', 'açim', 'assim'), modelo: 'x/y:free' }]).map((x) => x.modelo), ['x/y:free']);
   });
 
   const linhas = [];
