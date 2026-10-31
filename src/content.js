@@ -14,6 +14,7 @@
   const CAMPO_SENSIVEL = /senha|password|passwd|cart[aã]o|card.?(num|number)|cc-?(num|number|csc|exp)|cvv|cvc|security.?code|validade|expira/i;
   const BLOCOS = new Set(['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TR', 'SECTION', 'ARTICLE']);
   const ROTULOS = { gramatica: 'Ortografia e gramática', clareza: 'Clareza', palavra: 'Troca de palavra', tom: 'Tom' };
+  const ROTULOS_DE_ORIGEM = { offline: 'Dicionário offline', languagetool: 'LanguageTool', gemini: 'Gemini' };
 
   let ativo = false;
   const campos = new Map();
@@ -373,7 +374,10 @@
       botao('Ignorar', 'secundario', () => ignorar(estado, marca)),
       botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marca)),
     );
-    cartao.append(tipo, troca, motivo, acoes);
+    const origem = document.createElement('p');
+    origem.className = 'origem';
+    origem.textContent = `via ${ROTULOS_DE_ORIGEM[marca.origem]}`;
+    cartao.append(tipo, troca, motivo, origem, acoes);
     cartao.addEventListener('mouseenter', () => clearTimeout(timerEsconder));
     cartao.addEventListener('mouseleave', agendarEsconder);
     garantirCamada().sombra.append(cartao);

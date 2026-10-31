@@ -14,15 +14,22 @@ PAGINA_DE_DEMO = """
 </body>
 """
 TEXTO_DE_DEMO = 'Oi, Ana! Eu vou mercado amanhã e depois eu volto pra casa açim que der, beleza?'
+LANGUAGETOOL_SIMULADO = 'http://languagetool.exemplo:8010'
 GEMINI_SIMULADO = """
+const LANGUAGETOOL_SIMULADO = 'http://languagetool.exemplo:8010';
 self.__chamadas = 0;
 const fetchReal = self.fetch;
+chrome.permissions.contains = async () => true;
 self.fetch = async (url, opcoes) => {
+  if (String(url).startsWith(LANGUAGETOOL_SIMULADO)) {
+    const texto = new URLSearchParams(opcoes.body).get('text');
+    const offset = texto.indexOf('vou mercado');
+    const matches = offset < 0 ? [] : [{offset, length: 11, message: 'Ir pede a preposição "a".', replacements: [{value: 'vou ao mercado'}], rule: {issueType: 'grammar'}}];
+    return new Response(JSON.stringify({matches}), {status: 200, headers: {'Content-Type': 'application/json'}});
+  }
   if (!String(url).includes('generativelanguage.googleapis.com')) return fetchReal(url, opcoes);
   self.__chamadas++;
   const sugestoes = [
-    {tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'Ir pede a preposição "a".'},
-    {tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'Grafia correta é "assim".'},
     {tipo: 'clareza', original: 'e depois eu volto', substituicao: 'e volto', motivo: '"Depois eu" é redundante aqui.'},
     {tipo: 'tom', original: 'beleza?', substituicao: 'certo?', motivo: 'Mais neutro para o tom padrão.'},
     {tipo: 'palavra', original: 'pra casa', substituicao: 'para a minha casa, que fica longe daqui, perto do centro da cidade', motivo: 'Mais de 10 palavras a mais: o filtro descarta.'},
@@ -81,7 +88,7 @@ def principal():
         trabalhador.evaluate(GEMINI_SIMULADO)
         resposta = opcoes.evaluate("chrome.runtime.sendMessage({tipo: 'testarChave', chave: 'chave-de-teste'})")
         print(f'TESTAR_CHAVE_PELA_ABA_DE_OPCOES: {resposta}')
-        opcoes.evaluate("chrome.storage.local.remove('cota').then(() => chrome.storage.local.set({chave: 'chave-de-teste'}))")
+        opcoes.evaluate(f"chrome.storage.local.remove('cota').then(() => chrome.storage.local.set({{chave: 'chave-de-teste', languagetool: '{LANGUAGETOOL_SIMULADO}'}}))")
         demo.click('#area')
         demo.keyboard.type(TEXTO_DE_DEMO, delay=5)
         demo.wait_for_selector('.marca', timeout=10000)
@@ -94,8 +101,13 @@ def principal():
         demo.wait_for_selector('.cartao', timeout=5000)
         demo.wait_for_timeout(300)
         demo.screenshot(path=SAIDA / 'cartao.png')
+        print(f'ORIGEM_NO_CARTAO: {demo.text_content(".cartao .origem")!r}')
         demo.click('.cartao .aplicar')
         print(f'TEXTO_APOS_APLICAR: {demo.input_value("#area")!r}')
+        popup.reload()
+        popup.wait_for_function('document.getElementById("camadaGemini").textContent !== ""')
+        print(f'POPUP_CAMADAS: {[popup.text_content(i) for i in ("#camadaOffline", "#camadaLanguagetool", "#camadaGemini")]}')
+        popup.screenshot(path=SAIDA / 'popup-camadas.png', full_page=True)
 
         contexto.close()
     print(f'CAPTURAS: {SAIDA}')

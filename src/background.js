@@ -7,7 +7,7 @@ const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
 const COR_SELO_COTA = '#EDAE49';
 const COR_SELO_PAUSA = '#6B6475';
-const ESTADOS_PASSAGEIROS = new Set(['falha', 'limite_por_minuto', 'cota']);
+const ESTADOS_PASSAGEIROS = new Set(['falha', 'sem_conexao', 'limite_por_minuto', 'cota']);
 
 const hoje = () => new Date().toLocaleDateString('sv');
 
@@ -88,7 +88,7 @@ async function camadaOffline(texto) {
     const idioma = detectarIdioma(texto, carregados);
     return { estado: 'ativa', idioma, sugestoes: sugestoesOrtograficas(texto, idioma, carregados[idioma]) };
   } catch {
-    return { estado: 'falha', idioma: IDIOMA_PADRAO, sugestoes: [] };
+    return { estado: 'falha', mensagem: 'os dicionários não carregaram', idioma: IDIOMA_PADRAO, sugestoes: [] };
   }
 }
 
@@ -99,10 +99,20 @@ async function revisar(texto, abaId, pedido) {
   const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
   const gemini = await camadaGeminiCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
   const brutas = [offline, languagetool, gemini].flatMap((camada) => camada.sugestoes || []);
+  await registrarCamadas({ offline, languagetool, gemini });
   return {
     sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }),
     provisorio: [offline, languagetool, gemini].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
+}
+
+function semResposta(origem) {
+  return navigator.onLine ? { estado: 'falha', mensagem: `sem resposta ${origem}` } : { estado: 'sem_conexao', mensagem: 'sem conexão com a internet' };
+}
+
+async function registrarCamadas(camadas) {
+  const resumo = Object.fromEntries(Object.entries(camadas).map(([nome, { estado, mensagem }]) => [nome, { estado, mensagem }]));
+  await chrome.storage.session.set({ camadas: resumo });
 }
 
 async function consultarLanguageTool(base, texto, idioma) {
@@ -115,7 +125,7 @@ async function consultarLanguageTool(base, texto, idioma) {
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
   } catch {
-    return { estado: 'falha', mensagem: 'sem resposta do servidor' };
+    return semResposta('do servidor');
   }
   if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
   try {
@@ -152,7 +162,7 @@ async function camadaGemini(texto, idioma, cfg) {
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
   } catch {
-    return { estado: 'falha' };
+    return semResposta('da API');
   }
 
   if (resposta.status === 429) {
@@ -164,13 +174,13 @@ async function camadaGemini(texto, idioma, cfg) {
     await chrome.storage.local.set({ esperaAte: Date.now() + ESPERA_LIMITE_POR_MINUTO_MS });
     return { estado: 'limite_por_minuto' };
   }
-  if (!resposta.ok) return { estado: 'falha' };
+  if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
 
   let brutas;
   try {
     brutas = lerResposta(await resposta.json());
   } catch {
-    return { estado: 'falha' };
+    return { estado: 'falha', mensagem: 'resposta em formato inesperado' };
   }
   if (cfg.cota) await chrome.storage.local.remove('cota');
   return { estado: 'ativa', sugestoes: brutas };

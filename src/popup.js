@@ -1,11 +1,32 @@
 const hoje = () => new Date().toLocaleDateString('sv');
 const $ = (id) => document.getElementById(id);
+const TEXTOS_DE_ESTADO = {
+  ativa: 'Ativa',
+  ocioso: 'Ativa; chamada quando o LanguageTool acusa algo ou por pedido',
+  bloqueado: 'Indisponível enquanto o LanguageTool estiver indisponível',
+  sem_configuracao: 'Desligada: nenhum servidor configurado',
+  sem_permissao: 'Indisponível: falta permissão para o servidor',
+  sem_chave: 'Indisponível: falta a chave',
+  cota: 'Indisponível: a cota de hoje acabou',
+  limite_por_minuto: 'Pausada por um minuto: limite de chamadas',
+  sem_conexao: 'Indisponível: sem conexão com a internet',
+  falha: 'Indisponível: falha do serviço',
+};
+
+function textoDaCamada(camada) {
+  if (!camada) return 'Ainda não usada';
+  const texto = TEXTOS_DE_ESTADO[camada.estado];
+  return camada.estado === 'falha' ? `${texto} (${camada.mensagem})` : texto;
+}
 
 async function iniciar() {
   const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
   const host = aba?.url?.startsWith('http') ? new URL(aba.url).hostname : '';
   const local = await chrome.storage.local.get(['chave', 'uso', 'cota', 'sitesExcluidos']);
-  const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
+  const { abasPausadas = [], camadas = {} } = await chrome.storage.session.get(['abasPausadas', 'camadas']);
+  $('camadaOffline').textContent = textoDaCamada(camadas.offline);
+  $('camadaLanguagetool').textContent = textoDaCamada(camadas.languagetool);
+  $('camadaGemini').textContent = textoDaCamada(camadas.gemini);
   const sitesExcluidos = local.sitesExcluidos || [];
   const excluido = sitesExcluidos.includes(host);
 

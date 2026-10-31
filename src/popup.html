@@ -10,6 +10,8 @@
     .rodape { display: flex; justify-content: space-between; gap: 8px; }
     .rodape .botao { flex: 1; }
     #site, #pedirRevisao { width: 100%; }
+    .camadas { display: grid; gap: 6px; }
+    .camadas .estado { text-align: right; max-width: 60%; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -42,6 +44,13 @@
 
   <button id="pedirRevisao">Revisar clareza e tom nesta aba</button>
   <button id="site">Não revisar neste site</button>
+
+  <div class="bloco camadas">
+    <div class="suave">Camadas de revisão</div>
+    <div class="linha"><span>Dicionário offline</span><span id="camadaOffline" class="estado"></span></div>
+    <div class="linha"><span>LanguageTool</span><span id="camadaLanguagetool" class="estado"></span></div>
+    <div class="linha"><span>Gemini</span><span id="camadaGemini" class="estado"></span></div>
+  </div>
 
   <div class="bloco">
     <div class="linha">

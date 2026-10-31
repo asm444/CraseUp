@@ -53,6 +53,7 @@
   pointer-events: auto;
   animation: surgir 120ms ease-out;
 }
+.cartao .origem { margin: 0 0 10px; font-size: 12px; color: var(--texto-suave); }
 .cartao-clareza { --cor: var(--clareza); }
 .cartao-palavra { --cor: var(--palavra); }
 .cartao-tom { --cor: var(--tom); }

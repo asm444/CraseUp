@@ -82,6 +82,7 @@
       await espera(100);
       const cartao = sombra().querySelector('.cartao');
       confere('passar o mouse abre o cartão com a troca', [cartao?.querySelector('.de')?.textContent, cartao?.querySelector('.para')?.textContent], ['vou mercado', 'vou ao mercado']);
+      confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'via Gemini');
       cartao.querySelector('.aplicar').click();
       confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');
       await espera(1500);
