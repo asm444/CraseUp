@@ -299,7 +299,8 @@
 
   function aoDigitar(evento) {
     if (!ativo) return;
-    const alvo = evento.target instanceof HTMLElement && evento.target.isContentEditable ? raizEditavel(evento.target) : evento.target;
+    const origem = evento.composedPath()[0];
+    const alvo = origem instanceof HTMLElement && origem.isContentEditable ? raizEditavel(origem) : origem;
     const estado = estadoDe(alvo);
     if (!estado) return;
     desenhar(estado);
@@ -484,7 +485,8 @@
 
   function revisarPorPedido() {
     if (!ativo) return;
-    const focado = document.activeElement;
+    let focado = document.activeElement;
+    while (focado?.shadowRoot?.activeElement) focado = focado.shadowRoot.activeElement;
     if (focado instanceof HTMLElement) estadoDe(focado.isContentEditable ? raizEditavel(focado) : focado);
     for (const estado of campos.values()) revisarCampo(estado, true);
   }

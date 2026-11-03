@@ -7,6 +7,7 @@
 <div id="editavel" contenteditable="true"></div>
 <input id="senha" type="password">
 <input id="cartao" type="text" autocomplete="cc-number">
+<div id="hospedeiro"></div>
 <pre id="resultado">NAO EXECUTADO</pre>
 <script src="../src/core.js"></script>
 <script>
@@ -17,6 +18,8 @@
     ],
     'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
+    'sombra com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
   const enviados = [];
@@ -53,7 +56,7 @@
   const digitar = (el, texto) => {
     el.focus();
     if ('value' in el) el.value = texto; else el.textContent = texto;
-    el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
   };
   const passarMouse = (rect) => {
     document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }));
@@ -111,6 +114,26 @@
       ouvinte({ tipo: 'revisarPedido' });
       await espera(300);
       confere('pedido reenvia, marcados como pedido, os parágrafos já revisados dos campos', pedidos.slice().sort(), ['isso é assim mesmo', 'texto bom demais']);
+
+      const raizSombra = document.getElementById('hospedeiro').attachShadow({ mode: 'open' });
+      raizSombra.innerHTML = '<style>textarea, [contenteditable] { display: block; width: 400px; font: 16px/1.4 sans-serif; margin: 20px; padding: 8px; }</style><textarea id="areaSombra"></textarea><div id="editavelSombra" contenteditable="true"></div>';
+      const areaSombra = raizSombra.getElementById('areaSombra');
+      const editavelSombra = raizSombra.getElementById('editavelSombra');
+      digitar(areaSombra, 'sombra com açim');
+      digitar(editavelSombra, 'outra sombra açim');
+      await espera(1500);
+      confere('campos dentro de shadow DOM são enviados para revisão', ['sombra com açim', 'outra sombra açim'].every((t) => enviados.includes(t)), true);
+      const marcaSombra = sombra().querySelector('.marca');
+      confere('textarea em shadow DOM ganha sublinhado', marcaSombra?.textContent, 'açim');
+      passarMouse(marcaSombra.getBoundingClientRect());
+      await espera(100);
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('aplicar troca o texto do textarea em shadow DOM', areaSombra.value, 'sombra com assim');
+      confere('contenteditable em shadow DOM ganha highlight', CSS.highlights.get('revisor-gramatica')?.size, 1);
+      passarMouse([...CSS.highlights.get('revisor-gramatica')][0].getBoundingClientRect());
+      await espera(100);
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('aplicar troca o texto do contenteditable em shadow DOM', editavelSombra.textContent, 'outra sombra assim');
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;
