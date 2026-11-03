@@ -89,7 +89,7 @@
 
   caso('roteia só entre modelos gratuitos e só por provedores que aceitam o schema', () => {
     const req = C.montarRequisicao('oi');
-    igual([req.models.length > 1, req.models.every((m) => m.endsWith(':free')), 'model' in req, req.provider.require_parameters], [true, true, false, true]);
+    igual([req.models.length > 1 && req.models.length <= 3, req.models.every((m) => m.endsWith(':free')), 'model' in req, req.provider.require_parameters], [true, true, false, true]);
   });
 
   caso('modelo revisa no idioma detectado e deixa gramática para as outras camadas', () => {

@@ -14,11 +14,9 @@
   const PALAVRAS_DO_DICIONARIO_NO_PROMPT = 200;
   const ENDPOINT = 'https://openrouter.ai/api/v1/';
   const MODELOS = [
-    'google/gemma-4-31b-it:free',
     'nvidia/nemotron-3.5-super-vl:free',
     'xingchen-agi/xing4.0-29b-a4b:free',
-    'google/gemma-4-26b-a4b-it:free',
-    'dots-studio/dots-3-note-preview:free',
+    'liquid/lfm-2.5-2.6b:free',
   ];
   const ESQUEMA_DA_RESPOSTA = {
     type: 'object',
@@ -80,7 +78,7 @@
     ].join('\n');
   }
 
-  function montarRequisicao(texto, { tom = 'neutro', dicionario = [], idioma = 'pt-BR' } = {}) {
+  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR' } = {}) {
     return {
       models: MODELOS,
       messages: [
@@ -120,7 +118,7 @@
 
   function filtrarSugestoes(texto, brutas, { dicionario = [] } = {}) {
     const aceitas = [];
-    for (const s of Array.isArray(brutas) ? brutas : []) {
+    for (const s of brutas) {
       if (!s || typeof s.original !== 'string' || typeof s.substituicao !== 'string') continue;
       if (!TIPOS.includes(s.tipo)) continue;
       const { original, substituicao } = s;
@@ -155,14 +153,13 @@
     const novoTexto = texto.slice(0, escolhida.inicio) + escolhida.substituicao + texto.slice(escolhida.fim);
     const delta = escolhida.substituicao.length - (escolhida.fim - escolhida.inicio);
     const restantes = sugestoes
-      .filter((s) => s !== escolhida && (s.fim <= escolhida.inicio || s.inicio >= escolhida.fim))
+      .filter((s) => s.fim <= escolhida.inicio || s.inicio >= escolhida.fim)
       .map((s) => (s.inicio >= escolhida.fim ? { ...s, inicio: s.inicio + delta, fim: s.fim + delta } : s));
     return { texto: novoTexto, sugestoes: restantes };
   }
 
   raiz.RevisorCore = {
     TIPOS,
-    TONS,
     ENDPOINT,
     dividirParagrafos,
     revisavel,

@@ -5,6 +5,7 @@ const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = Reviso
 const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
+const TEMPO_MAXIMO_MODELO_MS = 30_000;
 const COR_SELO_COTA = '#EDAE49';
 const COR_SELO_PAUSA = '#6B6475';
 const ESTADOS_PASSAGEIROS = new Set(['falha', 'sem_conexao', 'limite_por_minuto', 'cota']);
@@ -163,7 +164,7 @@ async function camadaModelo(texto, idioma, cfg) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.chaveOpenrouter}`, 'X-Title': 'CraseUp' },
       body: JSON.stringify(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario, idioma })),
-      signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
+      signal: AbortSignal.timeout(TEMPO_MAXIMO_MODELO_MS),
     });
   } catch {
     return semResposta('do OpenRouter');
