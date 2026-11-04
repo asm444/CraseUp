@@ -87,6 +87,7 @@
     clearTimeout(estado.timer);
     estado.espelho?.remove();
     estado.observador?.disconnect();
+    estado.mutacoes?.disconnect();
     estado.ranges = [];
     reconstruirHighlights();
   }
@@ -297,12 +298,26 @@
     if (ativo && campos.get(estado.el) === estado) desenhar(estado);
   }
 
+  function campoDoEvento(evento) {
+    const origem = evento.composedPath()[0];
+    return estadoDe(origem instanceof HTMLElement && origem.isContentEditable ? raizEditavel(origem) : origem);
+  }
+
   function aoDigitar(evento) {
     if (!ativo) return;
-    const origem = evento.composedPath()[0];
-    const alvo = origem instanceof HTMLElement && origem.isContentEditable ? raizEditavel(origem) : origem;
-    const estado = estadoDe(alvo);
-    if (!estado) return;
+    const estado = campoDoEvento(evento);
+    if (estado) agendarRevisao(estado);
+  }
+
+  function aoFocar(evento) {
+    if (!ativo) return;
+    const estado = campoDoEvento(evento);
+    if (estado?.tipo !== 'editavel' || estado.mutacoes) return;
+    estado.mutacoes = new MutationObserver(() => agendarRevisao(estado));
+    estado.mutacoes.observe(estado.el, { characterData: true, childList: true, subtree: true });
+  }
+
+  function agendarRevisao(estado) {
     desenhar(estado);
     clearTimeout(estado.timer);
     estado.timer = setTimeout(() => revisarCampo(estado), ESPERA_DIGITACAO_MS);
@@ -498,6 +513,7 @@
   }
 
   document.addEventListener('input', aoDigitar, true);
+  document.addEventListener('focusin', aoFocar, true);
   document.addEventListener('mousemove', aoMoverMouse, { passive: true, capture: true });
   document.addEventListener('scroll', aoRolarOuRedimensionar, { passive: true, capture: true });
   addEventListener('resize', aoRolarOuRedimensionar, { passive: true });

@@ -8,6 +8,7 @@
 <input id="senha" type="password">
 <input id="cartao" type="text" autocomplete="cc-number">
 <div id="hospedeiro"></div>
+<div id="semInput" contenteditable="true"><p>editor sem input</p></div>
 <pre id="resultado">NAO EXECUTADO</pre>
 <script src="../src/core.js"></script>
 <script>
@@ -27,6 +28,7 @@
       { tipo: 'tom', original: 'tá', substituicao: 'está', motivo: 'informal' },
       { tipo: 'tom', original: 'vc', substituicao: 'você', motivo: 'abreviação' },
     ],
+    'editor sem input açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
@@ -162,6 +164,12 @@
       await espera(100);
       sombra().querySelector('.cartao .aplicar').click();
       confere('aplicar troca o texto do contenteditable em shadow DOM', editavelSombra.textContent, 'outra sombra assim');
+
+      const semInput = document.getElementById('semInput');
+      semInput.focus();
+      semInput.querySelector('p').firstChild.data += ' açim';
+      await espera(1500);
+      confere('editor que muda o texto sem disparar input também é revisado', enviados.includes('editor sem input açim'), true);
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;
