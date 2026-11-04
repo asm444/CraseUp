@@ -372,6 +372,7 @@
     acoes.className = 'acoes';
     acoes.append(
       botao('Aplicar', 'aplicar', () => aplicar(estado, marca)),
+      ...(estado.marcas.length > 1 ? [botao(`Aplicar todas (${estado.marcas.length})`, 'aplicar-todas', () => aplicarTodas(estado))] : []),
       botao('Ignorar', 'secundario', () => ignorar(estado, marca)),
       botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marca)),
     );
@@ -414,6 +415,24 @@
       guardarNoCache(novo.texto, novo.sugestoes);
     }
     esconderCartao();
+    trocarNoCampo(estado, marca);
+  }
+
+  function aplicarTodas(estado) {
+    esconderCartao();
+    const marcas = calcularMarcas(estado, lerCampo(estado)).sort((a, b) => b.inicio - a.inicio);
+    const finais = new Map();
+    for (const marca of marcas) {
+      const atual = finais.get(marca.paragrafo) || { texto: marca.paragrafo, sugestoes: cache.get(marca.paragrafo) };
+      finais.set(marca.paragrafo, aplicarNoParagrafo(atual.texto, atual.sugestoes, marca.relativo));
+    }
+    for (const { texto, sugestoes } of finais.values()) guardarNoCache(texto, sugestoes);
+    for (const marca of marcas) {
+      if (lerCampo(estado).slice(marca.inicio, marca.fim) === marca.original) trocarNoCampo(estado, marca);
+    }
+  }
+
+  function trocarNoCampo(estado, marca) {
     if (estado.tipo === 'texto') {
       estado.el.focus();
       estado.el.setRangeText(marca.substituicao, marca.inicio, marca.fim, 'end');

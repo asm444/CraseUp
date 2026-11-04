@@ -19,6 +19,14 @@
     'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
     'sombra com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'eu vou mercado e açim': [
+      { tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'falta preposição' },
+      { tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' },
+    ],
+    'tá bom, vc vem?': [
+      { tipo: 'tom', original: 'tá', substituicao: 'está', motivo: 'informal' },
+      { tipo: 'tom', original: 'vc', substituicao: 'você', motivo: 'abreviação' },
+    ],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
@@ -86,6 +94,7 @@
       const cartao = sombra().querySelector('.cartao');
       confere('passar o mouse abre o cartão com a troca', [cartao?.querySelector('.de')?.textContent, cartao?.querySelector('.para')?.textContent], ['vou mercado', 'vou ao mercado']);
       confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'via OpenRouter');
+      confere('com uma correção só, não há Aplicar todas', cartao?.querySelector('.aplicar-todas'), null);
       cartao.querySelector('.aplicar').click();
       confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');
       await espera(1500);
@@ -114,6 +123,25 @@
       ouvinte({ tipo: 'revisarPedido' });
       await espera(300);
       confere('pedido reenvia, marcados como pedido, os parágrafos já revisados dos campos', pedidos.slice().sort(), ['isso é assim mesmo', 'texto bom demais']);
+
+      digitar(area, 'eu vou mercado e açim');
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(100);
+      const todas = sombra().querySelector('.cartao .aplicar-todas');
+      confere('com duas correções, o cartão oferece Aplicar todas (2)', todas?.textContent, 'Aplicar todas (2)');
+      todas.click();
+      confere('Aplicar todas troca tudo no textarea', area.value, 'eu vou ao mercado e assim');
+      await espera(1500);
+      confere('após Aplicar todas, o texto corrigido não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado e assim').length, 0);
+      confere('após Aplicar todas, nenhum sublinhado sobra', sombra().querySelectorAll('.marca').length, 0);
+
+      digitar(editavel, 'tá bom, vc vem?');
+      await espera(1500);
+      passarMouse([...CSS.highlights.get('revisor-tom')][0].getBoundingClientRect());
+      await espera(100);
+      sombra().querySelector('.cartao .aplicar-todas').click();
+      confere('Aplicar todas troca tudo no contenteditable', editavel.textContent, 'está bom, você vem?');
 
       const raizSombra = document.getElementById('hospedeiro').attachShadow({ mode: 'open' });
       raizSombra.innerHTML = '<style>textarea, [contenteditable] { display: block; width: 400px; font: 16px/1.4 sans-serif; margin: 20px; padding: 8px; }</style><textarea id="areaSombra"></textarea><div id="editavelSombra" contenteditable="true"></div>';

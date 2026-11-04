@@ -140,3 +140,8 @@ button.aplicar {
   font-weight: 600;
 }
 button.aplicar:hover { filter: brightness(1.08); }
+button.aplicar-todas {
+  border-color: var(--cor);
+  color: var(--cor);
+  font-weight: 600;
+}
