@@ -3,7 +3,8 @@
   globalThis.__revisorGemini = true;
 
   const { TIPOS, dividirParagrafos, revisavel, contemPalavraDoDicionario, aplicarNoParagrafo } = RevisorCore;
-  const ESPERA_DIGITACAO_MS = 1200;
+  const ESPERA_RAPIDA_MS = 250;
+  const ESPERA_MODELO_MS = 1200;
   const PARAGRAFOS_POR_PAUSA = 3;
   const PARAGRAFOS_POR_PEDIDO = 10;
   const ENTRADAS_NO_CACHE = 300;
@@ -85,6 +86,7 @@
 
   function descartarCampo(estado) {
     clearTimeout(estado.timer);
+    clearTimeout(estado.timerModelo);
     estado.espelho?.remove();
     estado.observador?.disconnect();
     estado.mutacoes?.disconnect();
@@ -273,19 +275,42 @@
     return item ? item.inicio + startOffset : texto.length;
   }
 
-  async function revisarCampo(estado, pedido) {
+  function pedirRevisao(mensagem, aoParcial) {
+    return new Promise((resolver, rejeitar) => {
+      const porta = chrome.runtime.connect({ name: 'revisar' });
+      porta.onMessage.addListener((m) => {
+        if (m.parcial) return aoParcial(m.parcial);
+        resolver(m.final);
+        porta.disconnect();
+      });
+      porta.onDisconnect.addListener(() => rejeitar(new Error('revisão interrompida')));
+      porta.postMessage(mensagem);
+    });
+  }
+
+  async function revisarCampo(estado, pedido, rapida = false) {
     if (!ativo || !estado.el.isConnected) return;
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
-    const pendentes = dividirParagrafos(texto)
-      .filter((p) => revisavel(p.texto) && (pedido || !cache.has(p.texto) || provisorios.has(p.texto)) && !emVoo.has(p.texto))
+    const candidatos = dividirParagrafos(texto)
+      .filter((p) => revisavel(p.texto) && (pedido || !cache.has(p.texto) || (!rapida && provisorios.has(p.texto))));
+    if (!rapida && candidatos.some((p) => emVoo.has(p.texto))) {
+      clearTimeout(estado.timerModelo);
+      estado.timerModelo = setTimeout(() => revisarCampo(estado, false), ESPERA_RAPIDA_MS);
+    }
+    const pendentes = candidatos
+      .filter((p) => !emVoo.has(p.texto))
       .sort((a, b) => Math.abs(a.inicio - cursor) - Math.abs(b.inicio - cursor))
       .slice(0, pedido ? PARAGRAFOS_POR_PEDIDO : PARAGRAFOS_POR_PAUSA);
     await Promise.all(
       pendentes.map(async ({ texto: paragrafo }) => {
         emVoo.add(paragrafo);
         try {
-          const resposta = await chrome.runtime.sendMessage({ tipo: 'revisar', texto: paragrafo, pedido });
+          const resposta = await pedirRevisao({ texto: paragrafo, pedido, modelo: !rapida }, (parcial) => {
+            if (parcial.sugestoes.length < (cache.get(paragrafo)?.length ?? 0)) return;
+            guardarNoCache(paragrafo, parcial.sugestoes, true);
+            if (ativo && campos.get(estado.el) === estado) desenhar(estado);
+          });
           if (resposta?.sugestoes) guardarNoCache(paragrafo, resposta.sugestoes, Boolean(resposta.provisorio));
           if (resposta?.erro === 'pausado') definirAtivo(false);
         } catch {
@@ -320,7 +345,9 @@
   function agendarRevisao(estado) {
     desenhar(estado);
     clearTimeout(estado.timer);
-    estado.timer = setTimeout(() => revisarCampo(estado), ESPERA_DIGITACAO_MS);
+    clearTimeout(estado.timerModelo);
+    estado.timer = setTimeout(() => revisarCampo(estado, false, true), ESPERA_RAPIDA_MS);
+    estado.timerModelo = setTimeout(() => revisarCampo(estado, false), ESPERA_MODELO_MS);
   }
 
   function contemPonto(rects, x, y) {

@@ -89,20 +89,25 @@ async function camadaOffline(texto) {
   }
 }
 
-async function revisar(texto, abaId, pedido) {
+async function revisar(texto, abaId, { pedido, modelo }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
   const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool']);
+  let protegidos = [];
+  const juntar = (...listas) => filtrarSugestoes(texto, listas.flat(), { dicionario: cfg.dicionario || [], protegidos });
   const offline = await camadaOffline(texto);
+  aoAvancar({ sugestoes: juntar(offline.sugestoes) });
   const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
-  const openrouter = await camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
   const abreviacoes = languagetool.abreviacoes || [];
   const casual = cfg.tom === 'casual';
-  const brutas = [offline, languagetool, openrouter].flatMap((camada) => camada.sugestoes || []).concat(casual ? [] : abreviacoes);
-  const protegidos = casual ? abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length })) : [];
+  if (casual) protegidos = abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length }));
+  const rapidas = [offline.sugestoes, languagetool.sugestoes || [], casual ? [] : abreviacoes];
+  aoAvancar({ sugestoes: juntar(...rapidas) });
+  const adiar = !modelo && languagetool.estado === 'ativa' && languagetool.acusou;
+  const openrouter = adiar ? { estado: 'adiado' } : await camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
   await registrarCamadas({ offline, languagetool, openrouter });
   return {
-    sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [], protegidos }),
-    provisorio: [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
+    sugestoes: juntar(...rapidas, openrouter.sugestoes || []),
+    provisorio: adiar || [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
 }
 
@@ -111,6 +116,10 @@ function semResposta(origem) {
 }
 
 async function registrarCamadas(camadas) {
+  if (camadas.openrouter.estado === 'adiado') {
+    const { camadas: anteriores } = await chrome.storage.session.get('camadas');
+    camadas.openrouter = anteriores?.openrouter || { estado: 'ocioso' };
+  }
   const resumo = Object.fromEntries(Object.entries(camadas).map(([nome, { estado, mensagem }]) => [nome, { estado, mensagem }]));
   await chrome.storage.session.set({ camadas: resumo });
 }
@@ -214,12 +223,22 @@ function paginaDaExtensao(remetente) {
   return (remetente.url || '').startsWith(chrome.runtime.getURL(''));
 }
 
+chrome.runtime.onConnect.addListener((porta) => {
+  if (porta.name !== 'revisar') return;
+  const enviar = (mensagem) => {
+    try {
+      porta.postMessage(mensagem);
+    } catch {}
+  };
+  porta.onMessage.addListener(async (msg) => {
+    if (typeof msg?.texto !== 'string') return;
+    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false };
+    enviar({ final: await revisar(msg.texto, porta.sender?.tab?.id, opcoes, (parcial) => enviar({ parcial })) });
+  });
+});
+
 chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   const abaId = remetente.tab?.id;
-  if (msg?.tipo === 'revisar' && typeof msg.texto === 'string') {
-    revisar(msg.texto, abaId, msg.pedido === true).then(responder);
-    return true;
-  }
   if (msg?.tipo === 'estadoAba') {
     abaPausada(abaId).then((pausado) => responder({ pausado }));
     return true;

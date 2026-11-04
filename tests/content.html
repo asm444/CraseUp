@@ -29,22 +29,48 @@
       { tipo: 'tom', original: 'vc', substituicao: 'você', motivo: 'abreviação' },
     ],
     'editor sem input açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'chega aos poucos açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'rápida lenta açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'sem piscar açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'duas etapas açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
   const enviados = [];
   const pedidos = [];
+  const etapas = [];
   let ouvinte = null;
   globalThis.chrome = {
     runtime: {
       async sendMessage(msg) {
         if (msg.tipo === 'estadoAba') return { pausado: false };
-        if (msg.tipo === 'revisar') {
-          enviados.push(msg.texto);
-          if (msg.pedido) pedidos.push(msg.texto);
-          return { sugestoes: RevisorCore.filtrarSugestoes(msg.texto, RESPOSTAS[msg.texto] || []) };
-        }
         return {};
+      },
+      connect() {
+        let ouvinteDaPorta = null;
+        return {
+          onMessage: { addListener(fn) { ouvinteDaPorta = fn; } },
+          onDisconnect: { addListener() {} },
+          disconnect() {},
+          postMessage(msg) {
+            enviados.push(msg.texto);
+            etapas.push([msg.texto, msg.modelo]);
+            if (msg.pedido) pedidos.push(msg.texto);
+            const sugestoes = RevisorCore.filtrarSugestoes(msg.texto, RESPOSTAS[msg.texto] || []);
+            if (msg.texto === 'chega aos poucos açim') {
+              ouvinteDaPorta({ parcial: { sugestoes } });
+              setTimeout(() => ouvinteDaPorta({ final: { sugestoes } }), 3000);
+              return;
+            }
+            if (msg.texto === 'sem piscar açim' && msg.modelo) {
+              ouvinteDaPorta({ parcial: { sugestoes: [] } });
+              setTimeout(() => ouvinteDaPorta({ final: { sugestoes } }), 1000);
+              return;
+            }
+            const provisorio = ['duas etapas açim', 'rápida lenta açim', 'sem piscar açim'].includes(msg.texto) && !msg.modelo;
+            setTimeout(() => ouvinteDaPorta({ final: { sugestoes, provisorio } }), msg.texto === 'rápida lenta açim' && !msg.modelo ? 1500 : 0);
+          },
+        };
       },
       getURL: (p) => `../${p}`,
       onMessage: { addListener(fn) { ouvinte = fn; } },
@@ -82,7 +108,7 @@
       digitar(editavel, 'isso é açim mesmo');
       digitar(document.getElementById('senha'), 'texto bom demais');
       digitar(document.getElementById('cartao'), 'texto bom demais');
-      await espera(500);
+      await espera(150);
       confere('nada é enviado antes da pausa na digitação', enviados.length, 0);
       await espera(1500);
 
@@ -164,6 +190,28 @@
       await espera(100);
       sombra().querySelector('.cartao .aplicar').click();
       confere('aplicar troca o texto do contenteditable em shadow DOM', editavelSombra.textContent, 'outra sombra assim');
+
+      digitar(area, 'chega aos poucos açim');
+      await espera(400);
+      confere('resultado parcial já sublinha antes do final chegar', [...sombra().querySelectorAll('.marca')].filter((m) => m.parentElement.textContent.startsWith('chega aos poucos')).map((m) => m.textContent), ['açim']);
+
+      digitar(area, 'duas etapas açim');
+      await espera(400);
+      digitar(area, 'duas etapas açim\n\noutro parágrafo');
+      await espera(400);
+      confere('a etapa rápida sai logo, sem o modelo', etapas.filter(([t]) => t === 'duas etapas açim'), [['duas etapas açim', false]]);
+      await espera(1200);
+      confere('parágrafo que ficou à espera do modelo vai de novo na pausa maior, com o modelo', etapas.filter(([t]) => t === 'duas etapas açim'), [['duas etapas açim', false], ['duas etapas açim', true]]);
+
+      digitar(area, 'rápida lenta açim');
+      await espera(2500);
+      confere('se a etapa rápida demora mais que a pausa maior, o modelo ainda roda depois dela', etapas.filter(([t]) => t === 'rápida lenta açim'), [['rápida lenta açim', false], ['rápida lenta açim', true]]);
+
+      digitar(area, 'sem piscar açim');
+      await espera(1500);
+      const marcasDe = (inicio) => [...sombra().querySelectorAll('.marca')].filter((m) => m.parentElement.textContent.startsWith(inicio)).map((m) => m.textContent);
+      confere('parcial com menos sugestões não apaga o que já está sublinhado', marcasDe('sem piscar'), ['açim']);
+      await espera(1000);
 
       const semInput = document.getElementById('semInput');
       semInput.focus();
