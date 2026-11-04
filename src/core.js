@@ -8,6 +8,10 @@
     neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',
     casual: 'casual (leve e próximo, como numa conversa)',
   };
+  const GIRIA_POR_TOM = {
+    neutro: '- Gíria, abreviação de internet (vc, pq, blz, tô) e expressão coloquial destoam do tom: marque como "tom" e troque pela forma por extenso ou neutra.',
+    casual: '- Gíria e abreviação de internet combinam com o tom casual: não marque.',
+  };
   const PALAVRAS_A_MAIS_NO_MAXIMO = 10;
   const TAMANHO_MINIMO_PARAGRAFO = 3;
   const TAMANHO_MAXIMO_PARAGRAFO = 4000;
@@ -70,8 +74,9 @@
       '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
       '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
       `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
+      GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro,
       '- Não aponte ortografia, acentuação, concordância, regência, crase nem pontuação: outra ferramenta já cuida disso.',
-      '- Não marque nomes próprios, marcas, siglas, termos técnicos, gírias intencionais nem trechos em outro idioma.',
+      '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
       '- Responda só com o objeto JSON {"sugestoes": [...]}, sem texto fora dele.',
@@ -116,9 +121,20 @@
     return (texto.match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu) || []).length;
   }
 
-  function filtrarSugestoes(texto, brutas, { dicionario = [] } = {}) {
-    const aceitas = [];
-    for (const s of brutas) {
+  function ocorrencia(texto, original, desde) {
+    const borda = (i) => i < 0 || i >= texto.length || !/[\p{L}\p{N}]/u.test(texto[i]);
+    const comecaEmLetra = /^[\p{L}\p{N}]/u.test(original);
+    const terminaEmLetra = /[\p{L}\p{N}]$/u.test(original);
+    for (let p = texto.indexOf(original, desde); p !== -1; p = texto.indexOf(original, p + 1)) {
+      if ((!comecaEmLetra || borda(p - 1)) && (!terminaEmLetra || borda(p + original.length))) return p;
+    }
+    return -1;
+  }
+
+  function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [] } = {}) {
+    const aceitas = protegidos.map(({ inicio, fim }) => ({ inicio, fim, protegido: true }));
+    const prioridade = (s) => -ORIGENS.indexOf(ORIGENS.includes(s?.origem) ? s.origem : 'openrouter');
+    for (const s of [...brutas].sort((a, b) => prioridade(a) - prioridade(b))) {
       if (!s || typeof s.original !== 'string' || typeof s.substituicao !== 'string') continue;
       if (!TIPOS.includes(s.tipo)) continue;
       const { original, substituicao } = s;
@@ -131,8 +147,8 @@
         if (sobrepoe(s.inicio)) continue;
         posicao = s.inicio;
       } else {
-        posicao = texto.indexOf(original);
-        while (posicao !== -1 && sobrepoe(posicao)) posicao = texto.indexOf(original, posicao + 1);
+        posicao = ocorrencia(texto, original, 0);
+        while (posicao !== -1 && sobrepoe(posicao)) posicao = ocorrencia(texto, original, posicao + 1);
         if (posicao === -1) continue;
       }
       aceitas.push({
@@ -146,7 +162,7 @@
         fim: posicao + original.length,
       });
     }
-    return aceitas.sort((a, b) => a.inicio - b.inicio);
+    return aceitas.filter((a) => !a.protegido).sort((a, b) => a.inicio - b.inicio);
   }
 
   function aplicarNoParagrafo(texto, sugestoes, escolhida) {

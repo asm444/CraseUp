@@ -95,10 +95,13 @@ async function revisar(texto, abaId, pedido) {
   const offline = await camadaOffline(texto);
   const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
   const openrouter = await camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
-  const brutas = [offline, languagetool, openrouter].flatMap((camada) => camada.sugestoes || []);
+  const abreviacoes = languagetool.abreviacoes || [];
+  const casual = cfg.tom === 'casual';
+  const brutas = [offline, languagetool, openrouter].flatMap((camada) => camada.sugestoes || []).concat(casual ? [] : abreviacoes);
+  const protegidos = casual ? abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length })) : [];
   await registrarCamadas({ offline, languagetool, openrouter });
   return {
-    sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [] }),
+    sugestoes: filtrarSugestoes(texto, brutas, { dicionario: cfg.dicionario || [], protegidos }),
     provisorio: [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
 }

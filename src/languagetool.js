@@ -28,12 +28,14 @@
   function lerMatches(corpo, texto) {
     if (!Array.isArray(corpo?.matches)) throw new Error('resposta sem matches');
     const sugestoes = [];
+    const abreviacoes = [];
     for (const m of corpo.matches) {
-      if (!PROBLEMAS_DE_GRAMATICA.has(m?.rule?.issueType)) continue;
+      const abreviacao = m?.rule?.id === 'INTERNET_ABBREVIATIONS';
+      if (!abreviacao && !PROBLEMAS_DE_GRAMATICA.has(m?.rule?.issueType)) continue;
       const troca = m.replacements?.[0]?.value;
       if (typeof troca !== 'string' || !Number.isInteger(m.offset) || !Number.isInteger(m.length)) continue;
-      sugestoes.push({
-        tipo: 'gramatica',
+      (abreviacao ? abreviacoes : sugestoes).push({
+        tipo: abreviacao ? 'tom' : 'gramatica',
         origem: 'languagetool',
         original: texto.slice(m.offset, m.offset + m.length),
         substituicao: troca,
@@ -41,7 +43,7 @@
         inicio: m.offset,
       });
     }
-    return { sugestoes, acusou: corpo.matches.length > 0 };
+    return { sugestoes, abreviacoes, acusou: corpo.matches.length > 0 };
   }
 
   raiz.RevisorLanguageTool = { normalizarEndereco, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches };

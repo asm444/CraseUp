@@ -48,6 +48,13 @@
     igual([L.lerMatches(soEstilo, TEXTO_LT).acusou, L.lerMatches(soEstilo, TEXTO_LT).sugestoes.length, L.lerMatches({ matches: [] }, 'ok').acusou], [true, 0, false]);
   });
 
+  caso('abreviação de internet sai separada, como tom, com o trecho exato', () => {
+    const texto = 'vc vai na rua';
+    const corpo = { matches: [{ offset: 0, length: 2, message: 'Evite abreviações de internet.', replacements: [{ value: 'você' }], rule: { id: 'INTERNET_ABBREVIATIONS', issueType: 'style' } }] };
+    const lido = L.lerMatches(corpo, texto);
+    igual([lido.sugestoes.length, lido.abreviacoes.map((s) => [s.original, s.substituicao, s.inicio, s.tipo, s.origem])], [0, [['vc', 'você', 0, 'tom', 'languagetool']]]);
+  });
+
   caso('resposta sem matches é rejeitada', () => {
     let falhou = false;
     try { L.lerMatches({}, 'x'); } catch { falhou = true; }

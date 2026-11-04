@@ -60,12 +60,23 @@
     igual(C.filtrarSugestoes('açim e açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 7, origem: 'offline' }]).map((x) => [x.inicio, x.origem]), [[7, 'offline']]);
   });
 
+  caso('sem posição informada, o trecho só casa com palavra inteira', () => {
+    igual(filtra('vc vai na rua, n sei', [s('tom', 'n', 'não')]), [['tom', 'n', 'não', 15]]);
+    igual(filtra('vou, tipo, sair', [s('clareza', 'tipo, ', '')]), [['clareza', 'tipo, ', '', 5]]);
+  });
+
+  caso('trecho protegido não recebe marca de nenhuma camada', () => {
+    igual(filtra('vc vai', [{ ...s('gramatica', 'vc', 'vs'), inicio: 0, origem: 'offline' }, s('tom', 'vai', 'irá')], { protegidos: [{ inicio: 0, fim: 2 }] }), [['tom', 'vai', 'irá', 3]]);
+  });
+
   caso('posição informada que não bate com o texto cai na busca pelo trecho', () => {
     igual(filtra('casa açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 0 }]), [['gramatica', 'açim', 'assim', 5]]);
   });
 
-  caso('primeira camada vence quando duas marcam o mesmo trecho; sem origem vira openrouter', () => {
-    igual(C.filtrarSugestoes('vou açim', [{ ...s('gramatica', 'açim', 'assim'), inicio: 4, origem: 'offline' }, s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['offline']);
+  caso('no mesmo trecho vence o modelo, depois o LanguageTool, depois o offline; sem origem vira openrouter', () => {
+    const vc = (origem, troca) => ({ ...s('gramatica', 'vc', troca), inicio: 0, origem });
+    igual(C.filtrarSugestoes('vc vai', [vc('offline', 'vs'), vc('languagetool', 'VC'), { ...s('tom', 'vc', 'você'), inicio: 0 }]).map((x) => x.substituicao), ['você']);
+    igual(C.filtrarSugestoes('vc vai', [vc('offline', 'vs'), vc('languagetool', 'VC')]).map((x) => x.substituicao), ['VC']);
     igual(C.filtrarSugestoes('vou açim', [s('palavra', 'açim', 'assim')]).map((x) => x.origem), ['openrouter']);
   });
 
@@ -90,6 +101,11 @@
   caso('roteia só entre modelos gratuitos e só por provedores que aceitam o schema', () => {
     const req = C.montarRequisicao('oi');
     igual([req.models.length > 1 && req.models.length <= 3, req.models.every((m) => m.endsWith(':free')), 'model' in req, req.provider.require_parameters], [true, true, false, true]);
+  });
+
+  caso('gíria e abreviação são marcadas em formal e neutro e deixadas em paz no casual', () => {
+    const marca = (tom) => sistemaDe(C.montarRequisicao('vc vai?', { tom })).includes('marque como "tom" e troque pela forma por extenso');
+    igual([marca('formal'), marca('neutro'), marca('casual'), marca(undefined)], [true, true, false, true]);
   });
 
   caso('modelo revisa no idioma detectado e deixa gramática para as outras camadas', () => {
