@@ -184,11 +184,13 @@ async function camadaModelo(texto, idioma, cfg) {
   }
   if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
 
+  let corpo;
   let lida;
   try {
-    lida = lerResposta(await resposta.json());
-  } catch {
-    return { estado: 'falha', mensagem: 'resposta em formato inesperado' };
+    corpo = await resposta.json();
+    lida = lerResposta(corpo);
+  } catch (erro) {
+    return { estado: 'falha', mensagem: `resposta em formato inesperado: ${corpo?.error?.message || erro.message}`.slice(0, 200) };
   }
   if (cfg.cota) await chrome.storage.local.remove('cota');
   return { estado: 'ativa', mensagem: lida.modelo, sugestoes: lida.sugestoes.map((s) => ({ ...s, modelo: lida.modelo })) };
