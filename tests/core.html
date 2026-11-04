@@ -103,6 +103,10 @@
     igual([req.models.length > 1 && req.models.length <= 3, req.models.every((m) => m.endsWith(':free')), 'model' in req, req.provider.require_parameters], [true, true, false, true]);
   });
 
+  caso('pede a resposta sem raciocínio, que levava o modelo de 1 s para 7 a 13 s', () => {
+    igual(C.montarRequisicao('oi').reasoning, { enabled: false });
+  });
+
   caso('gíria e abreviação são marcadas em formal e neutro e deixadas em paz no casual', () => {
     const marca = (tom) => sistemaDe(C.montarRequisicao('vc vai?', { tom })).includes('marque como "tom" e troque pela forma por extenso');
     igual([marca('formal'), marca('neutro'), marca('casual'), marca(undefined)], [true, true, false, true]);

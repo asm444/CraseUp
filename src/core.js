@@ -91,6 +91,7 @@
         { role: 'user', content: texto },
       ],
       temperature: 0,
+      reasoning: { enabled: false },
       response_format: { type: 'json_schema', json_schema: { name: 'revisao', strict: true, schema: ESQUEMA_DA_RESPOSTA } },
       provider: { require_parameters: true },
     };
