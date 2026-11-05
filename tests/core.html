@@ -12,6 +12,35 @@
   const s = (tipo, original, substituicao) => ({ tipo, original, substituicao, motivo: 'm' });
   const filtra = (texto, brutas, op) => C.filtrarSugestoes(texto, brutas, op).map((x) => [x.tipo, x.original, x.substituicao, x.inicio]);
 
+  const sug = (original, substituicao, inicio) => ({ tipo: 'gramatica', original, substituicao, inicio, fim: inicio + original.length });
+
+  caso('parágrafo curto vira um trecho só com todas as correções', () => {
+    const t = 'eu vou mercado e açim.';
+    const trechos = C.trechosDoParagrafo(t, [sug('açim', 'assim', 17), sug('vou mercado', 'vou ao mercado', 3)]);
+    igual(trechos.map((x) => [x.inicio, x.fim, x.sugestoes.map((s) => s.original)]), [[0, 22, ['vou mercado', 'açim']]]);
+    igual(C.aplicarTrecho(t, trechos[0].sugestoes, trechos[0]).texto, 'eu vou ao mercado e assim.');
+  });
+
+  caso('parágrafo longo vira um trecho por frase com correção, sem o espaço final', () => {
+    const t = `Uma açim. ${'Frase limpa sem nada. '.repeat(14)}Outra nóis!`;
+    const fim = t.length;
+    const trechos = C.trechosDoParagrafo(t, [sug('açim', 'assim', 4), sug('nóis', 'nós', fim - 5)]);
+    igual(trechos.map((x) => t.slice(x.inicio, x.fim)), ['Uma açim.', 'Outra nóis!']);
+  });
+
+  caso('correção que cruza o fim da frase junta as frases no mesmo trecho', () => {
+    const t = `${'Frase limpa sem nada. '.repeat(13)}Fim. Começo errado aqui.`;
+    const inicio = t.indexOf('Fim. Começo');
+    const trechos = C.trechosDoParagrafo(t, [sug('Fim. Começo', 'Fim, começo', inicio)]);
+    igual(trechos.map((x) => t.slice(x.inicio, x.fim)), ['Fim. Começo errado aqui.']);
+  });
+
+  caso('a prévia do trecho alterna texto igual e troca', () => {
+    const t = 'eu vou mercado hoje';
+    const [trecho] = C.trechosDoParagrafo(t, [sug('vou mercado', 'vou ao mercado', 3)]);
+    igual(C.partesDoTrecho(t, trecho), [{ igual: 'eu ' }, { de: 'vou mercado', para: 'vou ao mercado', tipo: 'gramatica' }, { igual: ' hoje' }]);
+  });
+
   caso('divide em parágrafos com o deslocamento de cada um', () => {
     igual(C.dividirParagrafos('ab\n\ncd'), [{ texto: 'ab', inicio: 0 }, { texto: '', inicio: 3 }, { texto: 'cd', inicio: 4 }]);
   });

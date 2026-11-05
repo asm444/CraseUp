@@ -12,6 +12,7 @@
 <pre id="resultado">NAO EXECUTADO</pre>
 <script src="../src/core.js"></script>
 <script>
+  const LONGO = `Primeira frase tem açim no começo. ${'Esta frase não tem problema nenhum para revisar. '.repeat(5)}A última frase tem nóis no fim.`;
   const RESPOSTAS = {
     'eu vou mercado': [
       { tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'falta preposição' },
@@ -33,6 +34,10 @@
     'rápida lenta açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'sem piscar açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'duas etapas açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    [LONGO]: [
+      { tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' },
+      { tipo: 'gramatica', original: 'nóis', substituicao: 'nós', motivo: 'grafia' },
+    ],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
@@ -122,7 +127,8 @@
       const cartao = sombra().querySelector('.cartao');
       confere('passar o mouse abre o cartão com a troca', [cartao?.querySelector('.de')?.textContent, cartao?.querySelector('.para')?.textContent], ['vou mercado', 'vou ao mercado']);
       confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'via OpenRouter');
-      confere('com uma correção só, não há Aplicar todas', cartao?.querySelector('.aplicar-todas'), null);
+      confere('com um trecho só, o cartão não pagina', cartao?.querySelector('.pagina'), null);
+      confere('o botão principal é Substituir', cartao?.querySelector('.aplicar')?.textContent, 'Substituir');
       cartao.querySelector('.aplicar').click();
       confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');
       await espera(1500);
@@ -156,20 +162,33 @@
       await espera(1500);
       passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
       await espera(100);
-      const todas = sombra().querySelector('.cartao .aplicar-todas');
-      confere('com duas correções, o cartão oferece Aplicar todas (2)', todas?.textContent, 'Aplicar todas (2)');
-      todas.click();
-      confere('Aplicar todas troca tudo no textarea', area.value, 'eu vou ao mercado e assim');
+      confere('parágrafo curto com duas correções abre um cartão só, com as duas na prévia', [...sombra().querySelectorAll('.cartao .para')].map((p) => p.textContent), ['vou ao mercado', 'assim']);
+      confere('a prévia mostra o parágrafo inteiro já corrigido', sombra().querySelector('.cartao .previa').textContent, 'eu vou mercadovou ao mercado e açimassim');
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('Substituir troca tudo do trecho no textarea', area.value, 'eu vou ao mercado e assim');
       await espera(1500);
-      confere('após Aplicar todas, o texto corrigido não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado e assim').length, 0);
-      confere('após Aplicar todas, nenhum sublinhado sobra', sombra().querySelectorAll('.marca').length, 0);
+      confere('após Substituir, o texto corrigido não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado e assim').length, 0);
+      confere('após Substituir, nenhum sublinhado sobra', sombra().querySelectorAll('.marca').length, 0);
+
+      digitar(area, LONGO);
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(100);
+      confere('parágrafo longo pagina por frase', [sombra().querySelector('.cartao .pagina')?.textContent, sombra().querySelector('.cartao .previa')?.textContent], ['1 de 2', 'Primeira frase tem açimassim no começo.']);
+      sombra().querySelector('.cartao .aplicar').click();
+      await espera(50);
+      confere('depois de substituir, o cartão continua aberto no trecho seguinte', [sombra().querySelector('.cartao .pagina'), sombra().querySelector('.cartao .previa')?.textContent], [null, 'A última frase tem nóisnós no fim.']);
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('os dois trechos substituídos, um depois do outro', area.value, LONGO.replace('açim', 'assim').replace('nóis', 'nós'));
+      await espera(50);
+      confere('sem trecho restante, o cartão fecha', sombra().querySelector('.cartao'), null);
 
       digitar(editavel, 'tá bom, vc vem?');
       await espera(1500);
       passarMouse([...CSS.highlights.get('revisor-tom')][0].getBoundingClientRect());
       await espera(100);
-      sombra().querySelector('.cartao .aplicar-todas').click();
-      confere('Aplicar todas troca tudo no contenteditable', editavel.textContent, 'está bom, você vem?');
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('Substituir troca tudo do trecho no contenteditable', editavel.textContent, 'está bom, você vem?');
 
       const raizSombra = document.getElementById('hospedeiro').attachShadow({ mode: 'open' });
       raizSombra.innerHTML = '<style>textarea, [contenteditable] { display: block; width: 400px; font: 16px/1.4 sans-serif; margin: 20px; padding: 8px; }</style><textarea id="areaSombra"></textarea><div id="editavelSombra" contenteditable="true"></div>';
@@ -194,6 +213,13 @@
       digitar(area, 'chega aos poucos açim');
       await espera(400);
       confere('resultado parcial já sublinha antes do final chegar', [...sombra().querySelectorAll('.marca')].filter((m) => m.parentElement.textContent.startsWith('chega aos poucos')).map((m) => m.textContent), ['açim']);
+      passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(100);
+      const cartaoAberto = sombra().querySelector('.cartao');
+      await espera(3000);
+      confere('o cartão aberto continua aberto quando o resultado final redesenha o campo', [cartaoAberto?.isConnected, sombra().querySelector('.cartao .previa')?.textContent], [true, 'chega aos poucos açimassim']);
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('e o Substituir dele troca o texto', area.value, 'chega aos poucos assim');
 
       digitar(area, 'duas etapas açim');
       await espera(400);

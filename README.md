@@ -27,7 +27,15 @@ Cada parágrafo editado passa por três camadas, da mais barata para a mais cara
 - O OpenRouter recebe uma lista de modelos gratuitos (`:free`) em ordem de preferência, em `src/core.js`. Se um modelo falhar por limite ou queda, o próprio OpenRouter passa para o seguinte, e o popup e o cartão mostram qual modelo atendeu. Só entram provedores que aceitam a resposta em JSON estruturado.
 - Com o LanguageTool indisponível, o OpenRouter não é chamado, nem por pedido. Sem servidor configurado, sobra só a ortografia offline.
 - Para pedir clareza e tom num texto em que o LanguageTool não acusou nada, use **Revisar clareza e tom nesta aba** no popup.
-- O popup mostra o estado de cada camada e, quando uma está indisponível, se o motivo é falta de conexão ou falha do serviço. O cartão de cada sugestão diz de qual camada ela veio.
+- O popup mostra o estado de cada camada e, quando uma está indisponível, se o motivo é falta de conexão ou falha do serviço. O cartão diz de qual camada veio cada sugestão.
+
+## O cartão
+
+Passar o mouse num sublinhado abre um cartão só para o trecho inteiro, com todas as correções dele já aplicadas na prévia: o texto antigo riscado e o novo destacado.
+
+- Parágrafo de até 280 caracteres é um trecho só. Parágrafo maior se divide em frases, e cada frase com correção é um trecho.
+- **Substituir** troca o trecho de uma vez, com todas as correções dele. Com mais de um trecho no campo, o cartão mostra `1 de N` e, depois de substituir, já passa para o trecho seguinte.
+- O cartão fecha no ×, no Esc ou com um clique fora dele.
 - O dicionário pessoal vale para as três camadas.
 
 ## Instalação

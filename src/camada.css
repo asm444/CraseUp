@@ -39,10 +39,10 @@
   --cor: var(--gramatica);
   position: absolute;
   width: max-content;
-  max-width: 320px;
-  min-width: 220px;
+  max-width: min(360px, calc(100vw - 16px));
+  min-width: 240px;
   box-sizing: border-box;
-  padding: 14px 16px 12px;
+  padding: 10px 12px;
   background: var(--fundo);
   color: var(--texto);
   border: 1px solid var(--borda);
@@ -53,7 +53,7 @@
   pointer-events: auto;
   animation: surgir 120ms ease-out;
 }
-.cartao .origem { margin: 0 0 10px; font-size: 12px; color: var(--texto-suave); }
+.cartao .origem { margin: 0 0 8px; font-size: 11px; color: var(--texto-suave); }
 .cartao-clareza { --cor: var(--clareza); }
 .cartao-palavra { --cor: var(--palavra); }
 .cartao-tom { --cor: var(--tom); }
@@ -63,56 +63,78 @@
   to { opacity: 1; transform: none; }
 }
 
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.navegacao { display: flex; align-items: center; gap: 2px; }
+.pagina { font-size: 12px; color: var(--texto-suave); padding: 0 4px; }
+
 .tipo {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
   color: var(--texto-suave);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .tipo::before {
   content: "";
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--cor);
 }
 
-.troca {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 10px;
-  margin-bottom: 6px;
+.previa {
+  margin: 0 0 6px;
+  max-height: 7.5em;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .de {
   color: var(--texto-suave);
   text-decoration: line-through;
-  text-decoration-color: var(--cor);
+  text-decoration-color: var(--cor-da-troca, var(--cor));
 }
 .para {
-  padding: 2px 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--cor) 18%, transparent);
+  padding: 0 3px;
+  margin-left: 2px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--cor-da-troca, var(--cor)) 22%, transparent);
   color: var(--texto);
   font-weight: 600;
 }
-.de::after {
-  content: "→";
-  margin-left: 10px;
-  color: var(--texto-suave);
-  display: inline-block;
-  text-decoration: none;
-}
+.de-gramatica, .para-gramatica, .motivo-gramatica { --cor-da-troca: var(--gramatica); }
+.de-clareza, .para-clareza, .motivo-clareza { --cor-da-troca: var(--clareza); }
+.de-palavra, .para-palavra, .motivo-palavra { --cor-da-troca: var(--palavra); }
+.de-tom, .para-tom, .motivo-tom { --cor-da-troca: var(--tom); }
 
-.motivo {
-  margin: 0 0 12px;
+.motivos {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  max-height: 4.2em;
+  overflow-y: auto;
   color: var(--texto-suave);
-  font-size: 13px;
+  font-size: 12px;
+}
+.motivo { display: flex; gap: 6px; align-items: baseline; }
+.motivo::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cor-da-troca);
+  transform: translateY(-1px);
 }
 
 .acoes {
@@ -125,7 +147,7 @@ button {
   font-size: 13px;
   cursor: pointer;
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 4px 12px;
   border: 1px solid var(--borda);
   background: var(--fundo-elevado);
   color: var(--texto);
@@ -140,8 +162,12 @@ button.aplicar {
   font-weight: 600;
 }
 button.aplicar:hover { filter: brightness(1.08); }
-button.aplicar-todas {
-  border-color: var(--cor);
-  color: var(--cor);
-  font-weight: 600;
+button.seta, button.fechar {
+  padding: 0 7px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--texto-suave);
+  font-size: 15px;
+  line-height: 22px;
 }
+button.seta:hover, button.fechar:hover { color: var(--texto); border-color: var(--borda); }

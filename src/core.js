@@ -15,6 +15,7 @@
   const PALAVRAS_A_MAIS_NO_MAXIMO = 10;
   const TAMANHO_MINIMO_PARAGRAFO = 3;
   const TAMANHO_MAXIMO_PARAGRAFO = 4000;
+  const TAMANHO_MAXIMO_TRECHO = 280;
   const PALAVRAS_DO_DICIONARIO_NO_PROMPT = 200;
   const ENDPOINT = 'https://openrouter.ai/api/v1/';
   const MODELOS = [
@@ -175,6 +176,62 @@
     return { texto: novoTexto, sugestoes: restantes };
   }
 
+  function limitesDeFrase(texto) {
+    const limites = [];
+    let inicio = 0;
+    for (const m of texto.matchAll(/[.!?…]+["'”’)\]]*\s+/gu)) {
+      const fim = m.index + m[0].length;
+      limites.push([inicio, fim]);
+      inicio = fim;
+    }
+    if (inicio < texto.length) limites.push([inicio, texto.length]);
+    return limites;
+  }
+
+  function trechosDoParagrafo(texto, sugestoes) {
+    const frases = texto.length <= TAMANHO_MAXIMO_TRECHO ? [[0, texto.length]] : limitesDeFrase(texto);
+    const trechos = [];
+    for (const s of [...sugestoes].sort((a, b) => a.inicio - b.inicio)) {
+      let i = frases.findIndex(([, fim]) => s.inicio < fim);
+      if (i === -1) i = frases.length - 1;
+      const inicio = frases[i][0];
+      let fim = frases[i][1];
+      while (s.fim > fim && i < frases.length - 1) fim = frases[++i][1];
+      const ultimo = trechos.at(-1);
+      if (ultimo && inicio < ultimo.fim) {
+        ultimo.fim = Math.max(ultimo.fim, fim);
+        ultimo.sugestoes.push(s);
+      } else {
+        trechos.push({ inicio, fim, sugestoes: [s] });
+      }
+    }
+    for (const t of trechos) {
+      const ultimaTroca = Math.max(...t.sugestoes.map((s) => s.fim));
+      t.fim = Math.max(ultimaTroca, t.inicio + texto.slice(t.inicio, t.fim).trimEnd().length);
+    }
+    return trechos;
+  }
+
+  function partesDoTrecho(texto, trecho) {
+    const partes = [];
+    let cursor = trecho.inicio;
+    for (const s of trecho.sugestoes) {
+      if (s.inicio > cursor) partes.push({ igual: texto.slice(cursor, s.inicio) });
+      partes.push({ de: s.original, para: s.substituicao, tipo: s.tipo });
+      cursor = s.fim;
+    }
+    if (cursor < trecho.fim) partes.push({ igual: texto.slice(cursor, trecho.fim) });
+    return partes;
+  }
+
+  function aplicarTrecho(texto, sugestoes, trecho) {
+    let atual = { texto, sugestoes };
+    for (const s of [...trecho.sugestoes].sort((a, b) => b.inicio - a.inicio)) {
+      atual = aplicarNoParagrafo(atual.texto, atual.sugestoes, s);
+    }
+    return atual;
+  }
+
   raiz.RevisorCore = {
     TIPOS,
     ENDPOINT,
@@ -186,5 +243,8 @@
     contarPalavras,
     filtrarSugestoes,
     aplicarNoParagrafo,
+    trechosDoParagrafo,
+    partesDoTrecho,
+    aplicarTrecho,
   };
 })(globalThis);

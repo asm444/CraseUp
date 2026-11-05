@@ -2,7 +2,7 @@
   if (globalThis.__revisorGemini) return;
   globalThis.__revisorGemini = true;
 
-  const { TIPOS, dividirParagrafos, revisavel, contemPalavraDoDicionario, aplicarNoParagrafo } = RevisorCore;
+  const { TIPOS, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho } = RevisorCore;
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const PARAGRAFOS_POR_PAUSA = 3;
@@ -155,10 +155,26 @@
     for (const p of dividirParagrafos(texto)) {
       for (const s of cache.get(p.texto) || []) {
         if (estado.ignoradas.has(chaveIgnorada(s))) continue;
-        marcas.push({ ...s, paragrafo: p.texto, relativo: s, inicio: p.inicio + s.inicio, fim: p.inicio + s.fim });
+        marcas.push({ ...s, paragrafo: p.texto, base: p.inicio, relativo: s, inicio: p.inicio + s.inicio, fim: p.inicio + s.fim });
       }
     }
     return marcas;
+  }
+
+  function calcularTrechos(marcas) {
+    const porParagrafo = new Map();
+    marcas.forEach((m, indice) => {
+      if (!porParagrafo.has(m.base)) porParagrafo.set(m.base, []);
+      porParagrafo.get(m.base).push({ ...m.relativo, indice });
+    });
+    const trechos = [];
+    for (const [base, relativos] of porParagrafo) {
+      const paragrafo = marcas[relativos[0].indice].paragrafo;
+      for (const t of trechosDoParagrafo(paragrafo, relativos)) {
+        trechos.push({ paragrafo, base, inicio: base + t.inicio, fim: base + t.fim, relativo: t, indices: t.sugestoes.map((s) => s.indice) });
+      }
+    }
+    return trechos;
   }
 
   function garantirCamada() {
@@ -261,9 +277,10 @@
     }
     const texto = lerCampo(estado);
     estado.marcas = calcularMarcas(estado, texto);
+    estado.trechos = calcularTrechos(estado.marcas);
     if (estado.tipo === 'texto') desenharEspelho(estado, texto);
     else desenharEditavel(estado);
-    if (alvoDoCartao?.estado === estado) esconderCartao();
+    if (alvoDoCartao?.estado === estado) atualizarCartao();
   }
 
   function posicaoDoCursor(estado, texto) {
@@ -362,12 +379,12 @@
       if (estado.tipo === 'texto' && estado.espelho) {
         for (const span of estado.espelho.querySelectorAll('.marca')) {
           const r = contemPonto(span.getClientRects(), x, y);
-          if (r) return { estado, indice: Number(span.dataset.indice), rect: r };
+          if (r) return { estado, indice: Number(span.dataset.indice) };
         }
       } else if (estado.tipo === 'editavel') {
         for (let i = 0; i < estado.ranges.length; i++) {
           const r = estado.ranges[i] && contemPonto(estado.ranges[i].getClientRects(), x, y);
-          if (r) return { estado, indice: i, rect: r };
+          if (r) return { estado, indice: i };
         }
       }
     }
@@ -384,53 +401,121 @@
     return b;
   }
 
-  function mostrarCartao(alvo) {
-    const { estado, indice, rect } = alvo;
-    const marca = estado.marcas[indice];
-    if (!marca) return;
+  function elemento(tag, classe, texto) {
+    const el = document.createElement(tag);
+    if (classe) el.className = classe;
+    if (texto !== undefined) el.textContent = texto;
+    return el;
+  }
+
+  function chaveDoTrecho(trecho) {
+    return `${trecho.inicio}\u0000${trecho.paragrafo.slice(trecho.relativo.inicio, trecho.relativo.fim)}`;
+  }
+
+  function assinaturaDoTrecho(estado, indice) {
+    const trecho = estado.trechos[indice];
+    const trocas = trecho.indices.map((i) => chaveIgnorada(estado.marcas[i]));
+    return `${indice}/${estado.trechos.length}\u0000${chaveDoTrecho(trecho)}\u0000${trocas.join('\u0001')}`;
+  }
+
+  function rectDaMarca(estado, i) {
+    if (estado.tipo === 'texto') return estado.espelho?.querySelector(`.marca[data-indice="${i}"]`)?.getClientRects()[0] || null;
+    return estado.ranges[i]?.getClientRects()[0] || null;
+  }
+
+  function mostrarCartaoDaMarca({ estado, indice }) {
+    const trecho = estado.trechos.findIndex((t) => t.indices.includes(indice));
+    if (trecho === -1) return;
     clearTimeout(timerEsconder);
-    if (alvoDoCartao && alvoDoCartao.estado === estado && alvoDoCartao.indice === indice) return;
-    esconderCartao();
-    alvoDoCartao = { estado, indice };
+    if (alvoDoCartao?.estado === estado && alvoDoCartao.indice === trecho) return;
+    alvoDoCartao = { estado, indice: trecho, fixo: false };
+    renderizarCartao();
+  }
 
-    cartao = document.createElement('div');
-    cartao.className = `cartao cartao-${marca.tipo}`;
-    const tipo = document.createElement('div');
-    tipo.className = 'tipo';
-    tipo.textContent = ROTULOS[marca.tipo];
-    const troca = document.createElement('div');
-    troca.className = 'troca';
-    const de = document.createElement('span');
-    de.className = 'de';
-    de.textContent = marca.original;
-    const para = document.createElement('span');
-    para.className = 'para';
-    para.textContent = marca.substituicao || '(remover)';
-    troca.append(de, para);
-    const motivo = document.createElement('p');
-    motivo.className = 'motivo';
-    motivo.textContent = marca.motivo;
-    const acoes = document.createElement('div');
-    acoes.className = 'acoes';
+  function irPara(indice) {
+    const { estado } = alvoDoCartao;
+    const total = estado.trechos.length;
+    alvoDoCartao.indice = (indice + total) % total;
+    alvoDoCartao.fixo = true;
+    renderizarCartao();
+  }
+
+  function atualizarCartao() {
+    const { estado, chave, indice } = alvoDoCartao;
+    if (!estado.trechos.length) {
+      esconderCartao();
+      return;
+    }
+    const mesmo = estado.trechos.findIndex((t) => chaveDoTrecho(t) === chave);
+    alvoDoCartao.indice = mesmo !== -1 ? mesmo : Math.min(indice, estado.trechos.length - 1);
+    renderizarCartao();
+  }
+
+  function renderizarCartao() {
+    const { estado, indice } = alvoDoCartao;
+    const trecho = estado.trechos[indice];
+    const assinatura = assinaturaDoTrecho(estado, indice);
+    if (cartao && alvoDoCartao.assinatura === assinatura) {
+      posicionarCartao();
+      return;
+    }
+    cartao?.remove();
+    alvoDoCartao.chave = chaveDoTrecho(trecho);
+    alvoDoCartao.assinatura = assinatura;
+    const marcas = trecho.indices.map((i) => estado.marcas[i]);
+
+    cartao = elemento('div', `cartao cartao-${marcas[0].tipo}`);
+    const cabecalho = elemento('div', 'cabecalho');
+    const tipos = [...new Set(marcas.map((m) => m.tipo))];
+    cabecalho.append(elemento('div', 'tipo', tipos.map((t) => ROTULOS[t]).join(' · ')));
+    const navegacao = elemento('div', 'navegacao');
+    if (estado.trechos.length > 1) {
+      navegacao.append(
+        botao('‹', 'seta', () => irPara(indice - 1)),
+        elemento('span', 'pagina', `${indice + 1} de ${estado.trechos.length}`),
+        botao('›', 'seta', () => irPara(indice + 1)),
+      );
+    }
+    navegacao.append(botao('×', 'fechar', esconderCartao));
+    cabecalho.append(navegacao);
+
+    const previa = elemento('p', 'previa');
+    for (const parte of partesDoTrecho(trecho.paragrafo, trecho.relativo)) {
+      if ('igual' in parte) {
+        previa.append(parte.igual);
+        continue;
+      }
+      if (parte.de) previa.append(elemento('span', `de de-${parte.tipo}`, parte.de));
+      if (parte.para) previa.append(elemento('span', `para para-${parte.tipo}`, parte.para));
+    }
+
+    const motivos = elemento('ul', 'motivos');
+    for (const m of marcas) {
+      if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}`, m.motivo));
+    }
+
+    const origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
+    const acoes = elemento('div', 'acoes');
     acoes.append(
-      botao('Aplicar', 'aplicar', () => aplicar(estado, marca)),
-      ...(estado.marcas.length > 1 ? [botao(`Aplicar todas (${estado.marcas.length})`, 'aplicar-todas', () => aplicarTodas(estado))] : []),
-      botao('Ignorar', 'secundario', () => ignorar(estado, marca)),
-      botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marca)),
+      botao('Substituir', 'aplicar', () => substituir(estado, trecho)),
+      botao('Ignorar', 'secundario', () => ignorar(estado, marcas)),
+      ...(marcas.length === 1 && marcas[0].tipo === 'gramatica' ? [botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marcas[0]))] : []),
     );
-    const origem = document.createElement('p');
-    origem.className = 'origem';
-    origem.textContent = marca.modelo ? `via ${ROTULOS_DE_ORIGEM[marca.origem]} (${marca.modelo})` : `via ${ROTULOS_DE_ORIGEM[marca.origem]}`;
-    cartao.append(tipo, troca, motivo, origem, acoes);
+    cartao.append(cabecalho, previa, motivos, elemento('p', 'origem', `via ${origens.join(' · ')}`), acoes);
     cartao.addEventListener('mouseenter', () => clearTimeout(timerEsconder));
-    cartao.addEventListener('mouseleave', agendarEsconder);
+    cartao.addEventListener('mouseleave', () => alvoDoCartao?.fixo || agendarEsconder());
     garantirCamada().sombra.append(cartao);
+    posicionarCartao();
+  }
 
+  function posicionarCartao() {
+    const { estado, indice } = alvoDoCartao;
+    const rect = rectDaMarca(estado, estado.trechos[indice].indices[0]) || estado.el.getBoundingClientRect();
     const largura = cartao.offsetWidth;
     const esquerda = Math.min(Math.max(8, rect.left), innerWidth - largura - 8);
     const abaixo = rect.bottom + 8 + cartao.offsetHeight < innerHeight;
     cartao.style.left = `${esquerda + scrollX}px`;
-    cartao.style.top = `${(abaixo ? rect.bottom + 6 : rect.top - cartao.offsetHeight - 6) + scrollY}px`;
+    cartao.style.top = `${(abaixo ? rect.bottom + 6 : Math.max(8, rect.top - cartao.offsetHeight - 6)) + scrollY}px`;
   }
 
   function esconderCartao() {
@@ -445,33 +530,24 @@
     timerEsconder = setTimeout(esconderCartao, ATRASO_PARA_ESCONDER_MS);
   }
 
-  function aplicar(estado, marca) {
+  function substituir(estado, trecho) {
     const texto = lerCampo(estado);
-    if (texto.slice(marca.inicio, marca.fim) !== marca.original) {
+    if (texto.slice(trecho.inicio, trecho.fim) !== trecho.paragrafo.slice(trecho.relativo.inicio, trecho.relativo.fim)) {
       desenhar(estado);
       return;
     }
-    const doParagrafo = cache.get(marca.paragrafo);
-    if (doParagrafo) {
-      const novo = aplicarNoParagrafo(marca.paragrafo, doParagrafo, marca.relativo);
-      guardarNoCache(novo.texto, novo.sugestoes);
-    }
-    esconderCartao();
-    trocarNoCampo(estado, marca);
-  }
-
-  function aplicarTodas(estado) {
-    esconderCartao();
-    const marcas = calcularMarcas(estado, lerCampo(estado)).sort((a, b) => b.inicio - a.inicio);
-    const finais = new Map();
-    for (const marca of marcas) {
-      const atual = finais.get(marca.paragrafo) || { texto: marca.paragrafo, sugestoes: cache.get(marca.paragrafo) };
-      finais.set(marca.paragrafo, aplicarNoParagrafo(atual.texto, atual.sugestoes, marca.relativo));
-    }
-    for (const { texto, sugestoes } of finais.values()) guardarNoCache(texto, sugestoes);
-    for (const marca of marcas) {
-      if (lerCampo(estado).slice(marca.inicio, marca.fim) === marca.original) trocarNoCampo(estado, marca);
-    }
+    const novo = aplicarTrecho(trecho.paragrafo, cache.get(trecho.paragrafo) || trecho.relativo.sugestoes, trecho.relativo);
+    guardarNoCache(novo.texto, novo.sugestoes);
+    const primeira = trecho.relativo.sugestoes[0];
+    const ultimoFim = Math.max(...trecho.relativo.sugestoes.map((s) => s.fim));
+    const delta = novo.texto.length - trecho.paragrafo.length;
+    alvoDoCartao.fixo = true;
+    trocarNoCampo(estado, {
+      inicio: trecho.base + primeira.inicio,
+      fim: trecho.base + ultimoFim,
+      substituicao: novo.texto.slice(primeira.inicio, ultimoFim + delta),
+    });
+    desenhar(estado);
   }
 
   function trocarNoCampo(estado, marca) {
@@ -495,9 +571,9 @@
     else document.execCommand('delete');
   }
 
-  function ignorar(estado, marca) {
-    estado.ignoradas.add(chaveIgnorada(marca));
-    esconderCartao();
+  function ignorar(estado, marcas) {
+    for (const m of marcas) estado.ignoradas.add(chaveIgnorada(m));
+    if (alvoDoCartao) alvoDoCartao.fixo = true;
     desenhar(estado);
   }
 
@@ -529,19 +605,21 @@
       quadroPendente = 0;
       if (cartao && contemPonto([cartao.getBoundingClientRect()], x, y)) return;
       const alvo = marcaSobPonto(x, y);
-      if (alvo) mostrarCartao(alvo);
-      else if (cartao) agendarEsconder();
+      if (alvo) mostrarCartaoDaMarca(alvo);
+      else if (cartao && !alvoDoCartao.fixo) agendarEsconder();
     });
   }
 
   function aoRolarOuRedimensionar() {
-    if (cartao) esconderCartao();
+    if (cartao) posicionarCartao();
     for (const estado of campos.values()) if (estado.espelho) posicionarEspelho(estado);
   }
 
   document.addEventListener('input', aoDigitar, true);
   document.addEventListener('focusin', aoFocar, true);
   document.addEventListener('mousemove', aoMoverMouse, { passive: true, capture: true });
+  document.addEventListener('mousedown', (e) => cartao && !e.composedPath().includes(cartao) && esconderCartao(), true);
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && cartao && esconderCartao(), true);
   document.addEventListener('scroll', aoRolarOuRedimensionar, { passive: true, capture: true });
   addEventListener('resize', aoRolarOuRedimensionar, { passive: true });
 

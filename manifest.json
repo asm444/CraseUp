@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CraseUp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Revisão de textos em português e inglês com dicionário offline, LanguageTool e OpenRouter: sugestões mínimas, só quando necessário.",
   "minimum_chrome_version": "105",
   "icons": {
