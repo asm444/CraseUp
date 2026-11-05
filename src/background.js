@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, montarRequisicao, lerResposta, filtrarSugestoes } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, filtrarSugestoes } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
@@ -164,7 +164,7 @@ function momentoDeVolta(resposta) {
   return Date.now() + ESPERA_LIMITE_POR_MINUTO_MS;
 }
 
-async function camadaModelo(texto, idioma, cfg) {
+async function chamarModelo(requisicao, cfg) {
   if (!cfg.chaveOpenrouter) return { estado: 'sem_chave' };
   if (cfg.cota?.ate > Date.now()) return { estado: 'cota' };
   if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { estado: 'limite_por_minuto' };
@@ -175,7 +175,7 @@ async function camadaModelo(texto, idioma, cfg) {
     resposta = await fetch(`${ENDPOINT}chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.chaveOpenrouter}`, 'X-Title': 'CraseUp' },
-      body: JSON.stringify(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario, idioma })),
+      body: JSON.stringify(requisicao),
       signal: AbortSignal.timeout(TEMPO_MAXIMO_MODELO_MS),
     });
   } catch {
@@ -192,17 +192,44 @@ async function camadaModelo(texto, idioma, cfg) {
     return { estado: 'limite_por_minuto' };
   }
   if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
+  try {
+    return { estado: 'ativa', corpo: await resposta.json() };
+  } catch (erro) {
+    return { estado: 'falha', mensagem: `resposta em formato inesperado: ${erro.message}`.slice(0, 200) };
+  }
+}
 
-  let corpo;
+async function lerDoModelo(requisicao, cfg, ler) {
+  const chamada = await chamarModelo(requisicao, cfg);
+  if (chamada.estado !== 'ativa') return chamada;
   let lida;
   try {
-    corpo = await resposta.json();
-    lida = lerResposta(corpo);
+    lida = ler(chamada.corpo);
   } catch (erro) {
-    return { estado: 'falha', mensagem: `resposta em formato inesperado: ${corpo?.error?.message || erro.message}`.slice(0, 200) };
+    return { estado: 'falha', mensagem: `resposta em formato inesperado: ${chamada.corpo?.error?.message || erro.message}`.slice(0, 200) };
   }
   if (cfg.cota) await chrome.storage.local.remove('cota');
-  return { estado: 'ativa', mensagem: lida.modelo, sugestoes: lida.sugestoes.map((s) => ({ ...s, modelo: lida.modelo })) };
+  return { estado: 'ativa', lida };
+}
+
+async function camadaModelo(texto, idioma, cfg) {
+  const r = await lerDoModelo(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario, idioma }), cfg, lerResposta);
+  if (r.estado !== 'ativa') return r;
+  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: r.lida.sugestoes.map((s) => ({ ...s, modelo: r.lida.modelo })) };
+}
+
+const MOTIVOS_SEM_REESCRITA = {
+  sem_chave: 'falta configurar a chave do OpenRouter',
+  cota: 'a cota de hoje dos modelos gratuitos acabou',
+  limite_por_minuto: 'limite de chamadas; tente de novo em um minuto',
+};
+
+async function reescrever(texto, tom) {
+  const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte']);
+  const { idioma } = await camadaOffline(texto);
+  const r = await lerDoModelo(montarReescrita(texto, { tom, idioma }), cfg, lerReescrita);
+  if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
+  return r.lida;
 }
 
 async function testarChave(chave) {
@@ -241,6 +268,10 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   const abaId = remetente.tab?.id;
   if (msg?.tipo === 'estadoAba') {
     abaPausada(abaId).then((pausado) => responder({ pausado }));
+    return true;
+  }
+  if (msg?.tipo === 'reescrever' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto) && Object.hasOwn(TONS, msg.tom)) {
+    reescrever(msg.texto, msg.tom).then(responder);
     return true;
   }
   if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && paginaDaExtensao(remetente)) {

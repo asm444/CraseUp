@@ -2,7 +2,7 @@
   if (globalThis.__revisorGemini) return;
   globalThis.__revisorGemini = true;
 
-  const { TIPOS, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho } = RevisorCore;
+  const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho } = RevisorCore;
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const PARAGRAFOS_POR_PAUSA = 3;
@@ -408,14 +408,18 @@
     return el;
   }
 
+  function textoDoTrecho(trecho) {
+    return trecho.paragrafo.slice(trecho.relativo.inicio, trecho.relativo.fim);
+  }
+
   function chaveDoTrecho(trecho) {
-    return `${trecho.inicio}\u0000${trecho.paragrafo.slice(trecho.relativo.inicio, trecho.relativo.fim)}`;
+    return `${trecho.inicio}\u0000${textoDoTrecho(trecho)}`;
   }
 
   function assinaturaDoTrecho(estado, indice) {
     const trecho = estado.trechos[indice];
     const trocas = trecho.indices.map((i) => chaveIgnorada(estado.marcas[i]));
-    return `${indice}/${estado.trechos.length}\u0000${chaveDoTrecho(trecho)}\u0000${trocas.join('\u0001')}`;
+    return `${indice}/${estado.trechos.length}\u0000${chaveDoTrecho(trecho)}\u0000${trocas.join('\u0001')}\u0000${JSON.stringify(alvoDoCartao.reescrita || null)}`;
   }
 
   function rectDaMarca(estado, i) {
@@ -437,6 +441,7 @@
     const total = estado.trechos.length;
     alvoDoCartao.indice = (indice + total) % total;
     alvoDoCartao.fixo = true;
+    alvoDoCartao.reescrita = null;
     renderizarCartao();
   }
 
@@ -448,11 +453,12 @@
     }
     const mesmo = estado.trechos.findIndex((t) => chaveDoTrecho(t) === chave);
     alvoDoCartao.indice = mesmo !== -1 ? mesmo : Math.min(indice, estado.trechos.length - 1);
+    if (mesmo === -1) alvoDoCartao.reescrita = null;
     renderizarCartao();
   }
 
   function renderizarCartao() {
-    const { estado, indice } = alvoDoCartao;
+    const { estado, indice, reescrita } = alvoDoCartao;
     const trecho = estado.trechos[indice];
     const assinatura = assinaturaDoTrecho(estado, indice);
     if (cartao && alvoDoCartao.assinatura === assinatura) {
@@ -480,28 +486,47 @@
     cabecalho.append(navegacao);
 
     const previa = elemento('p', 'previa');
-    for (const parte of partesDoTrecho(trecho.paragrafo, trecho.relativo)) {
-      if ('igual' in parte) {
-        previa.append(parte.igual);
-        continue;
-      }
-      if (parte.de) previa.append(elemento('span', `de de-${parte.tipo}`, parte.de));
-      if (parte.para) previa.append(elemento('span', `para para-${parte.tipo}`, parte.para));
-    }
-
     const motivos = elemento('ul', 'motivos');
-    for (const m of marcas) {
-      if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}`, m.motivo));
+    let origens;
+    if (reescrita?.texto) {
+      previa.append(elemento('span', 'para para-tom', reescrita.texto));
+      motivos.append(elemento('li', 'motivo motivo-tom', `Reescrito no tom ${ROTULOS_DE_TOM[reescrita.tom].toLowerCase()}`));
+      origens = [reescrita.modelo ? `${ROTULOS_DE_ORIGEM.openrouter} (${reescrita.modelo})` : ROTULOS_DE_ORIGEM.openrouter];
+    } else {
+      for (const parte of partesDoTrecho(trecho.paragrafo, trecho.relativo)) {
+        if ('igual' in parte) {
+          previa.append(parte.igual);
+          continue;
+        }
+        if (parte.de) previa.append(elemento('span', `de de-${parte.tipo}`, parte.de));
+        if (parte.para) previa.append(elemento('span', `para para-${parte.tipo}`, parte.para));
+      }
+      if (reescrita) {
+        const aviso = reescrita.erro ? `Não deu para reescrever: ${reescrita.erro}` : `Reescrevendo no tom ${ROTULOS_DE_TOM[reescrita.tom].toLowerCase()}…`;
+        motivos.append(elemento('li', 'motivo motivo-tom', aviso));
+      }
+      for (const m of marcas) {
+        if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}`, m.motivo));
+      }
+      origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
     }
 
-    const origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
+    const tons = elemento('label', 'tons', 'Tom ');
+    const escolha = document.createElement('select');
+    escolha.className = 'escolha-tom';
+    escolha.append(new Option('ajustar…', ''), ...Object.entries(ROTULOS_DE_TOM).map(([valor, rotulo]) => new Option(rotulo, valor)));
+    escolha.value = reescrita?.tom || '';
+    escolha.addEventListener('mousedown', () => (alvoDoCartao.fixo = true));
+    escolha.addEventListener('change', () => reescrever(escolha.value));
+    tons.append(escolha);
+
     const acoes = elemento('div', 'acoes');
     acoes.append(
-      botao('Substituir', 'aplicar', () => substituir(estado, trecho)),
+      botao('Substituir', 'aplicar', () => (reescrita?.texto ? substituirPelaReescrita(estado, trecho, reescrita.texto) : substituir(estado, trecho))),
       botao('Ignorar', 'secundario', () => ignorar(estado, marcas)),
-      ...(marcas.length === 1 && marcas[0].tipo === 'gramatica' ? [botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marcas[0]))] : []),
+      ...(marcas.length === 1 && marcas[0].tipo === 'gramatica' && marcas[0].origem !== 'openrouter' ? [botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marcas[0]))] : []),
     );
-    cartao.append(cabecalho, previa, motivos, elemento('p', 'origem', `via ${origens.join(' · ')}`), acoes);
+    cartao.append(cabecalho, previa, motivos, elemento('p', 'origem', `via ${origens.join(' · ')}`), tons, acoes);
     cartao.addEventListener('mouseenter', () => clearTimeout(timerEsconder));
     cartao.addEventListener('mouseleave', () => alvoDoCartao?.fixo || agendarEsconder());
     garantirCamada().sombra.append(cartao);
@@ -530,9 +555,40 @@
     timerEsconder = setTimeout(esconderCartao, ATRASO_PARA_ESCONDER_MS);
   }
 
+  async function reescrever(tom) {
+    const alvo = alvoDoCartao;
+    alvo.fixo = true;
+    alvo.reescrita = tom ? { tom } : null;
+    renderizarCartao();
+    if (!tom) return;
+    const trecho = alvo.estado.trechos[alvo.indice];
+    let resposta;
+    try {
+      resposta = await chrome.runtime.sendMessage({ tipo: 'reescrever', texto: textoDoTrecho(trecho), tom });
+    } catch {
+      resposta = { erro: 'a extensão não respondeu' };
+    }
+    if (alvoDoCartao !== alvo || alvo.reescrita?.tom !== tom || alvo.reescrita.texto) return;
+    alvo.reescrita = typeof resposta?.texto === 'string'
+      ? { tom, texto: resposta.texto.trim(), modelo: resposta.modelo }
+      : { tom, erro: resposta?.erro || 'resposta vazia' };
+    renderizarCartao();
+  }
+
+  function substituirPelaReescrita(estado, trecho, texto) {
+    if (lerCampo(estado).slice(trecho.inicio, trecho.fim) !== textoDoTrecho(trecho)) {
+      desenhar(estado);
+      return;
+    }
+    alvoDoCartao.fixo = true;
+    alvoDoCartao.reescrita = null;
+    trocarNoCampo(estado, { inicio: trecho.inicio, fim: trecho.fim, substituicao: texto });
+    desenhar(estado);
+  }
+
   function substituir(estado, trecho) {
     const texto = lerCampo(estado);
-    if (texto.slice(trecho.inicio, trecho.fim) !== trecho.paragrafo.slice(trecho.relativo.inicio, trecho.relativo.fim)) {
+    if (texto.slice(trecho.inicio, trecho.fim) !== textoDoTrecho(trecho)) {
       desenhar(estado);
       return;
     }

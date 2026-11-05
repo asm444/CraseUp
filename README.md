@@ -36,6 +36,7 @@ Passar o mouse num sublinhado abre um cartão só para o trecho inteiro, com tod
 - Parágrafo de até 280 caracteres é um trecho só. Parágrafo maior se divide em frases, e cada frase com correção é um trecho.
 - **Substituir** troca o trecho de uma vez, com todas as correções dele. Com mais de um trecho no campo, o cartão mostra `1 de N` e, depois de substituir, já passa para o trecho seguinte.
 - O cartão fecha no ×, no Esc ou com um clique fora dele.
+- O seletor **Tom** do cartão reescreve o trecho num destes tons: formal, profissional, neutro, amigável, casual, confiante, empático ou persuasivo. A prévia mostra a reescrita, e **Substituir** troca o trecho por ela. A reescrita usa uma chamada do OpenRouter e não muda o tom padrão, que fica nas configurações com as mesmas oito opções.
 - O dicionário pessoal vale para as três camadas.
 
 ## Instalação

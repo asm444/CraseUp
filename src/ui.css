@@ -156,6 +156,7 @@ input[type="text"], input[type="password"] {
 
 .segmentos {
   display: inline-flex;
+  flex-wrap: wrap;
   padding: 4px;
   border-radius: 999px;
   background: var(--fundo-campo);

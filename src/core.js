@@ -4,8 +4,23 @@
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
+    profissional: 'profissional (objetivo e cortês, como num e-mail de trabalho)',
     neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',
+    amigavel: 'amigável (caloroso e gentil, sem perder a clareza)',
     casual: 'casual (leve e próximo, como numa conversa)',
+    confiante: 'confiante (afirmativo e seguro, sem rodeios nem hesitação)',
+    empatico: 'empático (acolhedor, reconhece o lado de quem lê)',
+    persuasivo: 'persuasivo (convence com argumento claro e chamada à ação)',
+  };
+  const ROTULOS_DE_TOM = {
+    formal: 'Formal',
+    profissional: 'Profissional',
+    neutro: 'Neutro',
+    amigavel: 'Amigável',
+    casual: 'Casual',
+    confiante: 'Confiante',
+    empatico: 'Empático',
+    persuasivo: 'Persuasivo',
   };
   const GIRIA_POR_TOM = {
     neutro: '- Gíria, abreviação de internet (vc, pq, blz, tô) e expressão coloquial destoam do tom: marque como "tom" e troque pela forma por extenso ou neutra.',
@@ -41,6 +56,13 @@
       },
     },
     required: ['sugestoes'],
+    additionalProperties: false,
+  };
+
+  const ESQUEMA_DA_REESCRITA = {
+    type: 'object',
+    properties: { texto: { type: 'string' } },
+    required: ['texto'],
     additionalProperties: false,
   };
 
@@ -97,6 +119,35 @@
       response_format: { type: 'json_schema', json_schema: { name: 'revisao', strict: true, schema: ESQUEMA_DA_RESPOSTA } },
       provider: { require_parameters: true },
     };
+  }
+
+  function montarReescrita(texto, { tom, idioma }) {
+    const instrucao = [
+      `Reescreva o texto recebido, em ${NOMES_DE_IDIOMA[idioma]}, no tom ${TONS[tom]}.`,
+      '- Mantenha o sentido, os nomes, os números e os fatos; não acrescente informação.',
+      '- Corrija ortografia, gramática e pontuação.',
+      '- Mantenha o tamanho próximo do original.',
+      '- Responda só com o objeto JSON {"texto": "..."}, sem texto fora dele.',
+    ].join('\n');
+    return {
+      models: MODELOS,
+      messages: [
+        { role: 'system', content: instrucao },
+        { role: 'user', content: texto },
+      ],
+      temperature: 0,
+      reasoning: { enabled: false },
+      response_format: { type: 'json_schema', json_schema: { name: 'reescrita', strict: true, schema: ESQUEMA_DA_REESCRITA } },
+      provider: { require_parameters: true },
+    };
+  }
+
+  function lerReescrita(corpo) {
+    const conteudo = corpo?.choices?.[0]?.message?.content;
+    if (typeof conteudo !== 'string') throw new Error('resposta sem conteúdo');
+    const dados = JSON.parse(conteudo);
+    if (typeof dados?.texto !== 'string' || !dados.texto.trim()) throw new Error('resposta sem texto reescrito');
+    return { texto: dados.texto, modelo: typeof corpo.model === 'string' ? corpo.model : '' };
   }
 
   function lerResposta(corpo) {
@@ -235,11 +286,15 @@
 
   raiz.RevisorCore = {
     TIPOS,
+    TONS,
+    ROTULOS_DE_TOM,
     ENDPOINT,
     dividirParagrafos,
     revisavel,
     montarRequisicao,
     lerResposta,
+    montarReescrita,
+    lerReescrita,
     contemPalavraDoDicionario,
     contarPalavras,
     filtrarSugestoes,

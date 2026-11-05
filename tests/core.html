@@ -147,6 +147,23 @@
     igual([en.includes('textos em inglês'), pt.includes('textos em português do Brasil'), pt.includes('tipo "gramatica": só pontuação'), pt.includes('regência nem crase:'), pt.includes('crase nem pontuação')], [true, true, true, true, false]);
   });
 
+  caso('reescrita leva o tom pedido, o idioma e um schema só com o texto', () => {
+    const req = C.montarReescrita('vc vem?', { tom: 'empatico', idioma: 'en-US' });
+    const sistema = sistemaDe(req);
+    igual([sistema.includes('em inglês, no tom empático ('), req.messages[1].content, req.response_format.json_schema.schema.required, req.models.every((m) => m.endsWith(':free'))],
+      [true, 'vc vem?', ['texto'], true]);
+  });
+
+  caso('todo tom do seletor tem descrição para o modelo', () => {
+    igual(Object.keys(C.ROTULOS_DE_TOM), Object.keys(C.TONS));
+  });
+
+  caso('lê a reescrita e rejeita resposta sem texto', () => {
+    igual(C.lerReescrita({ model: 'x:free', choices: [{ message: { content: '{"texto":"Você vem?"}' } }] }), { texto: 'Você vem?', modelo: 'x:free' });
+    const erros = ['{"texto":"  "}', '{"outro":1}'].map((c) => { try { C.lerReescrita({ choices: [{ message: { content: c } }] }); return 'aceitou'; } catch { return 'rejeitou'; } });
+    igual(erros, ['rejeitou', 'rejeitou']);
+  });
+
   caso('lê a resposta do OpenRouter com o modelo que atendeu e rejeita formato inesperado', () => {
     igual(C.lerResposta({ model: 'google/gemma-4-31b-it:free', choices: [{ message: { content: '{"sugestoes":[{"tipo":"tom"}]}' } }] }),
       { sugestoes: [{ tipo: 'tom' }], modelo: 'google/gemma-4-31b-it:free' });
