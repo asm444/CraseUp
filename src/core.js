@@ -1,7 +1,6 @@
 (function (raiz) {
   const TIPOS = ['gramatica', 'clareza', 'palavra', 'tom'];
   const ORIGENS = ['offline', 'languagetool', 'openrouter'];
-  const TIPOS_DO_MODELO = ['clareza', 'palavra', 'tom'];
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
@@ -31,7 +30,7 @@
         items: {
           type: 'object',
           properties: {
-            tipo: { type: 'string', enum: TIPOS_DO_MODELO },
+            tipo: { type: 'string', enum: TIPOS },
             original: { type: 'string' },
             substituicao: { type: 'string' },
             motivo: { type: 'string' },
@@ -66,17 +65,19 @@
   function instrucaoDoSistema(tom, dicionario, idioma) {
     const palavras = dicionario.slice(0, PALAVRAS_DO_DICIONARIO_NO_PROMPT).join(', ') || '(nenhuma)';
     return [
-      `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de clareza, de escolha de palavra e de tom.`,
+      `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de pontuação, de clareza, de escolha de palavra e de tom.`,
       'Regras:',
       '- Se o texto estiver correto e claro, devolva "sugestoes": [].',
       '- Cada sugestão troca só a palavra ou o trecho curto que ficou ruim; nunca reescreva a frase inteira nem o resto do texto.',
       '- "original" é uma cópia exata, caractere por caractere, de um trecho contíguo do texto recebido.',
       `- "substituicao" acrescenta no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a "original"; prefira a troca mais curta que resolve.`,
+      '- tipo "gramatica": só pontuação. Vírgula que falta ou sobra (vocativo, oração que vem antes da principal, antes de "mas" e "porém", entre itens de uma enumeração), sinal que falta no fim da frase, espaço antes de pontuação.',
+      '- Na troca de pontuação, "original" leva a palavra antes do sinal e "substituicao" a mesma palavra com o sinal certo (ex.: "Olá João" vira "Olá, João").',
       '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
       '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
       `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
       GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro,
-      '- Não aponte ortografia, acentuação, concordância, regência, crase nem pontuação: outra ferramenta já cuida disso.',
+      '- Não aponte ortografia, acentuação, concordância, regência nem crase: outra ferramenta já cuida disso.',
       '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',

@@ -124,7 +124,7 @@
     const sistema = sistemaDe(req);
     igual([sistema.includes('formal ('), sistema.includes('Jusgrok'), req.messages[1], req.response_format.type, req.response_format.json_schema.strict,
       req.response_format.json_schema.schema.properties.sugestoes.items.properties.tipo.enum],
-    [true, true, { role: 'user', content: 'oi' }, 'json_schema', true, ['clareza', 'palavra', 'tom']]);
+    [true, true, { role: 'user', content: 'oi' }, 'json_schema', true, ['gramatica', 'clareza', 'palavra', 'tom']]);
   });
 
   caso('roteia só entre modelos gratuitos e só por provedores que aceitam o schema', () => {
@@ -141,10 +141,10 @@
     igual([marca('formal'), marca('neutro'), marca('casual'), marca(undefined)], [true, true, false, true]);
   });
 
-  caso('modelo revisa no idioma detectado e deixa gramática para as outras camadas', () => {
+  caso('modelo revisa no idioma detectado, aponta pontuação e deixa ortografia para as outras camadas', () => {
     const en = sistemaDe(C.montarRequisicao('hi', { idioma: 'en-US' }));
     const pt = sistemaDe(C.montarRequisicao('oi'));
-    igual([en.includes('textos em inglês'), pt.includes('textos em português do Brasil'), en.includes('tipo "gramatica"'), en.includes('Não aponte ortografia')], [true, true, false, true]);
+    igual([en.includes('textos em inglês'), pt.includes('textos em português do Brasil'), pt.includes('tipo "gramatica": só pontuação'), pt.includes('regência nem crase:'), pt.includes('crase nem pontuação')], [true, true, true, true, false]);
   });
 
   caso('lê a resposta do OpenRouter com o modelo que atendeu e rejeita formato inesperado', () => {

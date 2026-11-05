@@ -21,7 +21,7 @@ Cada parágrafo editado passa por três camadas, da mais barata para a mais cara
 |---|---|---|---|
 | Dicionário offline | ortografia em pt-BR e en-US | dentro da extensão (Hunspell em WebAssembly) | sempre, mesmo sem internet |
 | LanguageTool | gramática, crase, pontuação | no servidor que você configurar | sempre que houver servidor configurado |
-| OpenRouter | clareza, troca de palavra, tom | em modelos gratuitos do OpenRouter, com a sua chave | só quando o LanguageTool acusa algo no parágrafo, ou quando você pede |
+| OpenRouter | clareza, troca de palavra, tom e a pontuação que o LanguageTool deixa passar (vírgula do vocativo, da oração que vem antes da principal) | em modelos gratuitos do OpenRouter, com a sua chave | só quando o LanguageTool acusa algo no parágrafo, ou quando você pede |
 
 - O idioma de cada parágrafo é o do dicionário que reconhece mais palavras dele.
 - O OpenRouter recebe uma lista de modelos gratuitos (`:free`) em ordem de preferência, em `src/core.js`. Se um modelo falhar por limite ou queda, o próprio OpenRouter passa para o seguinte, e o popup e o cartão mostram qual modelo atendeu. Só entram provedores que aceitam a resposta em JSON estruturado.
