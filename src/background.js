@@ -9,12 +9,21 @@ const TEMPO_MAXIMO_MODELO_MS = 30_000;
 const COR_SELO_COTA = '#EDAE49';
 const COR_SELO_PAUSA = '#6B6475';
 const ESTADOS_PASSAGEIROS = new Set(['falha', 'sem_conexao', 'limite_por_minuto', 'cota']);
+const MENU_VERIFICAR = 'craseup-verificar';
 
 const hoje = () => new Date().toLocaleDateString('sv');
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') chrome.tabs.create({ url: chrome.runtime.getURL('src/options.html?bemvindo=1') });
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: MENU_VERIFICAR, title: 'Verificar com o CraseUp', contexts: ['editable', 'selection'] });
+  });
   atualizarSeloGlobal();
+});
+
+chrome.contextMenus.onClicked.addListener((info, aba) => {
+  if (info.menuItemId !== MENU_VERIFICAR || aba?.id === undefined) return;
+  chrome.tabs.sendMessage(aba.id, { tipo: 'verificarAqui' }, { frameId: info.frameId }).catch(() => {});
 });
 chrome.runtime.onStartup.addListener(atualizarSeloGlobal);
 
@@ -270,7 +279,7 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
     abaPausada(abaId).then((pausado) => responder({ pausado }));
     return true;
   }
-  if (msg?.tipo === 'reescrever' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto) && Object.hasOwn(TONS, msg.tom)) {
+  if (msg?.tipo === 'reescrever' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto) && (msg.tom === '' || Object.hasOwn(TONS, msg.tom))) {
     reescrever(msg.texto, msg.tom).then(responder);
     return true;
   }

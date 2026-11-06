@@ -158,6 +158,19 @@
     igual(Object.keys(C.ROTULOS_DE_TOM), Object.keys(C.TONS));
   });
 
+  caso('verificação sem tom pede ortografia, pontuação, maiúsculas e escrita melhor, mantendo o tom', () => {
+    const sistema = sistemaDe(C.montarReescrita('oi', { tom: '', idioma: 'pt-BR' }));
+    igual(['mantendo o tom do original', 'pontuação', 'maiúsculas e minúsculas', 'Melhore a escrita'].map((t) => sistema.includes(t)), [true, true, true, true]);
+  });
+
+  caso('diferença por palavra marca só o que muda e reconstrói os dois textos', () => {
+    const partes = C.diferencaDePalavras('eu vou mercado amanha', 'Eu vou ao mercado amanhã.');
+    igual(partes, [{ de: 'eu', para: 'Eu' }, { igual: ' vou ' }, { de: '', para: 'ao ' }, { igual: 'mercado ' }, { de: 'amanha', para: 'amanhã.' }]);
+    const junta = (campo) => partes.map((p) => ('igual' in p ? p.igual : p[campo])).join('');
+    igual([junta('de'), junta('para')], ['eu vou mercado amanha', 'Eu vou ao mercado amanhã.']);
+    igual(C.diferencaDePalavras('igual', 'igual'), [{ igual: 'igual' }]);
+  });
+
   caso('lê a reescrita e rejeita resposta sem texto', () => {
     igual(C.lerReescrita({ model: 'x:free', choices: [{ message: { content: '{"texto":"Você vem?"}' } }] }), { texto: 'Você vem?', modelo: 'x:free' });
     const erros = ['{"texto":"  "}', '{"outro":1}'].map((c) => { try { C.lerReescrita({ choices: [{ message: { content: c } }] }); return 'aceitou'; } catch { return 'rejeitou'; } });

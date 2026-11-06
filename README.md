@@ -39,6 +39,16 @@ Passar o mouse num sublinhado abre um cartão só para o trecho inteiro, com tod
 - O seletor **Tom** do cartão reescreve o trecho num destes tons: formal, profissional, neutro, amigável, casual, confiante, empático ou persuasivo. A prévia mostra a reescrita, e **Substituir** troca o trecho por ela. A reescrita usa uma chamada do OpenRouter e não muda o tom padrão, que fica nas configurações com as mesmas oito opções.
 - O dicionário pessoal vale para as três camadas.
 
+## Verificar pelo botão direito
+
+Clique com o botão direito num campo de texto, ou num texto selecionado, e escolha **Verificar com o CraseUp**. O cartão abre no ponto do clique com a versão revisada pelo OpenRouter: ortografia, acentuação, pontuação, maiúsculas e minúsculas, gramática e uma escrita mais clara, mantendo o sentido e o tom.
+
+- Com texto selecionado, verifica só a seleção; sem seleção, o campo inteiro (até 4000 caracteres).
+- A prévia risca as palavras que saem e destaca as que entram. **Substituir** troca o texto no campo.
+- O seletor **Tom** refaz a verificação num dos oito tons; **manter** volta ao tom do original.
+- Em texto selecionado fora de um campo editável, o botão é **Copiar**.
+- Cada verificação é uma chamada do OpenRouter e conta na cota do dia.
+
 ## Instalação
 
 A extensão não está em nenhuma loja. A instalação é manual:

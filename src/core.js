@@ -30,6 +30,7 @@
   const TAMANHO_MINIMO_PARAGRAFO = 3;
   const TAMANHO_MAXIMO_PARAGRAFO = 4000;
   const TAMANHO_MAXIMO_TRECHO = 280;
+  const TOKENS_NO_DIFF_NO_MAXIMO = 1_000_000;
   const PALAVRAS_DO_DICIONARIO_NO_PROMPT = 200;
   const ENDPOINT = 'https://openrouter.ai/api/v1/';
   const MODELOS = [
@@ -123,10 +124,12 @@
 
   function montarReescrita(texto, { tom, idioma }) {
     const instrucao = [
-      `Reescreva o texto recebido, em ${NOMES_DE_IDIOMA[idioma]}, no tom ${TONS[tom]}.`,
+      `Revise e melhore o texto recebido, em ${NOMES_DE_IDIOMA[idioma]}, ${tom ? `no tom ${TONS[tom]}` : 'mantendo o tom do original'}.`,
+      '- Corrija ortografia, acentuação, concordância, regência, crase e pontuação.',
+      '- Corrija maiúsculas e minúsculas: maiúscula no início de frase, em nome próprio e em sigla; minúscula no resto, sem palavra toda em maiúsculas sem motivo.',
+      '- Melhore a escrita: frase confusa fica clara, repetição sai, palavra vaga vira precisa.',
       '- Mantenha o sentido, os nomes, os números e os fatos; não acrescente informação.',
-      '- Corrija ortografia, gramática e pontuação.',
-      '- Mantenha o tamanho próximo do original.',
+      '- Mantenha as quebras de linha e o tamanho próximo do original. Se o texto já estiver bom, devolva-o igual.',
       '- Responda só com o objeto JSON {"texto": "..."}, sem texto fora dele.',
     ].join('\n');
     return {
@@ -284,6 +287,42 @@
     return atual;
   }
 
+  function diferencaDePalavras(antes, depois) {
+    const a = antes.match(/\s+|\S+/g) || [];
+    const b = depois.match(/\s+|\S+/g) || [];
+    if (a.length * b.length > TOKENS_NO_DIFF_NO_MAXIMO) return antes === depois ? [{ igual: antes }] : [{ de: antes, para: depois }];
+    const lcs = Array.from({ length: a.length + 1 }, () => new Uint16Array(b.length + 1));
+    for (let i = a.length - 1; i >= 0; i--) {
+      for (let j = b.length - 1; j >= 0; j--) {
+        lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+      }
+    }
+    const partes = [];
+    const anexar = (campo, token) => {
+      const ultima = partes.at(-1);
+      if (campo === 'igual') {
+        if (ultima && 'igual' in ultima) ultima.igual += token;
+        else partes.push({ igual: token });
+        return;
+      }
+      if (!ultima || 'igual' in ultima) partes.push({ de: '', para: '' });
+      partes.at(-1)[campo] += token;
+    };
+    let i = 0;
+    let j = 0;
+    while (i < a.length || j < b.length) {
+      if (i < a.length && j < b.length && a[i] === b[j]) {
+        anexar('igual', a[i++]);
+        j++;
+      } else if (j >= b.length || (i < a.length && lcs[i + 1][j] >= lcs[i][j + 1])) {
+        anexar('de', a[i++]);
+      } else {
+        anexar('para', b[j++]);
+      }
+    }
+    return partes;
+  }
+
   raiz.RevisorCore = {
     TIPOS,
     TONS,
@@ -302,5 +341,6 @@
     trechosDoParagrafo,
     partesDoTrecho,
     aplicarTrecho,
+    diferencaDePalavras,
   };
 })(globalThis);

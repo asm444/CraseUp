@@ -2,7 +2,7 @@
   if (globalThis.__revisorGemini) return;
   globalThis.__revisorGemini = true;
 
-  const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho } = RevisorCore;
+  const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho, diferencaDePalavras } = RevisorCore;
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const PARAGRAFOS_POR_PAUSA = 3;
@@ -27,6 +27,7 @@
   let alvoDoCartao = null;
   let timerEsconder = 0;
   let quadroPendente = 0;
+  let alvoDoMenu = null;
 
   function hostExcluido(host, lista) {
     return HOSTS_FORA_DO_ESCOPO.concat(lista).some((s) => host === s || host.endsWith(`.${s}`));
@@ -427,7 +428,32 @@
     return estado.ranges[i]?.getClientRects()[0] || null;
   }
 
+  function desenharPartes(previa, partes) {
+    for (const parte of partes) {
+      if ('igual' in parte) {
+        previa.append(parte.igual);
+        continue;
+      }
+      const tipo = parte.tipo || 'gramatica';
+      if (parte.de) previa.append(elemento('span', `de de-${tipo}`, parte.de));
+      if (parte.para) previa.append(elemento('span', `para para-${tipo}`, parte.para));
+    }
+  }
+
+  function seletorDeTom(valor, rotuloVazio, aoMudar) {
+    const tons = elemento('label', 'tons', 'Tom ');
+    const escolha = document.createElement('select');
+    escolha.className = 'escolha-tom';
+    escolha.append(new Option(rotuloVazio, ''), ...Object.entries(ROTULOS_DE_TOM).map(([v, rotulo]) => new Option(rotulo, v)));
+    escolha.value = valor;
+    escolha.addEventListener('mousedown', () => (alvoDoCartao.fixo = true));
+    escolha.addEventListener('change', () => aoMudar(escolha.value));
+    tons.append(escolha);
+    return tons;
+  }
+
   function mostrarCartaoDaMarca({ estado, indice }) {
+    if (alvoDoCartao?.verificacao) return;
     const trecho = estado.trechos.findIndex((t) => t.indices.includes(indice));
     if (trecho === -1) return;
     clearTimeout(timerEsconder);
@@ -493,14 +519,7 @@
       motivos.append(elemento('li', 'motivo motivo-tom', `Reescrito no tom ${ROTULOS_DE_TOM[reescrita.tom].toLowerCase()}`));
       origens = [reescrita.modelo ? `${ROTULOS_DE_ORIGEM.openrouter} (${reescrita.modelo})` : ROTULOS_DE_ORIGEM.openrouter];
     } else {
-      for (const parte of partesDoTrecho(trecho.paragrafo, trecho.relativo)) {
-        if ('igual' in parte) {
-          previa.append(parte.igual);
-          continue;
-        }
-        if (parte.de) previa.append(elemento('span', `de de-${parte.tipo}`, parte.de));
-        if (parte.para) previa.append(elemento('span', `para para-${parte.tipo}`, parte.para));
-      }
+      desenharPartes(previa, partesDoTrecho(trecho.paragrafo, trecho.relativo));
       if (reescrita) {
         const aviso = reescrita.erro ? `Não deu para reescrever: ${reescrita.erro}` : `Reescrevendo no tom ${ROTULOS_DE_TOM[reescrita.tom].toLowerCase()}…`;
         motivos.append(elemento('li', 'motivo motivo-tom', aviso));
@@ -511,14 +530,7 @@
       origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
     }
 
-    const tons = elemento('label', 'tons', 'Tom ');
-    const escolha = document.createElement('select');
-    escolha.className = 'escolha-tom';
-    escolha.append(new Option('ajustar…', ''), ...Object.entries(ROTULOS_DE_TOM).map(([valor, rotulo]) => new Option(rotulo, valor)));
-    escolha.value = reescrita?.tom || '';
-    escolha.addEventListener('mousedown', () => (alvoDoCartao.fixo = true));
-    escolha.addEventListener('change', () => reescrever(escolha.value));
-    tons.append(escolha);
+    const tons = seletorDeTom(reescrita?.tom || '', 'ajustar…', reescrever);
 
     const acoes = elemento('div', 'acoes');
     acoes.append(
@@ -534,8 +546,10 @@
   }
 
   function posicionarCartao() {
-    const { estado, indice } = alvoDoCartao;
-    const rect = rectDaMarca(estado, estado.trechos[indice].indices[0]) || estado.el.getBoundingClientRect();
+    const { estado, indice, verificacao } = alvoDoCartao;
+    const rect = verificacao
+      ? { left: verificacao.x, right: verificacao.x, top: verificacao.y, bottom: verificacao.y }
+      : rectDaMarca(estado, estado.trechos[indice].indices[0]) || estado.el.getBoundingClientRect();
     const largura = cartao.offsetWidth;
     const esquerda = Math.min(Math.max(8, rect.left), innerWidth - largura - 8);
     const abaixo = rect.bottom + 8 + cartao.offsetHeight < innerHeight;
@@ -619,12 +633,117 @@
     const r = document.createRange();
     r.setStart(...inicio);
     r.setEnd(...fim);
-    estado.el.focus();
+    selecionarESubstituir(estado.el, r, marca.substituicao);
+  }
+
+  function selecionarESubstituir(el, range, texto) {
+    el.focus();
     const sel = getSelection();
     sel.removeAllRanges();
-    sel.addRange(r);
-    if (marca.substituicao) document.execCommand('insertText', false, marca.substituicao);
+    sel.addRange(range);
+    if (texto) document.execCommand('insertText', false, texto);
     else document.execCommand('delete');
+  }
+
+  function capturarAlvoDoMenu(evento) {
+    const origem = evento.composedPath()[0];
+    const el = origem instanceof HTMLElement && origem.isContentEditable ? raizEditavel(origem) : origem;
+    const tipo = tipoDoCampo(el);
+    const base = { x: evento.clientX, y: evento.clientY, el, tipo };
+    if (tipo === 'texto') {
+      const temSelecao = el.selectionStart !== el.selectionEnd;
+      const inicio = temSelecao ? el.selectionStart : 0;
+      const fim = temSelecao ? el.selectionEnd : el.value.length;
+      return { ...base, inicio, fim, texto: el.value.slice(inicio, fim) };
+    }
+    const sel = getSelection();
+    const selecao = sel?.rangeCount && !sel.isCollapsed ? sel.getRangeAt(0).cloneRange() : null;
+    if (tipo === 'editavel') {
+      if (selecao && el.contains(selecao.commonAncestorContainer)) return { ...base, range: selecao, texto: selecao.toString() };
+      const tudo = document.createRange();
+      tudo.selectNodeContents(el);
+      return { ...base, range: tudo, texto: lerTextoEditavel(el).texto };
+    }
+    return selecao ? { ...base, el: null, tipo: null, texto: selecao.toString() } : null;
+  }
+
+  function verificarAqui() {
+    const alvo = alvoDoMenu;
+    if (!alvo?.texto.trim()) return;
+    esconderCartao();
+    alvoDoCartao = { verificacao: { ...alvo }, fixo: true };
+    pedirVerificacao('');
+  }
+
+  async function pedirVerificacao(tom) {
+    const alvo = alvoDoCartao;
+    const v = alvo.verificacao;
+    Object.assign(v, { tom, resultado: null, erro: '' });
+    if (!revisavel(v.texto)) v.erro = 'selecione um texto de até 4000 caracteres';
+    renderizarVerificacao();
+    if (v.erro) return;
+    let resposta;
+    try {
+      resposta = await chrome.runtime.sendMessage({ tipo: 'reescrever', texto: v.texto, tom });
+    } catch {
+      resposta = { erro: 'a extensão não respondeu' };
+    }
+    if (alvoDoCartao !== alvo || v.tom !== tom) return;
+    if (typeof resposta?.texto === 'string') v.resultado = { texto: resposta.texto, modelo: resposta.modelo };
+    else v.erro = resposta?.erro || 'resposta vazia';
+    renderizarVerificacao();
+  }
+
+  function renderizarVerificacao() {
+    const v = alvoDoCartao.verificacao;
+    cartao?.remove();
+    cartao = elemento('div', 'cartao cartao-gramatica cartao-verificacao');
+    const cabecalho = elemento('div', 'cabecalho');
+    cabecalho.append(elemento('div', 'tipo', 'Verificação'), elemento('div', 'navegacao'));
+    cabecalho.lastChild.append(botao('×', 'fechar', esconderCartao));
+    const previa = elemento('p', 'previa');
+    const motivos = elemento('ul', 'motivos');
+    const acoes = elemento('div', 'acoes');
+    const mudou = v.resultado && v.resultado.texto !== v.texto;
+    if (v.resultado) desenharPartes(previa, diferencaDePalavras(v.texto, v.resultado.texto));
+    else previa.append(v.texto);
+    if (v.erro) motivos.append(elemento('li', 'motivo motivo-gramatica', `Não deu para verificar: ${v.erro}`));
+    else if (!v.resultado) motivos.append(elemento('li', 'motivo motivo-clareza', 'Verificando ortografia, pontuação, maiúsculas e a escrita…'));
+    else if (!mudou) motivos.append(elemento('li', 'motivo motivo-clareza', 'Nada a corrigir.'));
+    if (mudou) {
+      acoes.append(v.tipo
+        ? botao('Substituir', 'aplicar', () => substituirVerificacao(v))
+        : botao('Copiar', 'aplicar', () => navigator.clipboard.writeText(v.resultado.texto).then(esconderCartao, () => {})));
+    }
+    const partes = [cabecalho, previa, motivos];
+    if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `via ${ROTULOS_DE_ORIGEM.openrouter}`));
+    partes.push(seletorDeTom(v.tom, 'manter', pedirVerificacao), acoes);
+    cartao.append(...partes);
+    garantirCamada().sombra.append(cartao);
+    posicionarCartao();
+  }
+
+  function substituirVerificacao(v) {
+    const { el, tipo } = v;
+    const novo = v.resultado.texto;
+    if (tipo === 'texto') {
+      if (!el.isConnected || el.value.slice(v.inicio, v.fim) !== v.texto) {
+        v.erro = 'o texto mudou desde a verificação';
+        v.resultado = null;
+        renderizarVerificacao();
+        return;
+      }
+      trocarNoCampo({ tipo, el }, { inicio: v.inicio, fim: v.fim, substituicao: novo });
+    } else {
+      if (!el.isConnected || (v.range.toString() !== v.texto && lerTextoEditavel(el).texto !== v.texto)) {
+        v.erro = 'o texto mudou desde a verificação';
+        v.resultado = null;
+        renderizarVerificacao();
+        return;
+      }
+      selecionarESubstituir(el, v.range, novo);
+    }
+    esconderCartao();
   }
 
   function ignorar(estado, marcas) {
@@ -667,12 +786,13 @@
   }
 
   function aoRolarOuRedimensionar() {
-    if (cartao) posicionarCartao();
+    if (cartao && !alvoDoCartao.verificacao) posicionarCartao();
     for (const estado of campos.values()) if (estado.espelho) posicionarEspelho(estado);
   }
 
   document.addEventListener('input', aoDigitar, true);
   document.addEventListener('focusin', aoFocar, true);
+  document.addEventListener('contextmenu', (e) => (alvoDoMenu = capturarAlvoDoMenu(e)), true);
   document.addEventListener('mousemove', aoMoverMouse, { passive: true, capture: true });
   document.addEventListener('mousedown', (e) => cartao && !e.composedPath().includes(cartao) && esconderCartao(), true);
   document.addEventListener('keydown', (e) => e.key === 'Escape' && cartao && esconderCartao(), true);
@@ -693,6 +813,7 @@
       else avaliarAtivo();
     }
     if (msg?.tipo === 'revisarPedido') revisarPorPedido();
+    if (msg?.tipo === 'verificarAqui') verificarAqui();
   });
 
   chrome.storage.onChanged.addListener((mudancas, area) => {
