@@ -44,7 +44,8 @@ Passar o mouse num sublinhado abre um cartão só para o trecho inteiro, com tod
 Clique com o botão direito num campo de texto, ou num texto selecionado, e escolha **Verificar com o CraseUp**. O cartão abre no ponto do clique com a versão revisada pelo OpenRouter: ortografia, acentuação, pontuação, maiúsculas e minúsculas, gramática e uma escrita mais clara, mantendo o sentido e o tom.
 
 - Com texto selecionado, verifica só a seleção; sem seleção, o campo inteiro (até 4000 caracteres).
-- A prévia risca as palavras que saem e destaca as que entram. **Substituir** troca o texto no campo.
+- A prévia risca as palavras que saem e destaca as que entram. **Substituir** troca só essas palavras, então negrito, link e menção do resto do texto ficam como estavam, e as quebras de linha que você escreveu são mantidas.
+- Citação (bloco de resposta citada) e trechos não editáveis do campo ficam fora da verificação.
 - O seletor **Tom** refaz a verificação num dos oito tons; **manter** volta ao tom do original.
 - Em texto selecionado fora de um campo editável, o botão é **Copiar**.
 - Cada verificação é uma chamada do OpenRouter e conta na cota do dia.

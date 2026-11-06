@@ -171,6 +171,13 @@
     igual(C.diferencaDePalavras('igual', 'igual'), [{ igual: 'igual' }]);
   });
 
+  caso('reescrita mantém as quebras de linha que o usuário escreveu', () => {
+    igual(C.manterQuebrasDeLinha('oi tudo bem. vamos', 'Oi, tudo bem.\nVamos'), 'Oi, tudo bem. Vamos');
+    igual(C.manterQuebrasDeLinha('linha um\nlinha dois', 'Linha um. Linha dois.'), 'Linha um.\nLinha dois.');
+    igual(C.manterQuebrasDeLinha('linha um\nlinha dois', 'Linha um.\nLinha dois.'), 'Linha um.\nLinha dois.');
+    igual(C.manterQuebrasDeLinha('a b\n\nc d', 'A b. C d.'), 'A b.\n\nC d.');
+  });
+
   caso('lê a reescrita e rejeita resposta sem texto', () => {
     igual(C.lerReescrita({ model: 'x:free', choices: [{ message: { content: '{"texto":"Você vem?"}' } }] }), { texto: 'Você vem?', modelo: 'x:free' });
     const erros = ['{"texto":"  "}', '{"outro":1}'].map((c) => { try { C.lerReescrita({ choices: [{ message: { content: c } }] }); return 'aceitou'; } catch { return 'rejeitou'; } });

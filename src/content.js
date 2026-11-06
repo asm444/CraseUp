@@ -2,7 +2,7 @@
   if (globalThis.__revisorGemini) return;
   globalThis.__revisorGemini = true;
 
-  const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho, diferencaDePalavras } = RevisorCore;
+  const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho, diferencaDePalavras, manterQuebrasDeLinha } = RevisorCore;
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const PARAGRAFOS_POR_PAUSA = 3;
@@ -29,6 +29,7 @@
   let timerEsconder = 0;
   let quadroPendente = 0;
   let alvoDoMenu = null;
+  let aplicando = false;
 
   function hostExcluido(host, lista) {
     return HOSTS_FORA_DO_ESCOPO.concat(lista).some((s) => host === s || host.endsWith(`.${s}`));
@@ -283,7 +284,7 @@
     estado.trechos = calcularTrechos(estado.marcas);
     if (estado.tipo === 'texto') desenharEspelho(estado, texto);
     else desenharEditavel(estado);
-    if (alvoDoCartao?.estado === estado) atualizarCartao();
+    if (alvoDoCartao?.estado === estado && !aplicando) atualizarCartao();
   }
 
   function selecaoDe(no) {
@@ -596,65 +597,80 @@
     }
     if (alvoDoCartao !== alvo || alvo.reescrita?.tom !== tom || alvo.reescrita.texto) return;
     alvo.reescrita = typeof resposta?.texto === 'string'
-      ? { tom, texto: resposta.texto.trim(), modelo: resposta.modelo }
+      ? { tom, texto: manterQuebrasDeLinha(textoDoTrecho(trecho), resposta.texto.trim()), modelo: resposta.modelo }
       : { tom, erro: resposta?.erro || 'resposta vazia' };
     renderizarCartao();
   }
 
-  function substituirPelaReescrita(estado, trecho, texto) {
+  async function substituirPelaReescrita(estado, trecho, texto) {
     if (lerCampo(estado).slice(trecho.inicio, trecho.fim) !== textoDoTrecho(trecho)) {
       desenhar(estado);
       return;
     }
-    alvoDoCartao.fixo = true;
-    alvoDoCartao.avancar = true;
-    alvoDoCartao.reescrita = null;
-    trocarNoCampo(estado, { inicio: trecho.inicio, fim: trecho.fim, substituicao: texto });
+    Object.assign(alvoDoCartao, { fixo: true, avancar: true, reescrita: null });
+    await aplicarNoCampo(estado.el, estado.tipo, edicoesDaDiferenca(textoDoTrecho(trecho), texto, trecho.inicio));
     desenhar(estado);
   }
 
-  function substituir(estado, trecho) {
-    const texto = lerCampo(estado);
-    if (texto.slice(trecho.inicio, trecho.fim) !== textoDoTrecho(trecho)) {
+  async function substituir(estado, trecho) {
+    if (lerCampo(estado).slice(trecho.inicio, trecho.fim) !== textoDoTrecho(trecho)) {
       desenhar(estado);
       return;
     }
     const novo = aplicarTrecho(trecho.paragrafo, cache.get(trecho.paragrafo) || trecho.relativo.sugestoes, trecho.relativo);
     guardarNoCache(novo.texto, novo.sugestoes);
-    const primeira = trecho.relativo.sugestoes[0];
-    const ultimoFim = Math.max(...trecho.relativo.sugestoes.map((s) => s.fim));
-    const delta = novo.texto.length - trecho.paragrafo.length;
-    alvoDoCartao.fixo = true;
-    alvoDoCartao.avancar = true;
-    trocarNoCampo(estado, {
-      inicio: trecho.base + primeira.inicio,
-      fim: trecho.base + ultimoFim,
-      substituicao: novo.texto.slice(primeira.inicio, ultimoFim + delta),
-    });
+    Object.assign(alvoDoCartao, { fixo: true, avancar: true });
+    const edicoes = trecho.relativo.sugestoes.map((sug) => ({ inicio: trecho.base + sug.inicio, fim: trecho.base + sug.fim, texto: sug.substituicao }));
+    await aplicarNoCampo(estado.el, estado.tipo, edicoes);
     desenhar(estado);
   }
 
-  function trocarNoCampo(estado, marca) {
-    if (estado.tipo === 'texto') {
-      estado.el.focus();
-      estado.el.setRangeText(marca.substituicao, marca.inicio, marca.fim, 'end');
-      estado.el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText', data: marca.substituicao }));
-      return;
+  function edicoesDaDiferenca(antes, depois, base) {
+    const edicoes = [];
+    let pos = base;
+    for (const parte of diferencaDePalavras(antes, depois)) {
+      if ('igual' in parte) {
+        pos += parte.igual.length;
+        continue;
+      }
+      edicoes.push({ inicio: pos, fim: pos + parte.de.length, texto: parte.para });
+      pos += parte.de.length;
     }
-    const inicio = pontoNoDom(estado.mapa, marca.inicio);
-    const fim = pontoNoDom(estado.mapa, marca.fim);
-    if (!inicio || !fim) return;
-    const r = document.createRange();
-    r.setStart(...inicio);
-    r.setEnd(...fim);
-    selecionarESubstituir(estado.el, r, marca.substituicao);
+    return edicoes;
   }
 
-  function selecionarESubstituir(el, range, texto) {
+  async function aplicarNoCampo(el, tipo, edicoes) {
+    const ordem = [...edicoes].sort((a, b) => b.inicio - a.inicio);
+    aplicando = true;
+    try {
+      if (tipo === 'texto') {
+        el.focus();
+        for (const e of ordem) el.setRangeText(e.texto, e.inicio, e.fim, 'end');
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+        return;
+      }
+      for (const e of ordem) {
+        await new Promise((pronto) => setTimeout(pronto, 0));
+        const { mapa } = lerTextoEditavel(el);
+        const inicio = pontoNoDom(mapa, e.inicio);
+        const fim = pontoNoDom(mapa, e.fim);
+        if (!inicio || !fim) return;
+        const r = document.createRange();
+        r.setStart(...inicio);
+        r.setEnd(...fim);
+        await selecionarESubstituir(el, r, e.texto);
+      }
+    } finally {
+      aplicando = false;
+    }
+  }
+
+  async function selecionarESubstituir(el, range, texto) {
     el.focus();
     const sel = getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
+    await new Promise((pronto) => setTimeout(pronto, 0));
     const antes = new InputEvent('beforeinput', {
       bubbles: true,
       cancelable: true,
@@ -710,7 +726,7 @@
       resposta = { erro: 'a extensão não respondeu' };
     }
     if (alvoDoCartao !== alvo || v.tom !== tom) return;
-    if (typeof resposta?.texto === 'string') v.resultado = { texto: resposta.texto, modelo: resposta.modelo };
+    if (typeof resposta?.texto === 'string') v.resultado = { texto: manterQuebrasDeLinha(v.texto, resposta.texto), modelo: resposta.modelo };
     else v.erro = resposta?.erro || 'resposta vazia';
     renderizarVerificacao();
   }
@@ -751,11 +767,10 @@
 
   function localizarVerificado(v) {
     if (v.tipo === 'texto') {
-      if (v.el.value.slice(v.inicio, v.fim) === v.texto) return { inicio: v.inicio, fim: v.fim };
+      if (v.el.value.slice(v.inicio, v.fim) === v.texto) return v.inicio;
       const p = ocorrenciaUnica(v.el.value, v.texto);
-      return p === -1 ? null : { inicio: p, fim: p + v.texto.length };
+      return p === -1 ? null : p;
     }
-    if (v.range?.toString().replace(INVISIVEIS, '') === v.texto) return v.range;
     const { texto, mapa } = lerTextoEditavel(v.el);
     const posicoes = [];
     let limpo = '';
@@ -764,26 +779,32 @@
       posicoes.push(i);
       limpo += texto[i];
     }
-    const p = ocorrenciaUnica(limpo, v.texto);
-    const inicio = pontoNoDom(mapa, posicoes[p]);
-    const fim = pontoNoDom(mapa, posicoes[p + v.texto.length - 1] + 1);
-    if (!inicio || !fim) return null;
-    const r = document.createRange();
-    r.setStart(...inicio);
-    r.setEnd(...fim);
-    return r;
+    const daSelecao = v.range && mapa.find((m) => m.no === v.range.startContainer);
+    const inicioDaSelecao = daSelecao && posicoes.findIndex((i) => i >= daSelecao.inicio + v.range.startOffset);
+    const p = daSelecao && limpo.startsWith(v.texto, inicioDaSelecao) ? inicioDaSelecao : ocorrenciaUnica(limpo, v.texto);
+    if (p === -1) return null;
+    const original = (k) => (k < posicoes.length ? posicoes[k] : posicoes.at(-1) + 1);
+    return { p, original, fimOriginal: (k, inicio) => (k > inicio ? posicoes[k - 1] + 1 : original(inicio)) };
   }
 
-  function substituirVerificacao(v) {
+  async function substituirVerificacao(v) {
     const alvo = v.el.isConnected ? localizarVerificado(v) : null;
-    if (!alvo) {
+    if (alvo === null) {
       v.erro = 'o trecho verificado foi editado; verifique de novo';
       v.resultado = null;
       renderizarVerificacao();
       return;
     }
-    if (v.tipo === 'texto') trocarNoCampo({ tipo: 'texto', el: v.el }, { ...alvo, substituicao: v.resultado.texto });
-    else selecionarESubstituir(v.el, alvo, v.resultado.texto);
+    if (v.tipo === 'texto') {
+      await aplicarNoCampo(v.el, 'texto', [{ inicio: alvo, fim: alvo + v.texto.length, texto: v.resultado.texto }]);
+    } else {
+      const edicoes = edicoesDaDiferenca(v.texto, v.resultado.texto, alvo.p).map((e) => ({
+        inicio: alvo.original(e.inicio),
+        fim: alvo.fimOriginal(e.fim, e.inicio),
+        texto: e.texto,
+      }));
+      await aplicarNoCampo(v.el, 'editavel', edicoes);
+    }
     esconderCartao();
   }
 

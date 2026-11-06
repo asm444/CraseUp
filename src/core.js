@@ -323,6 +323,21 @@
     return partes;
   }
 
+  function manterQuebrasDeLinha(antes, depois) {
+    const linhas = antes.split('\n');
+    if ((depois.match(/\n/g) || []).length === linhas.length - 1) return depois;
+    const contar = (t) => t.split(/\s+/).filter(Boolean).length;
+    const palavras = depois.split(/\s+/).filter(Boolean);
+    const total = contar(antes) || 1;
+    const quebrasAntes = new Array(palavras.length + 1).fill('');
+    let acumulado = 0;
+    for (const linha of linhas.slice(0, -1)) {
+      acumulado += contar(linha);
+      quebrasAntes[Math.round((acumulado * palavras.length) / total)] += '\n';
+    }
+    return palavras.map((p, k) => (k === 0 ? quebrasAntes[0] : quebrasAntes[k] || ' ') + p).join('') + quebrasAntes[palavras.length];
+  }
+
   raiz.RevisorCore = {
     TIPOS,
     TONS,
@@ -342,5 +357,6 @@
     partesDoTrecho,
     aplicarTrecho,
     diferencaDePalavras,
+    manterQuebrasDeLinha,
   };
 })(globalThis);

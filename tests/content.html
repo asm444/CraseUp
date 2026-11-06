@@ -97,6 +97,10 @@
 <script src="../src/content.js"></script>
 <script>
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (botao) => {
+    botao.click();
+    await espera(30);
+  };
   const rico = document.getElementById('editorRico');
   let modeloRico = '';
   let desfeitasNoRico = 0;
@@ -156,7 +160,7 @@
       confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'via OpenRouter');
       confere('com um trecho só, o cartão não pagina', cartao?.querySelector('.pagina'), null);
       confere('o botão principal é Substituir', cartao?.querySelector('.aplicar')?.textContent, 'Substituir');
-      cartao.querySelector('.aplicar').click();
+      await clicar(cartao.querySelector('.aplicar'));
       confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');
       await espera(1500);
       confere('após aplicar, o parágrafo novo não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado').length, 0);
@@ -165,7 +169,7 @@
       const range = [...CSS.highlights.get('revisor-gramatica')][0];
       passarMouse(range.getBoundingClientRect());
       await espera(100);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto no contenteditable', editavel.textContent, 'isso é assim mesmo');
 
       digitar(area, 'texto bom demais');
@@ -191,7 +195,7 @@
       await espera(100);
       confere('parágrafo curto com duas correções abre um cartão só, com as duas na prévia', [...sombra().querySelectorAll('.cartao .para')].map((p) => p.textContent), ['vou ao mercado', 'assim']);
       confere('a prévia mostra o parágrafo inteiro já corrigido', sombra().querySelector('.cartao .previa').textContent, 'eu vou mercadovou ao mercado e açimassim');
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca tudo do trecho no textarea', area.value, 'eu vou ao mercado e assim');
       await espera(1500);
       confere('após Substituir, o texto corrigido não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado e assim').length, 0);
@@ -202,10 +206,10 @@
       passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
       await espera(100);
       confere('parágrafo longo pagina por frase', [sombra().querySelector('.cartao .pagina')?.textContent, sombra().querySelector('.cartao .previa')?.textContent], ['1 de 2', 'Primeira frase tem açimassim no começo.']);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       await espera(50);
       confere('depois de substituir, o cartão continua aberto no trecho seguinte', [sombra().querySelector('.cartao .pagina'), sombra().querySelector('.cartao .previa')?.textContent], [null, 'A última frase tem nóisnós no fim.']);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('os dois trechos substituídos, um depois do outro', area.value, LONGO.replace('açim', 'assim').replace('nóis', 'nós'));
       await espera(50);
       confere('sem trecho restante, o cartão fecha', sombra().querySelector('.cartao'), null);
@@ -214,7 +218,7 @@
       await espera(1500);
       passarMouse([...CSS.highlights.get('revisor-tom')][0].getBoundingClientRect());
       await espera(100);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca tudo do trecho no contenteditable', editavel.textContent, 'está bom, você vem?');
 
       digitar(area, 'eu vou mercado');
@@ -227,7 +231,7 @@
       seletor.dispatchEvent(new Event('change'));
       await espera(50);
       confere('escolher o tom pede a reescrita do trecho e a prévia mostra o resultado', [reescritas, sombra().querySelector('.cartao .previa')?.textContent], [[['eu vou mercado', 'formal']], 'Eu irei ao mercado.']);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca o trecho pela reescrita no tom', area.value, 'Eu irei ao mercado.');
 
       const menu = (el) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, composed: true, clientX: 60, clientY: 60 }));
@@ -250,7 +254,7 @@
       tomDaVerificacao.dispatchEvent(new Event('change'));
       await espera(50);
       confere('trocar o tom na verificação refaz o pedido com o tom', [reescritas.at(-1), textoNovo(verificacao().querySelector('.previa'))], [['eu vou mercado amanha', 'formal'], 'Eu irei ao mercado.']);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('Substituir da verificação troca o campo inteiro', [area.value, verificacao()], ['Eu irei ao mercado.', null]);
 
       digitar(editavel, 'ola joao tudo certo');
@@ -264,7 +268,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('com seleção, verifica só o selecionado', reescritas.at(-1), ['ola joao', '']);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('Substituir troca só a seleção no contenteditable', editavel.textContent, 'Olá, João tudo certo');
 
       digitar(area, 'eu vou mercado amanha');
@@ -274,7 +278,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       area.value = `ok, ${area.value} e volto`;
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('texto digitado antes e depois de verificar fica, e o verificado é trocado onde está', [area.value, verificacao()], ['ok, Eu vou ao mercado amanhã. e volto', null]);
 
       editavel.textContent = 'ola joao\u2060';
@@ -286,7 +290,7 @@
       confere('caractere invisível de editor (U+2060) não vai para a verificação', reescritas.at(-1), ['ola joao', '']);
       editavel.textContent = 'ola joao';
       await espera(50);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('editor que tira o invisível e recria os nós ainda recebe a troca', [editavel.textContent, verificacao()], ['Olá, João', null]);
 
       digitar(area, 'eu vou mercado amanha\u200B');
@@ -295,7 +299,7 @@
       menu(area);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('textarea com caractere invisível ainda recebe a troca', [area.value, verificacao()], ['Eu vou ao mercado amanhã.', null]);
 
       editavel.textContent = 'ola\u2060 joao';
@@ -304,7 +308,7 @@
       menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('invisível no meio do campo não impede a troca', [editavel.textContent.replace('\u2060', ''), verificacao()], ['Olá, João', null]);
 
       editavel.innerHTML = '<br>ola joao';
@@ -313,7 +317,7 @@
       menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('campo que começa com linha vazia recebe a troca e mantém a linha', [editavel.innerHTML, verificacao()], ['<br>Olá, João', null]);
 
       area.value = 'nada a mudar aqui';
@@ -348,12 +352,12 @@
       confere('textarea em shadow DOM ganha sublinhado', marcaSombra?.textContent, 'açim');
       passarMouse(marcaSombra.getBoundingClientRect());
       await espera(100);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto do textarea em shadow DOM', areaSombra.value, 'sombra com assim');
       confere('contenteditable em shadow DOM ganha highlight', CSS.highlights.get('revisor-gramatica')?.size, 1);
       passarMouse([...CSS.highlights.get('revisor-gramatica')][0].getBoundingClientRect());
       await espera(100);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto do contenteditable em shadow DOM', editavelSombra.textContent, 'outra sombra assim');
 
       digitar(area, 'chega aos poucos açim');
@@ -364,7 +368,7 @@
       const cartaoAberto = sombra().querySelector('.cartao');
       await espera(3000);
       confere('o cartão aberto continua aberto quando o resultado final redesenha o campo', [cartaoAberto?.isConnected, sombra().querySelector('.cartao .previa')?.textContent], [true, 'chega aos poucos açimassim']);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('e o Substituir dele troca o texto', area.value, 'chega aos poucos assim');
 
       digitar(area, 'duas etapas açim');
@@ -392,7 +396,7 @@
       passarMouse(rangeRico.getBoundingClientRect());
       await espera(100);
       desfeitasNoRico = 0;
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('editor que só aceita mudança por beforeinput (Slate, CKEditor) guarda a troca do Substituir', [modeloRico, rico.textContent], ['rico com assim', 'rico com assim']);
       confere('quando o editor aplica a troca pelo beforeinput, a extensão não insere o texto de novo', desfeitasNoRico, 0);
 
@@ -401,7 +405,7 @@
       await espera(1500);
       passarMouse([...CSS.highlights.get('revisor-clareza')].find((r) => rico.contains(r.startContainer)).getBoundingClientRect());
       await espera(100);
-      sombra().querySelector('.cartao .aplicar').click();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('remoção pelo Substituir também chega ao editor pelo beforeinput', [modeloRico, rico.textContent], ['rico bom', 'rico bom']);
 
       digitar(area, 'isso é açim mesmo\nsombra com açim');
@@ -421,7 +425,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('sem seleção, a verificação ignora citação e trecho não editável', reescritas.at(-1), ['ola joao', '']);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('Substituir mantém as citações e troca só o texto digitado', editavel.innerHTML, '<blockquote>Fulano: texto citado</blockquote><div contenteditable="false">outra citacao</div><div>Olá, João</div>');
 
       editavel.innerHTML = 'oi <span contenteditable="false" style="display:inline">@Fulano</span> tudo bem';
@@ -433,6 +437,15 @@
       confere('menção inline não editável continua no texto verificado', reescritas.at(-1), ['oi @Fulano tudo bem', '']);
       verificacao().querySelector('.fechar').click();
 
+      editavel.innerHTML = 'eu <b>vou</b> mercado <a href="#x">amanha</a>';
+      await espera(50);
+      getSelection().removeAllRanges();
+      menu(editavel);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      await clicar(verificacao().querySelector('.aplicar'));
+      confere('Substituir troca só as palavras que mudam e mantém negrito e link', editavel.innerHTML.replaceAll('&nbsp;', ' '), 'Eu <b>vou</b> ao mercado <a href="#x">amanhã.</a>');
+
       editavelSombra.textContent = 'ola joao tudo certo';
       await espera(50);
       editavelSombra.focus();
@@ -441,7 +454,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('editor em shadow DOM: a verificação usa a seleção, não o campo inteiro', reescritas.at(-1), ['ola joao', '']);
-      verificacao().querySelector('.aplicar').click();
+      await clicar(verificacao().querySelector('.aplicar'));
       confere('editor em shadow DOM: Substituir troca só a seleção', editavelSombra.textContent, 'Olá, João tudo certo');
       await espera(1500);
 
