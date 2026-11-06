@@ -100,7 +100,8 @@
     const mapa = [];
     let texto = '';
     let blocoAnterior = null;
-    const caminhante = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    const caminhante = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, (no) =>
+      no.nodeType === Node.ELEMENT_NODE && (no.tagName === 'BLOCKQUOTE' || (!no.isContentEditable && !getComputedStyle(no).display.startsWith('inline'))) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT);
     for (let no = caminhante.nextNode(); no; no = caminhante.nextNode()) {
       if (no.nodeType === Node.ELEMENT_NODE) {
         if (no.tagName === 'BR') texto += '\n';
@@ -285,9 +286,14 @@
     if (alvoDoCartao?.estado === estado) atualizarCartao();
   }
 
+  function selecaoDe(no) {
+    const raiz = no.getRootNode();
+    return raiz instanceof ShadowRoot ? raiz.getSelection() : getSelection();
+  }
+
   function posicaoDoCursor(estado, texto) {
     if (estado.tipo === 'texto') return estado.el.selectionStart ?? texto.length;
-    const sel = getSelection();
+    const sel = selecaoDe(estado.el);
     if (!sel?.rangeCount) return texto.length;
     const { startContainer, startOffset } = sel.getRangeAt(0);
     const item = estado.mapa.find((m) => m.no === startContainer);
@@ -673,7 +679,7 @@
       const fim = temSelecao ? el.selectionEnd : el.value.length;
       return { ...base, inicio, fim, texto: el.value.slice(inicio, fim) };
     }
-    const sel = getSelection();
+    const sel = selecaoDe(origem);
     const selecao = sel?.rangeCount && !sel.isCollapsed ? sel.getRangeAt(0).cloneRange() : null;
     if (tipo === 'editavel') {
       if (selecao && el.contains(selecao.commonAncestorContainer)) return { ...base, range: selecao, texto: selecao.toString().replace(INVISIVEIS, '') };

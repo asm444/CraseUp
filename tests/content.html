@@ -414,6 +414,37 @@
       confere('digitar no trecho do cartão fecha o cartão em vez de pular para outro parágrafo', sombra().querySelector('.cartao'), null);
       await espera(1500);
 
+      editavel.innerHTML = '<blockquote>Fulano: texto citado</blockquote><div contenteditable="false">outra citacao</div><div>ola joao</div>';
+      await espera(50);
+      getSelection().removeAllRanges();
+      menu(editavel);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      confere('sem seleção, a verificação ignora citação e trecho não editável', reescritas.at(-1), ['ola joao', '']);
+      verificacao().querySelector('.aplicar').click();
+      confere('Substituir mantém as citações e troca só o texto digitado', editavel.innerHTML, '<blockquote>Fulano: texto citado</blockquote><div contenteditable="false">outra citacao</div><div>Olá, João</div>');
+
+      editavel.innerHTML = 'oi <span contenteditable="false" style="display:inline">@Fulano</span> tudo bem';
+      await espera(50);
+      getSelection().removeAllRanges();
+      menu(editavel);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      confere('menção inline não editável continua no texto verificado', reescritas.at(-1), ['oi @Fulano tudo bem', '']);
+      verificacao().querySelector('.fechar').click();
+
+      editavelSombra.textContent = 'ola joao tudo certo';
+      await espera(50);
+      editavelSombra.focus();
+      getSelection().setBaseAndExtent(editavelSombra.firstChild, 0, editavelSombra.firstChild, 8);
+      menu(editavelSombra);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      confere('editor em shadow DOM: a verificação usa a seleção, não o campo inteiro', reescritas.at(-1), ['ola joao', '']);
+      verificacao().querySelector('.aplicar').click();
+      confere('editor em shadow DOM: Substituir troca só a seleção', editavelSombra.textContent, 'Olá, João tudo certo');
+      await espera(1500);
+
       const semInput = document.getElementById('semInput');
       semInput.focus();
       semInput.querySelector('p').firstChild.data += ' açim';
