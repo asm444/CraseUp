@@ -641,6 +641,15 @@
     const sel = getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
+    const antes = new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      inputType: texto ? 'insertText' : 'deleteContent',
+      data: texto || null,
+      targetRanges: [new StaticRange(range)],
+    });
+    if (!el.dispatchEvent(antes)) return;
     if (texto) document.execCommand('insertText', false, texto);
     else document.execCommand('delete');
   }

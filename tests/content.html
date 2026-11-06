@@ -10,6 +10,7 @@
 <div id="hospedeiro"></div>
 <div id="semInput" contenteditable="true"><p>editor sem input</p></div>
 <p id="estatico">texto fixo da pagina</p>
+<div id="editorRico" contenteditable="true"></div>
 <pre id="resultado">NAO EXECUTADO</pre>
 <script src="../src/core.js"></script>
 <script>
@@ -40,6 +41,7 @@
       { tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' },
       { tipo: 'gramatica', original: 'nóis', substituicao: 'nós', motivo: 'grafia' },
     ],
+    'rico com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
@@ -94,6 +96,22 @@
 <script src="../src/content.js"></script>
 <script>
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const rico = document.getElementById('editorRico');
+  let modeloRico = '';
+  let desfeitasNoRico = 0;
+  rico.addEventListener('beforeinput', (e) => {
+    const [alvo] = e.getTargetRanges();
+    if (e.inputType !== 'insertText' || !alvo) return;
+    e.preventDefault();
+    modeloRico = modeloRico.slice(0, alvo.startOffset) + e.data + modeloRico.slice(alvo.endOffset);
+    rico.textContent = modeloRico;
+    rico.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
+  });
+  rico.addEventListener('input', () => {
+    if (rico.textContent === modeloRico) return;
+    desfeitasNoRico++;
+    rico.textContent = modeloRico;
+  });
   const sombra = () => document.querySelector('revisor-gemini-camada')?.shadowRoot;
   const linhas = [];
   let ok = 0, total = 0;
@@ -316,6 +334,17 @@
       const marcasDe = (inicio) => [...sombra().querySelectorAll('.marca')].filter((m) => m.parentElement.textContent.startsWith(inicio)).map((m) => m.textContent);
       confere('parcial com menos sugestões não apaga o que já está sublinhado', marcasDe('sem piscar'), ['açim']);
       await espera(1000);
+
+      modeloRico = 'rico com açim';
+      digitar(rico, modeloRico);
+      await espera(1500);
+      const rangeRico = [...CSS.highlights.get('revisor-gramatica')].find((r) => rico.contains(r.startContainer));
+      passarMouse(rangeRico.getBoundingClientRect());
+      await espera(100);
+      desfeitasNoRico = 0;
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('editor que só aceita mudança por beforeinput (Slate, CKEditor) guarda a troca do Substituir', [modeloRico, rico.textContent], ['rico com assim', 'rico com assim']);
+      confere('quando o editor aplica a troca pelo beforeinput, a extensão não insere o texto de novo', desfeitasNoRico, 0);
 
       const semInput = document.getElementById('semInput');
       semInput.focus();
