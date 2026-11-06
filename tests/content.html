@@ -41,6 +41,7 @@
       { tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' },
       { tipo: 'gramatica', original: 'nóis', substituicao: 'nós', motivo: 'grafia' },
     ],
+    'rico bom demais': [{ tipo: 'clareza', original: ' demais', substituicao: '', motivo: 'redundante' }],
     'rico com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
@@ -101,9 +102,9 @@
   let desfeitasNoRico = 0;
   rico.addEventListener('beforeinput', (e) => {
     const [alvo] = e.getTargetRanges();
-    if (e.inputType !== 'insertText' || !alvo) return;
+    if (!['insertText', 'deleteContentBackward'].includes(e.inputType) || !alvo) return;
     e.preventDefault();
-    modeloRico = modeloRico.slice(0, alvo.startOffset) + e.data + modeloRico.slice(alvo.endOffset);
+    modeloRico = modeloRico.slice(0, alvo.startOffset) + (e.data ?? '') + modeloRico.slice(alvo.endOffset);
     rico.textContent = modeloRico;
     rico.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
   });
@@ -345,6 +346,14 @@
       sombra().querySelector('.cartao .aplicar').click();
       confere('editor que só aceita mudança por beforeinput (Slate, CKEditor) guarda a troca do Substituir', [modeloRico, rico.textContent], ['rico com assim', 'rico com assim']);
       confere('quando o editor aplica a troca pelo beforeinput, a extensão não insere o texto de novo', desfeitasNoRico, 0);
+
+      modeloRico = 'rico bom demais';
+      digitar(rico, modeloRico);
+      await espera(1500);
+      passarMouse([...CSS.highlights.get('revisor-clareza')].find((r) => rico.contains(r.startContainer)).getBoundingClientRect());
+      await espera(100);
+      sombra().querySelector('.cartao .aplicar').click();
+      confere('remoção pelo Substituir também chega ao editor pelo beforeinput', [modeloRico, rico.textContent], ['rico bom', 'rico bom']);
 
       const semInput = document.getElementById('semInput');
       semInput.focus();

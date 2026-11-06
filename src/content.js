@@ -645,7 +645,7 @@
       bubbles: true,
       cancelable: true,
       composed: true,
-      inputType: texto ? 'insertText' : 'deleteContent',
+      inputType: texto ? 'insertText' : 'deleteContentBackward',
       data: texto || null,
       targetRanges: [new StaticRange(range)],
     });
