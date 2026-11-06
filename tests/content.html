@@ -15,7 +15,7 @@
 <script src="../src/core.js"></script>
 <script>
   const LONGO = `Primeira frase tem açim no começo. ${'Esta frase não tem problema nenhum para revisar. '.repeat(5)}A última frase tem nóis no fim.`;
-  const MELHORIAS = { 'eu vou mercado amanha': 'Eu vou ao mercado amanhã.', 'ola joao': 'Olá, João', 'texto fixo da pagina': 'Texto fixo da página.' };
+  const MELHORIAS = { 'eu vou mercado amanha': 'Eu vou ao mercado amanhã.', 'eu vou mercado amanha\u200B': 'Eu vou ao mercado amanhã.', 'ola joao': 'Olá, João', 'texto fixo da pagina': 'Texto fixo da página.' };
   const RESPOSTAS = {
     'eu vou mercado': [
       { tipo: 'gramatica', original: 'vou mercado', substituicao: 'vou ao mercado', motivo: 'falta preposição' },
@@ -267,6 +267,55 @@
       verificacao().querySelector('.aplicar').click();
       confere('Substituir troca só a seleção no contenteditable', editavel.textContent, 'Olá, João tudo certo');
 
+      digitar(area, 'eu vou mercado amanha');
+      await espera(1500);
+      area.setSelectionRange(0, 0);
+      menu(area);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      area.value = `ok, ${area.value} e volto`;
+      verificacao().querySelector('.aplicar').click();
+      confere('texto digitado antes e depois de verificar fica, e o verificado é trocado onde está', [area.value, verificacao()], ['ok, Eu vou ao mercado amanhã. e volto', null]);
+
+      editavel.textContent = 'ola joao\u2060';
+      await espera(50);
+      getSelection().removeAllRanges();
+      menu(editavel);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      confere('caractere invisível de editor (U+2060) não vai para a verificação', reescritas.at(-1), ['ola joao', '']);
+      editavel.textContent = 'ola joao';
+      await espera(50);
+      verificacao().querySelector('.aplicar').click();
+      confere('editor que tira o invisível e recria os nós ainda recebe a troca', [editavel.textContent, verificacao()], ['Olá, João', null]);
+
+      digitar(area, 'eu vou mercado amanha\u200B');
+      await espera(1500);
+      area.setSelectionRange(0, 0);
+      menu(area);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      verificacao().querySelector('.aplicar').click();
+      confere('textarea com caractere invisível ainda recebe a troca', [area.value, verificacao()], ['Eu vou ao mercado amanhã.', null]);
+
+      editavel.textContent = 'ola\u2060 joao';
+      await espera(50);
+      getSelection().removeAllRanges();
+      menu(editavel);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      verificacao().querySelector('.aplicar').click();
+      confere('invisível no meio do campo não impede a troca', [editavel.textContent.replace('\u2060', ''), verificacao()], ['Olá, João', null]);
+
+      editavel.innerHTML = '<br>ola joao';
+      await espera(50);
+      getSelection().removeAllRanges();
+      menu(editavel);
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      verificacao().querySelector('.aplicar').click();
+      confere('campo que começa com linha vazia recebe a troca e mantém a linha', [editavel.innerHTML, verificacao()], ['<br>Olá, João', null]);
+
       area.value = 'nada a mudar aqui';
       area.setSelectionRange(0, 0);
       menu(area);
@@ -354,6 +403,16 @@
       await espera(100);
       sombra().querySelector('.cartao .aplicar').click();
       confere('remoção pelo Substituir também chega ao editor pelo beforeinput', [modeloRico, rico.textContent], ['rico bom', 'rico bom']);
+
+      digitar(area, 'isso é açim mesmo\nsombra com açim');
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(100);
+      confere('cartão aberto no primeiro parágrafo', sombra().querySelector('.cartao .previa')?.textContent, 'isso é açimassim mesmo');
+      digitar(area, 'isso é açim mesmo!\nsombra com açim');
+      await espera(50);
+      confere('digitar no trecho do cartão fecha o cartão em vez de pular para outro parágrafo', sombra().querySelector('.cartao'), null);
+      await espera(1500);
 
       const semInput = document.getElementById('semInput');
       semInput.focus();

@@ -9,6 +9,7 @@
   const PARAGRAFOS_POR_PEDIDO = 10;
   const ENTRADAS_NO_CACHE = 300;
   const FOLGA_VERTICAL_PX = 4;
+  const INVISIVEIS = /[\u200B\u2060\uFEFF]/g;
   const ATRASO_PARA_ESCONDER_MS = 250;
   const HOSTS_FORA_DO_ESCOPO = ['docs.google.com'];
   const EDITORES_DE_CODIGO = '.cm-editor,.CodeMirror,.monaco-editor,.ace_editor';
@@ -478,6 +479,11 @@
       return;
     }
     const mesmo = estado.trechos.findIndex((t) => chaveDoTrecho(t) === chave);
+    if (mesmo === -1 && !alvoDoCartao.avancar) {
+      esconderCartao();
+      return;
+    }
+    alvoDoCartao.avancar = false;
     alvoDoCartao.indice = mesmo !== -1 ? mesmo : Math.min(indice, estado.trechos.length - 1);
     if (mesmo === -1) alvoDoCartao.reescrita = null;
     renderizarCartao();
@@ -595,6 +601,7 @@
       return;
     }
     alvoDoCartao.fixo = true;
+    alvoDoCartao.avancar = true;
     alvoDoCartao.reescrita = null;
     trocarNoCampo(estado, { inicio: trecho.inicio, fim: trecho.fim, substituicao: texto });
     desenhar(estado);
@@ -612,6 +619,7 @@
     const ultimoFim = Math.max(...trecho.relativo.sugestoes.map((s) => s.fim));
     const delta = novo.texto.length - trecho.paragrafo.length;
     alvoDoCartao.fixo = true;
+    alvoDoCartao.avancar = true;
     trocarNoCampo(estado, {
       inicio: trecho.base + primeira.inicio,
       fim: trecho.base + ultimoFim,
@@ -668,12 +676,10 @@
     const sel = getSelection();
     const selecao = sel?.rangeCount && !sel.isCollapsed ? sel.getRangeAt(0).cloneRange() : null;
     if (tipo === 'editavel') {
-      if (selecao && el.contains(selecao.commonAncestorContainer)) return { ...base, range: selecao, texto: selecao.toString() };
-      const tudo = document.createRange();
-      tudo.selectNodeContents(el);
-      return { ...base, range: tudo, texto: lerTextoEditavel(el).texto };
+      if (selecao && el.contains(selecao.commonAncestorContainer)) return { ...base, range: selecao, texto: selecao.toString().replace(INVISIVEIS, '') };
+      return { ...base, texto: lerTextoEditavel(el).texto.replace(INVISIVEIS, '').trim() };
     }
-    return selecao ? { ...base, el: null, tipo: null, texto: selecao.toString() } : null;
+    return selecao ? { ...base, el: null, tipo: null, texto: selecao.toString().replace(INVISIVEIS, '') } : null;
   }
 
   function verificarAqui() {
@@ -732,32 +738,52 @@
     posicionarCartao();
   }
 
-  function substituirVerificacao(v) {
-    const { el, tipo } = v;
-    const novo = v.resultado.texto;
-    if (tipo === 'texto') {
-      if (!el.isConnected || el.value.slice(v.inicio, v.fim) !== v.texto) {
-        v.erro = 'o texto mudou desde a verificação';
-        v.resultado = null;
-        renderizarVerificacao();
-        return;
-      }
-      trocarNoCampo({ tipo, el }, { inicio: v.inicio, fim: v.fim, substituicao: novo });
-    } else {
-      if (!el.isConnected || (v.range.toString() !== v.texto && lerTextoEditavel(el).texto !== v.texto)) {
-        v.erro = 'o texto mudou desde a verificação';
-        v.resultado = null;
-        renderizarVerificacao();
-        return;
-      }
-      selecionarESubstituir(el, v.range, novo);
+  function ocorrenciaUnica(texto, alvo) {
+    const p = texto.indexOf(alvo);
+    return p !== -1 && texto.indexOf(alvo, p + 1) === -1 ? p : -1;
+  }
+
+  function localizarVerificado(v) {
+    if (v.tipo === 'texto') {
+      if (v.el.value.slice(v.inicio, v.fim) === v.texto) return { inicio: v.inicio, fim: v.fim };
+      const p = ocorrenciaUnica(v.el.value, v.texto);
+      return p === -1 ? null : { inicio: p, fim: p + v.texto.length };
     }
+    if (v.range?.toString().replace(INVISIVEIS, '') === v.texto) return v.range;
+    const { texto, mapa } = lerTextoEditavel(v.el);
+    const posicoes = [];
+    let limpo = '';
+    for (let i = 0; i < texto.length; i++) {
+      if (/[\u200B\u2060\uFEFF]/.test(texto[i])) continue;
+      posicoes.push(i);
+      limpo += texto[i];
+    }
+    const p = ocorrenciaUnica(limpo, v.texto);
+    const inicio = pontoNoDom(mapa, posicoes[p]);
+    const fim = pontoNoDom(mapa, posicoes[p + v.texto.length - 1] + 1);
+    if (!inicio || !fim) return null;
+    const r = document.createRange();
+    r.setStart(...inicio);
+    r.setEnd(...fim);
+    return r;
+  }
+
+  function substituirVerificacao(v) {
+    const alvo = v.el.isConnected ? localizarVerificado(v) : null;
+    if (!alvo) {
+      v.erro = 'o trecho verificado foi editado; verifique de novo';
+      v.resultado = null;
+      renderizarVerificacao();
+      return;
+    }
+    if (v.tipo === 'texto') trocarNoCampo({ tipo: 'texto', el: v.el }, { ...alvo, substituicao: v.resultado.texto });
+    else selecionarESubstituir(v.el, alvo, v.resultado.texto);
     esconderCartao();
   }
 
   function ignorar(estado, marcas) {
     for (const m of marcas) estado.ignoradas.add(chaveIgnorada(m));
-    if (alvoDoCartao) alvoDoCartao.fixo = true;
+    if (alvoDoCartao) Object.assign(alvoDoCartao, { fixo: true, avancar: true });
     desenhar(estado);
   }
 
