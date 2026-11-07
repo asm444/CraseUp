@@ -2,7 +2,7 @@ importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'ven
 
 const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
-const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar } = RevisorProtecao;
+const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
@@ -157,13 +157,27 @@ function registrarCamadas(novas) {
   return filaDeCamadas;
 }
 
+function matchesForaDosMarcadores(corpo, itens) {
+  if (!Array.isArray(corpo.matches)) return corpo;
+  const matches = [];
+  for (const m of corpo.matches) {
+    if (!Number.isInteger(m?.offset) || !Number.isInteger(m.length)) continue;
+    const inicio = posicaoOriginal(m.offset, itens);
+    const fim = posicaoOriginal(m.offset + m.length, itens);
+    if (inicio === null || fim === null || fim - inicio !== m.length) continue;
+    matches.push({ ...m, offset: inicio });
+  }
+  return { matches };
+}
+
 async function consultarLanguageTool(base, texto, idioma) {
+  const { texto: mascarado, itens } = mascarar(texto);
   let resposta;
   try {
     resposta = await fetch(enderecoDeVerificacao(base), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: montarCorpo(texto, idioma),
+      body: montarCorpo(mascarado, idioma),
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
   } catch {
@@ -171,7 +185,7 @@ async function consultarLanguageTool(base, texto, idioma) {
   }
   if (!resposta.ok) return { estado: 'falha', mensagem: `HTTP ${resposta.status}` };
   try {
-    return { estado: 'ativa', ...lerMatches(await resposta.json(), texto) };
+    return { estado: 'ativa', ...lerMatches(matchesForaDosMarcadores(await resposta.json(), itens), texto) };
   } catch {
     return { estado: 'falha', mensagem: 'resposta em formato inesperado' };
   }

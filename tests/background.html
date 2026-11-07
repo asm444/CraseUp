@@ -42,6 +42,14 @@
     return respostaDoModelo(REESCRITAS_COM_MARCADOR[usuario] ?? 'Eu vou ao mercado.');
   };
   const pedidosAoLanguageTool = [];
+  const textosAoLanguageTool = [];
+  const MATCHES_DO_LANGUAGETOOL = {
+    'oi [EMAIL_1] amanha': [
+      { offset: 3, length: 9, message: 'grafia', replacements: [{ value: 'email' }], rule: { issueType: 'misspelling' } },
+      { offset: 2, length: 4, message: 'atravessa', replacements: [{ value: 'x' }], rule: { issueType: 'grammar' } },
+      { offset: 13, length: 6, message: 'acento', replacements: [{ value: 'amanhã' }], rule: { issueType: 'misspelling' } },
+    ],
+  };
   globalThis.fetch = async (url, opcoes) => {
     if (String(url) === 'https://openrouter.ai/api/v1/models') return new Response(JSON.stringify({ data: [{ id: 'liquid/lfm-2.5-2.6b', pricing: { prompt: '0.00000035', completion: '0.0000005' } }] }), { status: 200 });
     if (String(url).startsWith('https://openrouter.ai/')) {
@@ -50,7 +58,9 @@
       return new Response(JSON.stringify(respostaAoCorpo(corpo)), { status: 200 });
     }
     pedidosAoLanguageTool.push(String(url));
-    return new Response(JSON.stringify({ matches: [] }), { status: 200 });
+    const enviado = new URLSearchParams(opcoes.body).get('text');
+    textosAoLanguageTool.push(enviado);
+    return new Response(JSON.stringify({ matches: MATCHES_DO_LANGUAGETOOL[enviado] || [] }), { status: 200 });
   };
   const enviar = (msg) => new Promise((pronto) => aoMensagem(msg, { tab: { id: 1 } }, pronto));
 </script>
@@ -86,7 +96,10 @@
       await revisar('texto para revisar');
       delete armazem.local.languagetool;
       await revisar('outro texto para revisar');
-      confere('com servidor salvo, o LanguageTool salvo é usado; sem servidor, o desta máquina', pedidosAoLanguageTool, ['http://lt.exemplo:8010/v2/check', 'http://localhost:8010/v2/check']);
+      confere('com servidor salvo, o LanguageTool salvo é usado; sem servidor, o desta máquina', pedidosAoLanguageTool.slice(0, 2), ['http://lt.exemplo:8010/v2/check', 'http://localhost:8010/v2/check']);
+      const comEmail = await revisar('oi joana@x.com.br amanha');
+      confere('o LanguageTool recebe o marcador no lugar do e-mail', [textosAoLanguageTool.at(-1), textosAoLanguageTool.some((t) => t.includes('joana@x.com.br'))], ['oi [EMAIL_1] amanha', false]);
+      confere('a correção do LanguageTool volta na posição do texto original, e a que cai no marcador ou o atravessa é descartada', comEmail.sugestoes.filter((x) => x.origem === 'languagetool').map((x) => [x.original, x.substituicao, x.inicio]), [['amanha', 'amanhã', 18]]);
 
       const comDados = await enviar({ tipo: 'reescrever', texto: 'manda pro joao@empresa.com até 07/11/2026', tom: '' });
       const corpoComDados = JSON.stringify(corposAoModelo.at(-1));
