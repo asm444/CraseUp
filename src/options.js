@@ -172,10 +172,7 @@ async function iniciar() {
   const { chaveOpenrouter: chave, tom = 'neutro' } = await chrome.storage.local.get(['chaveOpenrouter', 'tom']);
   $('boasVindas').hidden = !(bemVindo || !chave);
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
-  if (chave) {
-    $('chave').value = chave;
-    $('statusChave').textContent = 'Chave configurada.';
-  }
+  if (chave) $('statusChave').textContent = `Chave configurada, terminando em …${chave.slice(-4)}. Cole outra para trocar.`;
 
   $('salvarChave').addEventListener('click', async () => {
     const valor = $('chave').value.trim();

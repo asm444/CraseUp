@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<div id="pagina"></div>
+<script>
+  const CHAVE = ['sk-or-v1-', 'abcd'.repeat(15), 'f9e8'].join('');
+  globalThis.chrome = {
+    storage: { local: { get: async () => ({ chaveOpenrouter: CHAVE, tom: 'neutro' }), set: async () => {}, remove: async () => {} }, onChanged: { addListener() {} } },
+    runtime: { sendMessage: async () => ({}), getURL: (p) => p },
+    permissions: { request: async () => true },
+  };
+  const linhas = [];
+  let ok = 0, total = 0;
+  const confere = (nome, valor, esperado) => {
+    total++;
+    if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
+    else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
+  };
+  const carregar = (src) => new Promise((pronto, falha) => document.head.append(Object.assign(document.createElement('script'), { src, onload: pronto, onerror: falha })));
+  (async () => {
+    try {
+      const html = await (await fetch('../src/options.html')).text();
+      const corpo = new DOMParser().parseFromString(html, 'text/html').body;
+      corpo.querySelectorAll('script').forEach((s) => s.remove());
+      document.getElementById('pagina').append(...corpo.childNodes);
+      for (const s of ['tema.js', 'core.js', 'graficos.js', 'config.js', 'languagetool.js', 'options.js']) await carregar(`../src/${s}`);
+      await new Promise((pronto) => setTimeout(pronto, 200));
+      const campo = document.getElementById('chave');
+      confere('a chave salva não volta para o campo das configurações', [campo.value, document.body.innerHTML.includes(CHAVE)], ['', false]);
+      confere('o status diz que há chave e mostra só o fim dela', document.getElementById('statusChave').textContent, 'Chave configurada, terminando em …f9e8. Cole outra para trocar.');
+    } catch (erro) {
+      linhas.push(`FALHA exceção: ${erro.message}`);
+    }
+    document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
+  })();
+</script>
