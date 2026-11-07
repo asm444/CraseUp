@@ -29,6 +29,7 @@
   const REESCRITAS_COM_MARCADOR = {
     'manda pro [EMAIL_1] até [DATA_1]': 'Até [DATA_1], mande para [EMAIL_1].',
     'meu cpf é [CPF_1] ok': 'Tudo certo.',
+    'liga pro [TELEFONE_1]': 'Ligue para [TELEFONE_1] ou [CPF_2].',
   };
   const SUGESTOES_COM_MARCADOR = [
     { tipo: 'clareza', original: 'pra [EMAIL_1]', substituicao: 'para [EMAIL_1]', motivo: 'm' },
@@ -93,6 +94,8 @@
       confere('a reescrita reorganizada pelo modelo volta com os dados verdadeiros no lugar novo', comDados.texto, 'Até 07/11/2026, mande para joao@empresa.com.');
       const perdeu = await enviar({ tipo: 'reescrever', texto: 'meu cpf é 529.982.247-25 ok', tom: '' });
       confere('reescrita que perde um marcador é recusada, para o dado não sumir do texto', perdeu, { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' });
+      const inventou = await enviar({ tipo: 'reescrever', texto: 'liga pro (11) 98765-4321', tom: '' });
+      confere('reescrita com marcador que não existia é recusada, para nenhum [CPF_2] chegar ao texto', inventou, { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' });
       const semDados = corposAoModelo.find((c) => c.messages[1].content === 'eu vou mercado');
       confere('texto sem dado sensível vai igual e sem a instrução de marcadores', semDados.messages[0].content.includes('Mantenha cada marcador'), false);
       const sugerida = await revisar('escreve pra ana@x.com e bia@y.com amanha', true);
