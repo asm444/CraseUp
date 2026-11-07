@@ -5,118 +5,164 @@
   <title>CraseUp — configurações</title>
   <link rel="stylesheet" href="ui.css">
   <style>
-    main { max-width: 680px; margin: 40px auto; padding: 0 20px; display: grid; gap: 18px; }
-    h2 { font-size: 16px; margin-bottom: 4px; }
+    body { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: 100vh; }
+    .lateral {
+      position: sticky; top: 0; height: 100vh;
+      display: flex; flex-direction: column; gap: 24px;
+      padding: 28px 20px;
+      border-right: 1px solid var(--borda);
+      background: color-mix(in srgb, var(--fundo-elevado) 70%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .lateral .marca-titulo h1 { font-size: 22px; }
+    .lateral nav { display: grid; gap: 2px; }
+    .lateral nav a {
+      padding: 9px 12px; border-radius: 10px;
+      color: var(--texto-suave); text-decoration: none; font-weight: 500;
+      transition: background 120ms, color 120ms;
+    }
+    .lateral nav a:hover { background: var(--fundo-campo); color: var(--texto); }
+    .lateral .fim { margin-top: auto; display: grid; gap: 10px; }
+    .conteudo { padding: 40px clamp(20px, 4vw, 56px) 56px; display: grid; gap: 28px; align-content: start; }
+    .cabecalho-pagina h1 { font-size: 30px; letter-spacing: -0.02em; }
+    .cabecalho-pagina p { margin: 6px 0 0; }
+    .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; align-items: start; }
+    .grade .largo { grid-column: 1 / -1; }
+    .bloco { padding: 22px 24px; scroll-margin-top: 24px; }
+    h2 { font-size: 17px; margin-bottom: 4px; }
     .passos { margin: 12px 0 0; padding-left: 22px; display: grid; gap: 10px; }
-    .linha-chave { display: flex; gap: 8px; margin-top: 12px; }
+    .linha-chave { display: flex; gap: 8px; margin-top: 14px; }
     .linha-chave input { flex: 1; }
-    .adicionar { display: flex; gap: 8px; margin: 12px 0; }
+    .adicionar { display: flex; gap: 8px; margin: 14px 0; }
     .adicionar input { flex: 1; }
-    #boasVindas h1 { font-size: 24px; margin-bottom: 6px; }
-    .rodape { display: flex; justify-content: space-between; align-items: center; }
+    #boasVindas { border-color: color-mix(in srgb, var(--acento) 45%, var(--borda)); }
+    #boasVindas h2 { font-size: 22px; }
+    @media (max-width: 860px) {
+      body { grid-template-columns: 1fr; }
+      .lateral { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border-right: none; border-bottom: 1px solid var(--borda); }
+      .lateral nav { display: none; }
+      .lateral .fim { margin: 0 0 0 auto; grid-auto-flow: column; }
+    }
   </style>
 </head>
 <body>
-  <main>
+  <aside class="lateral">
     <div class="marca-titulo">
       <img src="../icons/icone-48.png" alt="">
       <h1>CraseUp</h1>
+    </div>
+    <nav>
+      <a href="#chave-openrouter">Chave do OpenRouter</a>
+      <a href="#servidor">Servidor LanguageTool</a>
+      <a href="#tom">Tom padrão</a>
+      <a href="#aparencia">Aparência</a>
+      <a href="#sublinhados">Sublinhados</a>
+      <a href="#dicionario-pessoal">Dicionário pessoal</a>
+      <a href="#sites-sem-revisao">Sites sem revisão</a>
+    </nav>
+    <div class="fim">
       <button type="button" class="alternar-tema" id="alternarTema" title="Alternar entre modo claro e escuro" aria-label="Alternar entre modo claro e escuro">
         <svg class="lua" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         <svg class="sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>
       </button>
-    </div>
-
-    <section class="bloco" id="boasVindas" hidden>
-      <h1>Bem-vindo</h1>
-      <p class="suave">O CraseUp usa a sua própria chave do OpenRouter e só modelos gratuitos. A chave fica salva só neste navegador.</p>
-      <ol class="passos">
-        <li>Abra as <a id="linkChaves" href="#" target="_blank" rel="noopener">chaves do OpenRouter</a> e clique em <em>Create API Key</em>.</li>
-        <li>Copie a chave e cole no campo abaixo.</li>
-        <li>Clique em <strong>Testar e salvar</strong>. Pronto: comece a digitar em qualquer site.</li>
-      </ol>
-    </section>
-
-    <section class="bloco">
-      <h2>Chave do OpenRouter</h2>
-      <div class="suave">Salva só neste navegador, nunca enviada a outro lugar além do OpenRouter.</div>
-      <div class="linha-chave">
-        <input type="password" id="chave" placeholder="Cole a chave aqui" autocomplete="off" spellcheck="false">
-        <button class="principal" id="salvarChave">Testar e salvar</button>
-      </div>
-      <p id="statusChave" class="suave" style="margin:10px 0 0"></p>
-    </section>
-
-    <section class="bloco">
-      <h2>Servidor LanguageTool</h2>
-      <div class="suave">Revisa gramática e crase. Sem endereço, usa o LanguageTool desta máquina em http://localhost:8010, que o <code>make instalar</code> sobe.</div>
-      <div class="linha-chave">
-        <input type="text" id="languagetool" placeholder="http://localhost:8010" autocomplete="off" spellcheck="false">
-        <button class="principal" id="salvarLanguagetool">Testar e salvar</button>
-      </div>
-      <p id="statusLanguagetool" class="suave" style="margin:10px 0 0"></p>
-    </section>
-
-    <section class="bloco">
-      <h2>Tom padrão</h2>
-      <p class="suave" style="margin:0 0 12px">Só os trechos que destoam dele são sublinhados. No cartão, o seletor de tom reescreve o trecho em qualquer um destes tons sem mudar o padrão.</p>
-      <div class="segmentos" id="tons">
-        <label><input type="radio" name="tom" value="formal"><span>Formal</span></label>
-        <label><input type="radio" name="tom" value="profissional"><span>Profissional</span></label>
-        <label><input type="radio" name="tom" value="neutro"><span>Neutro</span></label>
-        <label><input type="radio" name="tom" value="amigavel"><span>Amigável</span></label>
-        <label><input type="radio" name="tom" value="casual"><span>Casual</span></label>
-        <label><input type="radio" name="tom" value="confiante"><span>Confiante</span></label>
-        <label><input type="radio" name="tom" value="empatico"><span>Empático</span></label>
-        <label><input type="radio" name="tom" value="persuasivo"><span>Persuasivo</span></label>
-        <label><input type="radio" name="tom" value="linkedin"><span>LinkedIn</span></label>
-        <label><input type="radio" name="tom" value="advogado"><span>Advogado</span></label>
-      </div>
-    </section>
-
-    <section class="bloco">
-      <h2>Aparência</h2>
-      <p class="suave" style="margin:0 0 12px">Vale para o popup, esta página e o cartão de correção. Automático segue o tema do sistema.</p>
-      <div class="segmentos" id="temas">
-        <label><input type="radio" name="tema" value="auto"><span>Automático</span></label>
-        <label><input type="radio" name="tema" value="claro"><span>Claro</span></label>
-        <label><input type="radio" name="tema" value="escuro"><span>Escuro</span></label>
-      </div>
-    </section>
-
-    <section class="bloco">
-      <h2>Como ler os sublinhados</h2>
-      <div class="legenda" style="margin-top:10px">
-        <span class="gramatica"><i></i>Ortografia e gramática</span>
-        <span class="clareza"><i></i>Clareza</span>
-        <span class="palavra"><i></i>Troca de palavra</span>
-        <span class="tom"><i></i>Tom</span>
-      </div>
-    </section>
-
-    <section class="bloco">
-      <h2>Dicionário pessoal</h2>
-      <p class="suave" style="margin:0">Nomes, termos de empresa e palavras que nunca devem ser marcadas.</p>
-      <form class="adicionar" id="formDicionario">
-        <input type="text" id="novaPalavra" placeholder="Adicionar palavra" autocomplete="off">
-        <button type="submit">Adicionar</button>
-      </form>
-      <div class="chips" id="dicionario"></div>
-    </section>
-
-    <section class="bloco">
-      <h2>Sites sem revisão</h2>
-      <p class="suave" style="margin:0">A extensão atua em todos os sites, menos nestes.</p>
-      <form class="adicionar" id="formSite">
-        <input type="text" id="novoSite" placeholder="exemplo.com.br" autocomplete="off">
-        <button type="submit">Adicionar</button>
-      </form>
-      <div class="chips" id="sites"></div>
-    </section>
-
-    <div class="rodape">
-      <span class="suave">Gratuito e de código aberto.</span>
       <a class="botao principal" id="doacao" href="#" target="_blank" rel="noopener" hidden>Apoiar o projeto</a>
+      <span class="suave">Gratuito e de código aberto.</span>
+    </div>
+  </aside>
+
+  <main class="conteudo">
+    <header class="cabecalho-pagina">
+      <h1>Configurações</h1>
+      <p class="suave">Chave, servidor, tom e aparência da revisão em qualquer site.</p>
+    </header>
+
+    <div class="grade">
+      <section class="bloco largo" id="boasVindas" hidden>
+        <h2>Boas-vindas</h2>
+        <p class="suave">O CraseUp usa a sua própria chave do OpenRouter e só modelos gratuitos. A chave fica salva só neste navegador.</p>
+        <ol class="passos">
+          <li>Abra as <a id="linkChaves" href="#" target="_blank" rel="noopener">chaves do OpenRouter</a> e clique em <em>Create API Key</em>.</li>
+          <li>Copie a chave e cole no campo abaixo.</li>
+          <li>Clique em <strong>Testar e salvar</strong>. Pronto: comece a digitar em qualquer site.</li>
+        </ol>
+      </section>
+
+      <section class="bloco" id="chave-openrouter">
+        <h2>Chave do OpenRouter</h2>
+        <div class="suave">Salva só neste navegador, nunca enviada a outro lugar além do OpenRouter.</div>
+        <div class="linha-chave">
+          <input type="password" id="chave" placeholder="Cole a chave aqui" autocomplete="off" spellcheck="false">
+          <button class="principal" id="salvarChave">Testar e salvar</button>
+        </div>
+        <p id="statusChave" class="suave" style="margin:10px 0 0"></p>
+      </section>
+
+      <section class="bloco" id="servidor">
+        <h2>Servidor LanguageTool</h2>
+        <div class="suave">Revisa gramática e crase. Sem endereço, usa o LanguageTool desta máquina em http://localhost:8010, que o <code>make instalar</code> sobe.</div>
+        <div class="linha-chave">
+          <input type="text" id="languagetool" placeholder="http://localhost:8010" autocomplete="off" spellcheck="false">
+          <button class="principal" id="salvarLanguagetool">Testar e salvar</button>
+        </div>
+        <p id="statusLanguagetool" class="suave" style="margin:10px 0 0"></p>
+      </section>
+
+      <section class="bloco largo" id="tom">
+        <h2>Tom padrão</h2>
+        <p class="suave" style="margin:0 0 12px">Só os trechos que destoam dele são sublinhados. No cartão, o seletor de tom reescreve o trecho em qualquer um destes tons sem mudar o padrão.</p>
+        <div class="segmentos" id="tons">
+          <label><input type="radio" name="tom" value="formal"><span>Formal</span></label>
+          <label><input type="radio" name="tom" value="profissional"><span>Profissional</span></label>
+          <label><input type="radio" name="tom" value="neutro"><span>Neutro</span></label>
+          <label><input type="radio" name="tom" value="amigavel"><span>Amigável</span></label>
+          <label><input type="radio" name="tom" value="casual"><span>Casual</span></label>
+          <label><input type="radio" name="tom" value="confiante"><span>Confiante</span></label>
+          <label><input type="radio" name="tom" value="empatico"><span>Empático</span></label>
+          <label><input type="radio" name="tom" value="persuasivo"><span>Persuasivo</span></label>
+          <label><input type="radio" name="tom" value="linkedin"><span>LinkedIn</span></label>
+          <label><input type="radio" name="tom" value="advogado"><span>Advogado</span></label>
+        </div>
+      </section>
+
+      <section class="bloco" id="aparencia">
+        <h2>Aparência</h2>
+        <p class="suave" style="margin:0 0 12px">Vale para o popup, esta página e o cartão de correção. Automático segue o tema do sistema.</p>
+        <div class="segmentos" id="temas">
+          <label><input type="radio" name="tema" value="auto"><span>Automático</span></label>
+          <label><input type="radio" name="tema" value="claro"><span>Claro</span></label>
+          <label><input type="radio" name="tema" value="escuro"><span>Escuro</span></label>
+        </div>
+      </section>
+
+      <section class="bloco" id="sublinhados">
+        <h2>Como ler os sublinhados</h2>
+        <div class="legenda" style="margin-top:10px">
+          <span class="gramatica"><i></i>Ortografia e gramática</span>
+          <span class="clareza"><i></i>Clareza</span>
+          <span class="palavra"><i></i>Troca de palavra</span>
+          <span class="tom"><i></i>Tom</span>
+        </div>
+      </section>
+
+      <section class="bloco" id="dicionario-pessoal">
+        <h2>Dicionário pessoal</h2>
+        <p class="suave" style="margin:0">Nomes, termos de empresa e palavras que nunca devem ser marcadas.</p>
+        <form class="adicionar" id="formDicionario">
+          <input type="text" id="novaPalavra" placeholder="Adicionar palavra" autocomplete="off">
+          <button type="submit">Adicionar</button>
+        </form>
+        <div class="chips" id="dicionario"></div>
+      </section>
+
+      <section class="bloco" id="sites-sem-revisao">
+        <h2>Sites sem revisão</h2>
+        <p class="suave" style="margin:0">A extensão atua em todos os sites, menos nestes.</p>
+        <form class="adicionar" id="formSite">
+          <input type="text" id="novoSite" placeholder="exemplo.com.br" autocomplete="off">
+          <button type="submit">Adicionar</button>
+        </form>
+        <div class="chips" id="sites"></div>
+      </section>
     </div>
   </main>
   <script src="tema.js"></script>
