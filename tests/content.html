@@ -51,6 +51,7 @@
   const etapas = [];
   const reescritas = [];
   let ouvinte = null;
+  const ouvintesDoStorage = [];
   globalThis.chrome = {
     runtime: {
       async sendMessage(msg) {
@@ -91,7 +92,7 @@
       getURL: (p) => `../${p}`,
       onMessage: { addListener(fn) { ouvinte = fn; } },
     },
-    storage: { local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener() {} } },
+    storage: { local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
   };
 </script>
 <script src="../src/content.js"></script>
@@ -225,6 +226,11 @@
       await espera(1500);
       passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
       await espera(100);
+      const fundoDoCartao = () => getComputedStyle(sombra().querySelector('.cartao')).backgroundColor;
+      ouvintesDoStorage.forEach((fn) => fn({ tema: { newValue: 'claro' } }, 'local'));
+      const fundoClaro = fundoDoCartao();
+      ouvintesDoStorage.forEach((fn) => fn({ tema: { newValue: 'escuro' } }, 'local'));
+      confere('o tema escolhido nas configurações muda o cartão para claro ou escuro', [fundoClaro, fundoDoCartao()], ['rgb(247, 244, 238)', 'rgb(18, 20, 27)']);
       const seletor = sombra().querySelector('.cartao .escolha-tom');
       const cartaoAntesDoTom = sombra().querySelector('.cartao');
       const topoAntesDoTom = cartaoAntesDoTom.style.top;

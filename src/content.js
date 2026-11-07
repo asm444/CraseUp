@@ -30,6 +30,7 @@
   let quadroPendente = 0;
   let alvoDoMenu = null;
   let aplicando = false;
+  let tema = 'auto';
 
   function hostExcluido(host, lista) {
     return HOSTS_FORA_DO_ESCOPO.concat(lista).some((s) => host === s || host.endsWith(`.${s}`));
@@ -37,12 +38,18 @@
 
   async function avaliarAtivo() {
     try {
-      const { sitesExcluidos = [] } = await chrome.storage.local.get('sitesExcluidos');
+      const { sitesExcluidos = [], tema: salvo } = await chrome.storage.local.get(['sitesExcluidos', 'tema']);
+      aplicarTema(salvo);
       const { pausado } = await chrome.runtime.sendMessage({ tipo: 'estadoAba' });
       definirAtivo(!hostExcluido(location.hostname, sitesExcluidos) && !pausado);
     } catch {
       definirAtivo(false);
     }
+  }
+
+  function aplicarTema(valor) {
+    tema = valor || 'auto';
+    if (camada) camada.host.dataset.tema = tema;
   }
 
   function definirAtivo(valor) {
@@ -185,6 +192,7 @@
     if (camada?.host.isConnected) return camada;
     const host = document.createElement('revisor-gemini-camada');
     host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
+    host.dataset.tema = tema;
     const sombra = host.attachShadow({ mode: 'open' });
     const estilo = document.createElement('link');
     estilo.rel = 'stylesheet';
@@ -897,6 +905,7 @@
   chrome.storage.onChanged.addListener((mudancas, area) => {
     if (area !== 'local') return;
     if (mudancas.sitesExcluidos) avaliarAtivo();
+    if (mudancas.tema) aplicarTema(mudancas.tema.newValue);
     if (mudancas.tom || mudancas.chaveOpenrouter) limparCache();
     if (mudancas.dicionario) filtrarCachePeloDicionario(mudancas.dicionario.newValue || []);
   });

@@ -1,27 +1,74 @@
 :root {
-  --fundo: #1F1D24;
-  --fundo-elevado: #2A2731;
-  --fundo-campo: #17151B;
-  --borda: #3A3642;
-  --texto: #EDE6DA;
-  --texto-suave: #B8AFA3;
-  --gramatica: #E26D7C;
-  --clareza: #2BB3C0;
-  --palavra: #EDAE49;
-  --tom: #A88BB8;
+  --fundo: #12141B;
+  --fundo-elevado: #1A1D27;
+  --fundo-campo: #0D0F15;
+  --borda: #282C3A;
+  --borda-forte: #3A3F51;
+  --texto: #EEEAE3;
+  --texto-suave: #9BA1B2;
+  --gramatica: #F2707A;
+  --clareza: #3DD6B5;
+  --palavra: #F5B83D;
+  --tom: #A594FF;
+  --acento: #A594FF;
+  --acento-2: #3DD6B5;
+  --sobre-acento: #0D0F15;
+  --sombra: rgba(4, 5, 10, 0.55);
   color-scheme: dark;
+}
+:root[data-tema="claro"] {
+  --fundo: #F7F4EE;
+  --fundo-elevado: #FFFFFF;
+  --fundo-campo: #EFEBE3;
+  --borda: #E2DCD0;
+  --borda-forte: #CFC7B8;
+  --texto: #1C1E27;
+  --texto-suave: #646A79;
+  --gramatica: #D6404E;
+  --clareza: #0E9F86;
+  --palavra: #B87A00;
+  --tom: #6B57E8;
+  --acento: #6B57E8;
+  --acento-2: #0E9F86;
+  --sobre-acento: #FFFFFF;
+  --sombra: rgba(40, 32, 20, 0.16);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema="escuro"]) {
+    --fundo: #F7F4EE;
+    --fundo-elevado: #FFFFFF;
+    --fundo-campo: #EFEBE3;
+    --borda: #E2DCD0;
+    --borda-forte: #CFC7B8;
+    --texto: #1C1E27;
+    --texto-suave: #646A79;
+    --gramatica: #D6404E;
+    --clareza: #0E9F86;
+    --palavra: #B87A00;
+    --tom: #6B57E8;
+    --acento: #6B57E8;
+    --acento-2: #0E9F86;
+    --sobre-acento: #FFFFFF;
+    --sombra: rgba(40, 32, 20, 0.16);
+    color-scheme: light;
+  }
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--fundo);
+  background:
+    radial-gradient(900px 360px at 0% -8%, color-mix(in srgb, var(--acento) 16%, transparent), transparent 70%),
+    radial-gradient(700px 300px at 100% -12%, color-mix(in srgb, var(--acento-2) 10%, transparent), transparent 70%),
+    var(--fundo);
+  background-attachment: fixed;
   color: var(--texto);
   font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-a { color: var(--clareza); }
+a { color: var(--acento); }
 
 h1, h2 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 
@@ -56,12 +103,12 @@ button, .botao {
   text-decoration: none;
   transition: border-color 120ms, filter 120ms;
 }
-button:hover, .botao:hover { border-color: var(--clareza); }
-button:focus-visible, .botao:focus-visible, input:focus-visible { outline: 2px solid var(--clareza); outline-offset: 2px; }
+button:hover, .botao:hover { border-color: var(--acento); }
+button:focus-visible, .botao:focus-visible, input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 button.principal, .botao.principal {
-  background: var(--clareza);
-  border-color: var(--clareza);
-  color: var(--fundo);
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  border-color: transparent;
+  color: var(--sobre-acento);
   font-weight: 650;
 }
 button.principal:hover, .botao.principal:hover { filter: brightness(1.08); }
@@ -104,6 +151,12 @@ input[type="text"], input[type="password"] {
   border: 1px solid color-mix(in srgb, var(--palavra) 45%, var(--borda));
 }
 .ok { color: var(--clareza); }
+.marca-titulo h1 {
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .erro { color: var(--gramatica); }
 
 .legenda { display: grid; gap: 6px; }
@@ -135,7 +188,7 @@ input[type="text"], input[type="password"] {
   width: 42px;
   height: 24px;
   border-radius: 999px;
-  background: #4A4553;
+  background: var(--borda-forte);
   transition: background 150ms;
   cursor: pointer;
   flex: none;
@@ -148,10 +201,11 @@ input[type="text"], input[type="password"] {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--texto);
+  background: var(--fundo-elevado);
+  box-shadow: 0 1px 3px var(--sombra);
   transition: transform 150ms;
 }
-.alternador input:checked + .trilho { background: var(--clareza); }
+.alternador input:checked + .trilho { background: linear-gradient(135deg, var(--acento), var(--acento-2)); }
 .alternador input:checked + .trilho::after { transform: translateX(18px); }
 
 .segmentos {
@@ -170,6 +224,19 @@ input[type="text"], input[type="password"] {
   border-radius: 999px;
   color: var(--texto-suave);
 }
-.segmentos input:checked + span { background: var(--tom); color: var(--fundo); font-weight: 650; }
+.segmentos input:checked + span { background: var(--acento); color: var(--sobre-acento); font-weight: 650; }
+
+.alternar-tema {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin-left: auto;
+  color: var(--texto-suave);
+}
+.alternar-tema:hover { color: var(--acento); }
+.alternar-tema svg { width: 18px; height: 18px; }
+.alternar-tema .sol { display: none; }
+:root[data-efetivo="escuro"] .alternar-tema .sol { display: block; }
+:root[data-efetivo="escuro"] .alternar-tema .lua { display: none; }
 
 [hidden] { display: none !important; }

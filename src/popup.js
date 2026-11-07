@@ -64,6 +64,7 @@ async function iniciar() {
     chrome.runtime.openOptionsPage();
   };
   $('opcoes').addEventListener('click', abrirOpcoes);
+  $('alternarTema').addEventListener('click', RevisorTema.alternar);
   $('configurarChave').addEventListener('click', abrirOpcoes);
 
   if (RevisorConfig.DOACAO_URL) {

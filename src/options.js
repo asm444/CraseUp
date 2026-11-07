@@ -128,6 +128,12 @@ async function iniciar() {
     radio.addEventListener('change', () => chrome.storage.local.set({ tom: radio.value }));
   }
 
+  const radiosDeTema = document.querySelectorAll('input[name="tema"]');
+  const marcarTema = (tema) => radiosDeTema.forEach((r) => (r.checked = r.value === tema));
+  marcarTema(await RevisorTema.atual());
+  for (const radio of radiosDeTema) radio.addEventListener('change', () => chrome.storage.local.set({ tema: radio.value }));
+  $('alternarTema').addEventListener('click', RevisorTema.alternar);
+
   const dicionario = lista('dicionario', $('dicionario'), (v) => v.trim());
   const sites = lista('sitesExcluidos', $('sites'), normalizarSite);
   $('formDicionario').addEventListener('submit', async (e) => {
@@ -144,6 +150,7 @@ async function iniciar() {
     if (area !== 'local') return;
     if (mudancas.dicionario) dicionario.desenhar();
     if (mudancas.sitesExcluidos) sites.desenhar();
+    if (mudancas.tema) marcarTema(mudancas.tema.newValue);
   });
   dicionario.desenhar();
   sites.desenhar();

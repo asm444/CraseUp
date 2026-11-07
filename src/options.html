@@ -21,6 +21,10 @@
     <div class="marca-titulo">
       <img src="../icons/icone-48.png" alt="">
       <h1>CraseUp</h1>
+      <button type="button" class="alternar-tema" id="alternarTema" title="Alternar entre modo claro e escuro" aria-label="Alternar entre modo claro e escuro">
+        <svg class="lua" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>
+      </button>
     </div>
 
     <section class="bloco" id="boasVindas" hidden>
@@ -71,6 +75,16 @@
     </section>
 
     <section class="bloco">
+      <h2>Aparência</h2>
+      <p class="suave" style="margin:0 0 12px">Vale para o popup, esta página e o cartão de correção. Automático segue o tema do sistema.</p>
+      <div class="segmentos" id="temas">
+        <label><input type="radio" name="tema" value="auto"><span>Automático</span></label>
+        <label><input type="radio" name="tema" value="claro"><span>Claro</span></label>
+        <label><input type="radio" name="tema" value="escuro"><span>Escuro</span></label>
+      </div>
+    </section>
+
+    <section class="bloco">
       <h2>Como ler os sublinhados</h2>
       <div class="legenda" style="margin-top:10px">
         <span class="gramatica"><i></i>Ortografia e gramática</span>
@@ -105,6 +119,7 @@
       <a class="botao principal" id="doacao" href="#" target="_blank" rel="noopener" hidden>Apoiar o projeto</a>
     </div>
   </main>
+  <script src="tema.js"></script>
   <script src="config.js"></script>
   <script src="languagetool.js"></script>
   <script src="options.js"></script>
