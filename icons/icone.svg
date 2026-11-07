@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7B6CFF"/>
+      <stop offset="1" stop-color="#1FA98E"/>
+    </linearGradient>
+    <radialGradient id="brilho" cx="0.25" cy="0.15" r="0.8">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#fundo)"/>
+  <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#brilho)"/>
+  <g transform="translate(64 67) scale(0.8) translate(-63 -67)">
+    <path d="M55 13 L69 25" stroke="#FFF7EC" stroke-width="11" stroke-linecap="round"/>
+    <path d="M46 37 C60 41 74 40 86 35 C62 49 40 64 40 82 C40 95 50 99 64 99 C78 99 85 103 85 110 C85 116 79 120 71 121" fill="none" stroke="#FFF7EC" stroke-width="12.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
