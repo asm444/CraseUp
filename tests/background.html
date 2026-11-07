@@ -25,10 +25,29 @@
     permissions: { contains: async () => true },
   };
   const respostaDoModelo = (texto) => ({ model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ texto, segundosPoupados: 40 }) } }], usage: { prompt_tokens: 120, completion_tokens: 30, cost: 0 } });
+  const corposAoModelo = [];
+  const REESCRITAS_COM_MARCADOR = {
+    'manda pro [EMAIL_1] até [DATA_1]': 'Até [DATA_1], mande para [EMAIL_1].',
+    'meu cpf é [CPF_1] ok': 'Tudo certo.',
+  };
+  const SUGESTOES_COM_MARCADOR = [
+    { tipo: 'clareza', original: 'pra [EMAIL_1]', substituicao: 'para [EMAIL_1]', motivo: 'm' },
+    { tipo: 'palavra', original: 'e [EMAIL_2]', substituicao: 'e ela', motivo: 'apaga o dado' },
+    { tipo: 'palavra', original: 'amanha', substituicao: 'amanhã [EMAIL_9]', motivo: 'inventa um dado' },
+  ];
+  const respostaAoCorpo = (corpo) => {
+    const usuario = corpo.messages[1].content;
+    if (corpo.response_format.json_schema.name === 'revisao') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: usuario.includes('[EMAIL_1]') ? SUGESTOES_COM_MARCADOR : [], segundosPoupados: 10 }) } }] };
+    return respostaDoModelo(REESCRITAS_COM_MARCADOR[usuario] ?? 'Eu vou ao mercado.');
+  };
   const pedidosAoLanguageTool = [];
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, opcoes) => {
     if (String(url) === 'https://openrouter.ai/api/v1/models') return new Response(JSON.stringify({ data: [{ id: 'liquid/lfm-2.5-2.6b', pricing: { prompt: '0.00000035', completion: '0.0000005' } }] }), { status: 200 });
-    if (String(url).startsWith('https://openrouter.ai/')) return new Response(JSON.stringify(respostaDoModelo('Eu vou ao mercado.')), { status: 200 });
+    if (String(url).startsWith('https://openrouter.ai/')) {
+      const corpo = JSON.parse(opcoes.body);
+      corposAoModelo.push(corpo);
+      return new Response(JSON.stringify(respostaAoCorpo(corpo)), { status: 200 });
+    }
     pedidosAoLanguageTool.push(String(url));
     return new Response(JSON.stringify({ matches: [] }), { status: 200 });
   };
@@ -37,6 +56,7 @@
 <script src="../src/core.js"></script>
 <script src="../src/ortografia.js"></script>
 <script src="../src/languagetool.js"></script>
+<script src="../src/protecao.js"></script>
 <script src="../src/background.js"></script>
 <script>
   const linhas = [];
@@ -57,15 +77,27 @@
       const hoje = new Date().toLocaleDateString('sv');
       confere('cada chamada ao modelo soma tokens e tempo poupado no consumo do dia, por modelo', armazem.local.consumo?.[hoje]?.['modelo-x:free'], { chamadas: 1, entrada: 120, saida: 30, custo: 0, segundos: 40 });
       confere('os preços da versão paga são guardados uma vez por dia', armazem.local.precos, { data: hoje, porModelo: { 'liquid/lfm-2.5-2.6b:free': { entrada: 0.00000035, saida: 0.0000005 } } });
-      const revisar = (texto) => new Promise((pronto) => {
+      const revisar = (texto, pedido = false) => new Promise((pronto) => {
         const porta = { name: 'revisar', sender: { tab: { id: 1 } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
         aoConectar(porta);
-        porta.receber({ texto, pedido: false, modelo: false });
+        porta.receber({ texto, pedido, modelo: pedido });
       });
       await revisar('texto para revisar');
       delete armazem.local.languagetool;
       await revisar('outro texto para revisar');
       confere('com servidor salvo, o LanguageTool salvo é usado; sem servidor, o desta máquina', pedidosAoLanguageTool, ['http://lt.exemplo:8010/v2/check', 'http://localhost:8010/v2/check']);
+
+      const comDados = await enviar({ tipo: 'reescrever', texto: 'manda pro joao@empresa.com até 07/11/2026', tom: '' });
+      const corpoComDados = JSON.stringify(corposAoModelo.at(-1));
+      confere('o e-mail e a data não saem para o modelo, que recebe marcadores e a instrução de mantê-los', [corpoComDados.includes('joao@empresa.com'), corpoComDados.includes('07/11/2026'), corposAoModelo.at(-1).messages[1].content, corposAoModelo.at(-1).messages[0].content.includes('Mantenha cada marcador')], [false, false, 'manda pro [EMAIL_1] até [DATA_1]', true]);
+      confere('a reescrita reorganizada pelo modelo volta com os dados verdadeiros no lugar novo', comDados.texto, 'Até 07/11/2026, mande para joao@empresa.com.');
+      const perdeu = await enviar({ tipo: 'reescrever', texto: 'meu cpf é 529.982.247-25 ok', tom: '' });
+      confere('reescrita que perde um marcador é recusada, para o dado não sumir do texto', perdeu, { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' });
+      const semDados = corposAoModelo.find((c) => c.messages[1].content === 'eu vou mercado');
+      confere('texto sem dado sensível vai igual e sem a instrução de marcadores', semDados.messages[0].content.includes('Mantenha cada marcador'), false);
+      const sugerida = await revisar('escreve pra ana@x.com e bia@y.com amanha', true);
+      confere('sugestão do modelo volta com o e-mail verdadeiro; a que inventa ou apaga um dado protegido é descartada', sugerida.sugestoes.filter((x) => x.origem === 'openrouter').map((x) => [x.original, x.substituicao]), [['pra ana@x.com', 'para ana@x.com']]);
+      confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
     } catch (erro) {
       linhas.push(`FALHA exceção: ${erro.message}`);
     }

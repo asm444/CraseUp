@@ -91,7 +91,7 @@
     );
   }
 
-  function instrucaoDoSistema(tom, dicionario, idioma) {
+  function instrucaoDoSistema(tom, dicionario, idioma, protecao) {
     const palavras = dicionario.slice(0, PALAVRAS_DO_DICIONARIO_NO_PROMPT).join(', ') || '(nenhuma)';
     return [
       `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de pontuação, de clareza, de escolha de palavra e de tom.`,
@@ -111,15 +111,16 @@
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para achar e fazer sozinha estas trocas; 0 se não há sugestão.',
+      protecao,
       '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0}, sem texto fora dele.',
-    ].join('\n');
+    ].filter(Boolean).join('\n');
   }
 
-  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR' } = {}) {
+  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao } = {}) {
     return {
       models: MODELOS,
       messages: [
-        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma) },
+        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao) },
         { role: 'user', content: texto },
       ],
       temperature: 0,
@@ -130,7 +131,7 @@
     };
   }
 
-  function montarReescrita(texto, { tom, idioma }) {
+  function montarReescrita(texto, { tom, idioma, protecao }) {
     const instrucao = [
       `Revise e melhore o texto recebido, em ${NOMES_DE_IDIOMA[idioma]}, ${tom ? `no tom ${TONS[tom]}` : 'mantendo o tom do original'}.`,
       '- Corrija ortografia, acentuação, concordância, regência, crase e pontuação.',
@@ -140,8 +141,9 @@
       `- Não acrescente frase, saudação, despedida, explicação nem conclusão que o original não tem; o resultado tem no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a mais que o original.`,
       '- Mantenha as quebras de linha e o tamanho próximo do original. Se o texto já estiver bom, devolva-o igual.',
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para revisar e reescrever sozinha o texto assim.',
+      protecao,
       '- Responda só com o objeto JSON {"texto": "...", "segundosPoupados": 0}, sem texto fora dele.',
-    ].join('\n');
+    ].filter(Boolean).join('\n');
     return {
       models: MODELOS,
       messages: [

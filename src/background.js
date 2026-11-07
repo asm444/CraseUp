@@ -1,7 +1,8 @@
-importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js');
+importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'vendor/hunspell.js');
 
 const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
+const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
@@ -245,10 +246,22 @@ async function lerDoModelo(requisicao, cfg, ler) {
   return { estado: 'ativa', lida };
 }
 
+function restaurarSugestao(s, itens) {
+  if (typeof s?.original !== 'string' || typeof s.substituicao !== 'string') return s;
+  const original = restaurar(s.original, itens);
+  const substituicao = restaurar(s.substituicao, itens);
+  if (original.desconhecido || substituicao.desconhecido) return null;
+  if (original.usados.sort().join() !== substituicao.usados.sort().join()) return null;
+  return { ...s, original: original.texto, substituicao: substituicao.texto };
+}
+
 async function camadaModelo(texto, idioma, cfg) {
-  const r = await lerDoModelo(montarRequisicao(texto, { tom: cfg.tom, dicionario: cfg.dicionario, idioma }), cfg, lerResposta);
+  const { texto: mascarado, itens } = mascarar(texto);
+  const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario: cfg.dicionario, idioma, protecao }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
-  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: r.lida.sugestoes.map((s) => ({ ...s, modelo: r.lida.modelo })) };
+  const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
+  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, modelo: r.lida.modelo })) };
 }
 
 const MOTIVOS_SEM_REESCRITA = {
@@ -260,11 +273,15 @@ const MOTIVOS_SEM_REESCRITA = {
 async function reescrever(texto, tom) {
   const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte']);
   const offline = await camadaOffline(texto);
-  const r = await lerDoModelo(montarReescrita(texto, { tom, idioma: offline.idioma }), cfg, lerReescrita);
+  const { texto: mascarado, itens } = mascarar(texto);
+  const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
+  const r = await lerDoModelo(montarReescrita(mascarado, { tom, idioma: offline.idioma, protecao }), cfg, lerReescrita);
   await registrarCamadas({ offline, openrouter: r.estado === 'ativa' ? { estado: 'ativa', mensagem: r.lida.modelo } : r });
   if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
-  if (acrescentaDemais(texto, r.lida.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
-  return r.lida;
+  const volta = restaurar(r.lida.texto, itens);
+  if (volta.desconhecido || itens.some((i) => !volta.usados.includes(i.marcador))) return { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' };
+  if (acrescentaDemais(texto, volta.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
+  return { ...r.lida, texto: volta.texto };
 }
 
 async function testarChave(chave) {
