@@ -46,6 +46,13 @@
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
+  let raizDaCamada = null;
+  const attachShadowOriginal = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = function (opcoes) {
+    const raiz = attachShadowOriginal.call(this, opcoes);
+    if (this.localName === 'revisor-gemini-camada') raizDaCamada = raiz;
+    return raiz;
+  };
   const enviados = [];
   const pedidos = [];
   const etapas = [];
@@ -118,7 +125,7 @@
     desfeitasNoRico++;
     rico.textContent = modeloRico;
   });
-  const sombra = () => document.querySelector('revisor-gemini-camada')?.shadowRoot;
+  const sombra = () => raizDaCamada;
   const linhas = [];
   let ok = 0, total = 0;
   const confere = (nome, valor, esperado) => {
@@ -161,6 +168,9 @@
       confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'Via OpenRouter');
       confere('motivo e rótulos do cartão começam com maiúscula', [cartao?.querySelector('.motivo')?.textContent, cartao?.querySelector('.escolha-tom option')?.textContent], ['Falta preposição', 'Ajustar…']);
       confere('com um trecho só, o cartão não pagina', cartao?.querySelector('.pagina'), null);
+      confere('a página não alcança a camada do cartão pelo shadowRoot', document.querySelector('revisor-gemini-camada').shadowRoot, null);
+      cartao.querySelector('.aplicar').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true }));
+      confere('apertar o mouse dentro do cartão não o fecha', sombra().querySelector('.cartao') === cartao, true);
       confere('o botão principal é Substituir', cartao?.querySelector('.aplicar')?.textContent, 'Substituir');
       await clicar(cartao.querySelector('.aplicar'));
       confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');

@@ -193,7 +193,7 @@
     const host = document.createElement('revisor-gemini-camada');
     host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
     host.dataset.tema = tema;
-    const sombra = host.attachShadow({ mode: 'open' });
+    const sombra = host.attachShadow({ mode: 'closed' });
     const estilo = document.createElement('link');
     estilo.rel = 'stylesheet';
     estilo.href = chrome.runtime.getURL('src/camada.css');
@@ -880,7 +880,7 @@
   document.addEventListener('focusin', aoFocar, true);
   document.addEventListener('contextmenu', (e) => (alvoDoMenu = capturarAlvoDoMenu(e)), true);
   document.addEventListener('mousemove', aoMoverMouse, { passive: true, capture: true });
-  document.addEventListener('mousedown', (e) => cartao && !e.composedPath().includes(cartao) && esconderCartao(), true);
+  document.addEventListener('mousedown', (e) => cartao && !e.composedPath().includes(camada.host) && esconderCartao(), true);
   document.addEventListener('keydown', (e) => e.key === 'Escape' && cartao && esconderCartao(), true);
   document.addEventListener('scroll', aoRolarOuRedimensionar, { passive: true, capture: true });
   addEventListener('resize', aoRolarOuRedimensionar, { passive: true });
