@@ -226,11 +226,14 @@
       passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
       await espera(100);
       const seletor = sombra().querySelector('.cartao .escolha-tom');
+      const cartaoAntesDoTom = sombra().querySelector('.cartao');
+      const topoAntesDoTom = cartaoAntesDoTom.style.top;
       confere('o seletor de tom do cartão oferece oito tons', [...seletor.options].slice(1).map((o) => o.value), ['formal', 'profissional', 'neutro', 'amigavel', 'casual', 'confiante', 'empatico', 'persuasivo']);
       seletor.value = 'formal';
       seletor.dispatchEvent(new Event('change'));
       await espera(50);
       confere('escolher o tom pede a reescrita do trecho e a prévia mostra o resultado', [reescritas, sombra().querySelector('.cartao .previa')?.textContent], [[['eu vou mercado', 'formal']], 'Eu irei ao mercado.']);
+      confere('trocar o tom muda o conteúdo do mesmo cartão, sem recriá-lo nem movê-lo', [sombra().querySelector('.cartao') === cartaoAntesDoTom, sombra().querySelector('.cartao').style.top === topoAntesDoTom], [true, true]);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca o trecho pela reescrita no tom', area.value, 'Eu irei ao mercado.');
 
@@ -255,10 +258,13 @@
       }
       confere('a prévia da verificação mostra só as palavras que mudam', [...verificacao().querySelectorAll('.de')].map((e) => e.textContent).concat([...verificacao().querySelectorAll('.para')].map((e) => e.textContent)), ['eu', 'amanha', 'Eu', 'ao ', 'amanhã.']);
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
+      const verificacaoAntesDoTom = verificacao();
+      const topoDaVerificacao = verificacao().style.top;
       tomDaVerificacao.value = 'formal';
       tomDaVerificacao.dispatchEvent(new Event('change'));
       await espera(50);
       confere('trocar o tom na verificação refaz o pedido com o tom', [reescritas.at(-1), textoNovo(verificacao().querySelector('.previa'))], [['eu vou mercado amanha', 'formal'], 'Eu irei ao mercado.']);
+      confere('na verificação, o tom troca o texto no mesmo cartão e no mesmo lugar', [verificacao() === verificacaoAntesDoTom, verificacao().style.top === topoDaVerificacao], [true, true]);
       await clicar(verificacao().querySelector('.aplicar'));
       confere('Substituir da verificação troca o campo inteiro', [area.value, verificacao()], ['Eu irei ao mercado.', null]);
 

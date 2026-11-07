@@ -476,6 +476,7 @@
     alvoDoCartao.indice = (indice + total) % total;
     alvoDoCartao.fixo = true;
     alvoDoCartao.reescrita = null;
+    alvoDoCartao.lado = null;
     renderizarCartao();
   }
 
@@ -504,12 +505,10 @@
       posicionarCartao();
       return;
     }
-    cartao?.remove();
     alvoDoCartao.chave = chaveDoTrecho(trecho);
     alvoDoCartao.assinatura = assinatura;
     const marcas = trecho.indices.map((i) => estado.marcas[i]);
 
-    cartao = elemento('div', `cartao cartao-${marcas[0].tipo}`);
     const cabecalho = elemento('div', 'cabecalho');
     const tipos = [...new Set(marcas.map((m) => m.tipo))];
     cabecalho.append(elemento('div', 'tipo', tipos.map((t) => ROTULOS[t]).join(' · ')));
@@ -551,10 +550,18 @@
       botao('Ignorar', 'secundario', () => ignorar(estado, marcas)),
       ...(marcas.length === 1 && marcas[0].tipo === 'gramatica' && marcas[0].origem !== 'openrouter' ? [botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marcas[0]))] : []),
     );
-    cartao.append(cabecalho, previa, motivos, elemento('p', 'origem', `via ${origens.join(' · ')}`), tons, acoes);
-    cartao.addEventListener('mouseenter', () => clearTimeout(timerEsconder));
-    cartao.addEventListener('mouseleave', () => alvoDoCartao?.fixo || agendarEsconder());
-    garantirCamada().sombra.append(cartao);
+    montarCartao(`cartao cartao-${marcas[0].tipo}`, [cabecalho, previa, motivos, elemento('p', 'origem', `via ${origens.join(' · ')}`), tons, acoes]);
+  }
+
+  function montarCartao(classe, partes) {
+    if (!cartao?.isConnected) {
+      cartao = elemento('div');
+      cartao.addEventListener('mouseenter', () => clearTimeout(timerEsconder));
+      cartao.addEventListener('mouseleave', () => alvoDoCartao?.fixo || agendarEsconder());
+      garantirCamada().sombra.append(cartao);
+    }
+    cartao.className = classe;
+    cartao.replaceChildren(...partes);
     posicionarCartao();
   }
 
@@ -574,9 +581,11 @@
     const esquerda = Math.min(Math.max(8, rect.left), innerWidth - largura - 8);
     const cabeAbaixo = rect.bottom + 6 + altura + 8 <= innerHeight;
     const cabeAcima = rect.top - 6 - altura >= 8;
+    alvoDoCartao.lado ||= cabeAbaixo || !cabeAcima ? 'abaixo' : 'acima';
     let topo;
-    if (cabeAbaixo || !cabeAcima) topo = Math.min(rect.bottom + 6, innerHeight - altura - 8);
+    if (alvoDoCartao.lado === 'abaixo') topo = Math.min(rect.bottom + 6, innerHeight - altura - 8);
     else topo = rect.top - 6 - altura;
+    cartao.style.visibility = rect.bottom < 0 || rect.top > innerHeight ? 'hidden' : '';
     cartao.style.left = `${esquerda + scrollX}px`;
     cartao.style.top = `${Math.max(8, topo) + scrollY}px`;
   }
@@ -744,8 +753,6 @@
 
   function renderizarVerificacao() {
     const v = alvoDoCartao.verificacao;
-    cartao?.remove();
-    cartao = elemento('div', 'cartao cartao-gramatica cartao-verificacao');
     const cabecalho = elemento('div', 'cabecalho');
     cabecalho.append(elemento('div', 'tipo', 'Verificação'), elemento('div', 'navegacao'));
     cabecalho.lastChild.append(botao('×', 'fechar', esconderCartao));
@@ -766,9 +773,7 @@
     const partes = [cabecalho, previa, motivos];
     if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `via ${ROTULOS_DE_ORIGEM.openrouter}`));
     partes.push(seletorDeTom(v.tom, 'manter', pedirVerificacao), acoes);
-    cartao.append(...partes);
-    garantirCamada().sombra.append(cartao);
-    posicionarCartao();
+    montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
 
   function ocorrenciaUnica(texto, alvo) {
