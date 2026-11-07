@@ -154,6 +154,12 @@
       [true, 'vc vem?', ['texto'], true]);
   });
 
+  caso('tom LinkedIn pede verbos de ação e tom Advogado pede escrita defensiva', () => {
+    const linkedin = sistemaDe(C.montarReescrita('fiz o projeto', { tom: 'linkedin', idioma: 'pt-BR' }));
+    const advogado = sistemaDe(C.montarReescrita('a culpa foi nossa', { tom: 'advogado', idioma: 'pt-BR' }));
+    igual([linkedin.includes('verbos de ação e de resultado'), advogado.includes('escrita defensiva'), advogado.includes('não admite culpa')], [true, true, true]);
+  });
+
   caso('todo tom do seletor tem descrição para o modelo', () => {
     igual(Object.keys(C.ROTULOS_DE_TOM), Object.keys(C.TONS));
   });

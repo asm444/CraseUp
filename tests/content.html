@@ -228,7 +228,7 @@
       const seletor = sombra().querySelector('.cartao .escolha-tom');
       const cartaoAntesDoTom = sombra().querySelector('.cartao');
       const topoAntesDoTom = cartaoAntesDoTom.style.top;
-      confere('o seletor de tom do cartão oferece oito tons', [...seletor.options].slice(1).map((o) => o.value), ['formal', 'profissional', 'neutro', 'amigavel', 'casual', 'confiante', 'empatico', 'persuasivo']);
+      confere('o seletor de tom do cartão oferece dez tons, com LinkedIn e Advogado', [...seletor.options].slice(1).map((o) => o.value), ['formal', 'profissional', 'neutro', 'amigavel', 'casual', 'confiante', 'empatico', 'persuasivo', 'linkedin', 'advogado']);
       seletor.value = 'formal';
       seletor.dispatchEvent(new Event('change'));
       await espera(50);

@@ -11,6 +11,8 @@
     confiante: 'confiante (afirmativo e seguro, sem rodeios nem hesitação)',
     empatico: 'empático (acolhedor, reconhece o lado de quem lê)',
     persuasivo: 'persuasivo (convence com argumento claro e chamada à ação)',
+    linkedin: 'LinkedIn (de ambiente de trabalho: verbos de ação e de resultado, como liderei, entreguei, implementei e colaborei, no lugar de verbos vagos, como fiz, ajudei e mexi; foco no impacto, positivo sem exagero, sem gíria nem intimidade)',
+    advogado: 'de advogado (escrita defensiva: afirma só o que dá para provar, troca afirmação absoluta por ressalva, como ao que consta ou até o momento, não admite culpa, não assume obrigação nem promete prazo, e mantém datas e fatos precisos, em linguagem formal)',
   };
   const ROTULOS_DE_TOM = {
     formal: 'Formal',
@@ -21,6 +23,8 @@
     confiante: 'Confiante',
     empatico: 'Empático',
     persuasivo: 'Persuasivo',
+    linkedin: 'LinkedIn',
+    advogado: 'Advogado',
   };
   const GIRIA_POR_TOM = {
     neutro: '- Gíria, abreviação de internet (vc, pq, blz, tô) e expressão coloquial destoam do tom: marque como "tom" e troque pela forma por extenso ou neutra.',

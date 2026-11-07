@@ -36,7 +36,9 @@ Passar o mouse num sublinhado abre um cartão só para o trecho inteiro, com tod
 - Parágrafo de até 280 caracteres é um trecho só. Parágrafo maior se divide em frases, e cada frase com correção é um trecho.
 - **Substituir** troca o trecho de uma vez, com todas as correções dele. Com mais de um trecho no campo, o cartão mostra `1 de N` e, depois de substituir, já passa para o trecho seguinte.
 - O cartão fecha no ×, no Esc ou com um clique fora dele.
-- O seletor **Tom** do cartão reescreve o trecho num destes tons: formal, profissional, neutro, amigável, casual, confiante, empático ou persuasivo. A prévia mostra a reescrita, e **Substituir** troca o trecho por ela. A reescrita usa uma chamada do OpenRouter e não muda o tom padrão, que fica nas configurações com as mesmas oito opções.
+- O seletor **Tom** do cartão reescreve o trecho num destes tons: formal, profissional, neutro, amigável, casual, confiante, empático, persuasivo, LinkedIn ou advogado. A prévia mostra a reescrita, e **Substituir** troca o trecho por ela. A reescrita usa uma chamada do OpenRouter e não muda o tom padrão, que fica nas configurações com as mesmas dez opções.
+  - **LinkedIn** deixa o texto com cara de ambiente de trabalho: troca verbos vagos (fiz, ajudei, mexi) por verbos de ação e resultado (entreguei, implementei, liderei) e foca no impacto.
+  - **Advogado** escreve de forma defensiva: afirma só o que dá para provar, põe ressalva no lugar de afirmação absoluta, não admite culpa nem assume obrigação ou prazo.
 - O dicionário pessoal vale para as três camadas.
 
 ## Verificar pelo botão direito
@@ -46,7 +48,7 @@ Clique com o botão direito num campo de texto, ou num texto selecionado, e esco
 - Com texto selecionado, verifica só a seleção; sem seleção, o campo inteiro (até 4000 caracteres).
 - A prévia risca as palavras que saem e destaca as que entram. **Substituir** troca só essas palavras, então negrito, link e menção do resto do texto ficam como estavam, e as quebras de linha que você escreveu são mantidas.
 - Citação (bloco de resposta citada) e trechos não editáveis do campo ficam fora da verificação.
-- O seletor **Tom** refaz a verificação num dos oito tons; **manter** volta ao tom do original.
+- O seletor **Tom** refaz a verificação num dos dez tons; **manter** volta ao tom do original.
 - Em texto selecionado fora de um campo editável, o botão é **Copiar**.
 - Cada verificação é uma chamada do OpenRouter e conta na cota do dia.
 
