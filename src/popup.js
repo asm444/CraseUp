@@ -13,20 +13,36 @@ const TEXTOS_DE_ESTADO = {
   falha: 'Indisponível: falha do serviço',
 };
 
+function haQuanto(momento) {
+  const minutos = Math.floor((Date.now() - momento) / 60_000);
+  if (minutos < 1) return 'agora';
+  if (minutos < 60) return `há ${minutos} min`;
+  if (minutos < 1440) return `há ${Math.floor(minutos / 60)} h`;
+  return `há ${Math.floor(minutos / 1440)} d`;
+}
+
 function textoDaCamada(camada) {
   if (!camada) return 'Ainda não usada';
   const texto = TEXTOS_DE_ESTADO[camada.estado];
-  return ['falha', 'ativa'].includes(camada.estado) && camada.mensagem ? `${texto} (${camada.mensagem})` : texto;
+  const comMensagem = ['falha', 'ativa'].includes(camada.estado) && camada.mensagem ? `${texto} (${camada.mensagem})` : texto;
+  return `${comMensagem} · ${haQuanto(camada.em)}`;
+}
+
+function desenharCamadas(camadas = {}) {
+  $('camadaOffline').textContent = textoDaCamada(camadas.offline);
+  $('camadaLanguagetool').textContent = textoDaCamada(camadas.languagetool);
+  $('camadaOpenrouter').textContent = textoDaCamada(camadas.openrouter);
 }
 
 async function iniciar() {
   const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
   const host = aba?.url?.startsWith('http') ? new URL(aba.url).hostname : '';
-  const local = await chrome.storage.local.get(['chaveOpenrouter', 'uso', 'cota', 'sitesExcluidos']);
-  const { abasPausadas = [], camadas = {} } = await chrome.storage.session.get(['abasPausadas', 'camadas']);
-  $('camadaOffline').textContent = textoDaCamada(camadas.offline);
-  $('camadaLanguagetool').textContent = textoDaCamada(camadas.languagetool);
-  $('camadaOpenrouter').textContent = textoDaCamada(camadas.openrouter);
+  const local = await chrome.storage.local.get(['chaveOpenrouter', 'uso', 'cota', 'sitesExcluidos', 'camadas']);
+  const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
+  desenharCamadas(local.camadas);
+  chrome.storage.onChanged.addListener((mudancas, area) => {
+    if (area === 'local' && mudancas.camadas) desenharCamadas(mudancas.camadas.newValue);
+  });
   const sitesExcluidos = local.sitesExcluidos || [];
   const excluido = sitesExcluidos.includes(host);
 

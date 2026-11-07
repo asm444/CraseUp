@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script>
+  globalThis.importScripts = () => {};
+  globalThis.HunspellAsm = { loadModule: async () => { throw new Error('sem dicionários no teste'); } };
+  const armazem = { local: { chaveOpenrouter: 'chave', languagetool: 'http://lt.exemplo:8010' }, session: {} };
+  const area = (nome) => ({
+    async get(chaves) {
+      const lista = chaves === undefined ? Object.keys(armazem[nome]) : [].concat(chaves);
+      return Object.fromEntries(lista.filter((k) => k in armazem[nome]).map((k) => [k, structuredClone(armazem[nome][k])]));
+    },
+    async set(itens) { Object.assign(armazem[nome], structuredClone(itens)); },
+    async remove(chaves) { for (const k of [].concat(chaves)) delete armazem[nome][k]; },
+  });
+  let aoMensagem = null;
+  const nada = { addListener() {} };
+  globalThis.chrome = {
+    runtime: { onInstalled: nada, onStartup: nada, onConnect: nada, onMessage: { addListener(fn) { aoMensagem = fn; } }, getURL: (p) => p },
+    contextMenus: { onClicked: nada, removeAll() {}, create() {} },
+    tabs: { onRemoved: nada, create() {}, sendMessage: async () => {} },
+    storage: { local: area('local'), session: area('session'), onChanged: nada },
+    action: { setBadgeBackgroundColor: async () => {}, setBadgeText: async () => {} },
+    permissions: { contains: async () => true },
+  };
+  const respostaDoModelo = (texto) => ({ model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ texto }) } }], usage: { prompt_tokens: 120, completion_tokens: 30, cost: 0 } });
+  globalThis.fetch = async (url) => {
+    if (String(url).startsWith('https://openrouter.ai/')) return new Response(JSON.stringify(respostaDoModelo('Eu vou ao mercado.')), { status: 200 });
+    return new Response(JSON.stringify({ matches: [] }), { status: 200 });
+  };
+  const enviar = (msg) => new Promise((pronto) => aoMensagem(msg, { tab: { id: 1 } }, pronto));
+</script>
+<script src="../src/core.js"></script>
+<script src="../src/ortografia.js"></script>
+<script src="../src/languagetool.js"></script>
+<script src="../src/background.js"></script>
+<script>
+  const linhas = [];
+  let ok = 0, total = 0;
+  const confere = (nome, valor, esperado) => {
+    total++;
+    if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
+    else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
+  };
+
+  (async () => {
+    try {
+      const resposta = await enviar({ tipo: 'reescrever', texto: 'eu vou mercado', tom: '' });
+      confere('a verificação devolve o texto revisado', resposta.texto, 'Eu vou ao mercado.');
+      const { camadas } = armazem.local;
+      confere('a verificação registra o estado das camadas no armazenamento que sobrevive ao reinício', [camadas?.openrouter?.estado, camadas?.openrouter?.mensagem, camadas?.offline?.estado, typeof camadas?.openrouter?.em], ['ativa', 'modelo-x:free', 'falha', 'number']);
+    } catch (erro) {
+      linhas.push(`FALHA exceção: ${erro.message}`);
+    }
+    document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
+  })();
+</script>

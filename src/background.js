@@ -124,13 +124,17 @@ function semResposta(origem) {
   return navigator.onLine ? { estado: 'falha', mensagem: `sem resposta ${origem}` } : { estado: 'sem_conexao', mensagem: 'sem conexão com a internet' };
 }
 
-async function registrarCamadas(camadas) {
-  if (camadas.openrouter.estado === 'adiado') {
-    const { camadas: anteriores } = await chrome.storage.session.get('camadas');
-    camadas.openrouter = anteriores?.openrouter || { estado: 'ocioso' };
-  }
-  const resumo = Object.fromEntries(Object.entries(camadas).map(([nome, { estado, mensagem }]) => [nome, { estado, mensagem }]));
-  await chrome.storage.session.set({ camadas: resumo });
+let filaDeCamadas = Promise.resolve();
+function registrarCamadas(novas) {
+  filaDeCamadas = filaDeCamadas.catch(() => {}).then(async () => {
+    const { camadas: anteriores } = await chrome.storage.local.get('camadas');
+    const resumo = { ...anteriores };
+    for (const [nome, { estado, mensagem }] of Object.entries(novas)) {
+      if (estado !== 'adiado') resumo[nome] = { estado, mensagem, em: Date.now() };
+    }
+    await chrome.storage.local.set({ camadas: resumo });
+  });
+  return filaDeCamadas;
 }
 
 async function consultarLanguageTool(base, texto, idioma) {
@@ -235,8 +239,9 @@ const MOTIVOS_SEM_REESCRITA = {
 
 async function reescrever(texto, tom) {
   const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte']);
-  const { idioma } = await camadaOffline(texto);
-  const r = await lerDoModelo(montarReescrita(texto, { tom, idioma }), cfg, lerReescrita);
+  const offline = await camadaOffline(texto);
+  const r = await lerDoModelo(montarReescrita(texto, { tom, idioma: offline.idioma }), cfg, lerReescrita);
+  await registrarCamadas({ offline, openrouter: r.estado === 'ativa' ? { estado: 'ativa', mensagem: r.lida.modelo } : r });
   if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
   if (acrescentaDemais(texto, r.lida.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
   return r.lida;
