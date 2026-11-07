@@ -1,4 +1,5 @@
 (function (raiz) {
+  const ENDERECO_LOCAL = 'http://localhost:8010';
   const PROBLEMAS_DE_GRAMATICA = new Set(['misspelling', 'grammar', 'typographical', 'whitespace', 'duplication', 'inconsistency', 'uncategorized']);
 
   function normalizarEndereco(valor) {
@@ -46,5 +47,5 @@
     return { sugestoes, abreviacoes, acusou: corpo.matches.length > 0 };
   }
 
-  raiz.RevisorLanguageTool = { normalizarEndereco, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches };
+  raiz.RevisorLanguageTool = { ENDERECO_LOCAL, normalizarEndereco, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches };
 })(globalThis);

@@ -4,7 +4,6 @@ const TEXTOS_DE_ESTADO = {
   ativa: 'Ativa',
   ocioso: 'Ativa; chamada quando o LanguageTool acusa algo ou por pedido',
   bloqueado: 'Indisponível enquanto o LanguageTool estiver indisponível',
-  sem_configuracao: 'Desligada: nenhum servidor configurado',
   sem_permissao: 'Indisponível: falta permissão para o servidor',
   sem_chave: 'Indisponível: falta a chave',
   cota: 'Indisponível: a cota de hoje acabou',

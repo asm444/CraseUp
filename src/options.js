@@ -94,7 +94,7 @@ async function iniciar() {
     status.className = 'suave';
     if (!bruto) {
       await chrome.storage.local.remove('languagetool');
-      status.textContent = 'Camada do LanguageTool desligada.';
+      status.textContent = `Usando o LanguageTool desta máquina em ${RevisorLanguageTool.ENDERECO_LOCAL}.`;
       return;
     }
     if (!base) {

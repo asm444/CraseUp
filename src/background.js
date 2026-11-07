@@ -2,7 +2,7 @@ importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js
 
 const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
-const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
+const { ENDERECO_LOCAL, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
 const TEMPO_MAXIMO_MODELO_MS = 30_000;
@@ -176,8 +176,7 @@ async function consultarLanguageTool(base, texto, idioma) {
   }
 }
 
-async function camadaLanguageTool(texto, idioma, base) {
-  if (!base) return { estado: 'sem_configuracao' };
+async function camadaLanguageTool(texto, idioma, base = ENDERECO_LOCAL) {
   if (!(await chrome.permissions.contains({ origins: [padraoDePermissao(base)] }))) return { estado: 'sem_permissao' };
   return consultarLanguageTool(base, texto, idioma);
 }

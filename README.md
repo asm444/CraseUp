@@ -20,12 +20,12 @@ Cada parágrafo editado passa por três camadas, da mais barata para a mais cara
 | Camada | Revisa | Onde roda | Quando roda |
 |---|---|---|---|
 | Dicionário offline | ortografia em pt-BR e en-US | dentro da extensão (Hunspell em WebAssembly) | sempre, mesmo sem internet |
-| LanguageTool | gramática, crase, pontuação | no servidor que você configurar | sempre que houver servidor configurado |
+| LanguageTool | gramática, crase, pontuação | no servidor que você configurar, ou nesta máquina em `http://localhost:8010` | sempre que o servidor responder |
 | OpenRouter | clareza, troca de palavra, tom e a pontuação que o LanguageTool deixa passar (vírgula do vocativo, da oração que vem antes da principal) | em modelos gratuitos do OpenRouter, com a sua chave | só quando o LanguageTool acusa algo no parágrafo, ou quando você pede |
 
 - O idioma de cada parágrafo é o do dicionário que reconhece mais palavras dele.
 - O OpenRouter recebe uma lista de modelos gratuitos (`:free`) em ordem de preferência, em `src/core.js`. Se um modelo falhar por limite ou queda, o próprio OpenRouter passa para o seguinte, e o popup e o cartão mostram qual modelo atendeu. Só entram provedores que aceitam a resposta em JSON estruturado.
-- Com o LanguageTool indisponível, o OpenRouter não é chamado, nem por pedido. Sem servidor configurado, sobra só a ortografia offline.
+- Com o LanguageTool indisponível, o OpenRouter não é chamado, nem por pedido. Com o servidor fora do ar, sobra só a ortografia offline.
 - Para pedir clareza e tom num texto em que o LanguageTool não acusou nada, use **Revisar clareza e tom nesta aba** no popup.
 - O popup mostra o estado de cada camada e, quando uma está indisponível, se o motivo é falta de conexão ou falha do serviço. O cartão diz de qual camada veio cada sugestão.
 
@@ -69,42 +69,25 @@ A chave fica salva só no seu navegador (`chrome.storage.local`) e só é enviad
 
 ## Servidor LanguageTool
 
-O LanguageTool roda num servidor seu. O exemplo abaixo sobe o servidor numa máquina da sua rede Tailscale, acessível só por ela e iniciado manualmente.
+Sem servidor configurado, a extensão usa o LanguageTool desta máquina em `http://localhost:8010`. Para subir esse servidor, com `podman` ou `docker` instalado:
 
-### 1. Subir o servidor
+```bash
+make instalar              # sobe o LanguageTool local e mostra como carregar a extensão
+make languagetool-status   # confere se ele responde
+make languagetool-parar    # para o servidor
+```
 
-Na máquina que vai hospedar o servidor (aqui, `skynet`), com `podman` (troque por `docker` se for o seu caso):
+O container publica a porta só em `127.0.0.1` e é criado com `--restart unless-stopped`. Com `docker`, ele volta sozinho quando a máquina reinicia; com `podman` sem root, isso depende do serviço `podman-restart` estar ativo (`systemctl --user enable --now podman-restart`).
+
+### Usar outro servidor
+
+Em **Configurações → Servidor LanguageTool**, digite o endereço (por exemplo `http://skynet:8010`, numa máquina da sua rede Tailscale), clique em **Testar e salvar** e aceite o pedido de permissão do navegador. O endereço salvo vale no lugar do local; apagar o campo volta ao `http://localhost:8010`. A mesma tela aceita qualquer servidor LanguageTool, inclusive `https://api.languagetool.org/v2`.
+
+Para subir o servidor numa máquina da tailnet, publicando a porta só no endereço Tailscale dela:
 
 ```bash
 podman run -d --name languagetool -p "$(tailscale ip -4):8010:8010" docker.io/erikvl87/languagetool
 ```
-
-O `-p "$(tailscale ip -4):8010:8010"` publica a porta só no endereço Tailscale da máquina, e não na rede local nem na internet. O servidor leva alguns segundos para começar a responder depois de subir.
-
-Para parar e voltar a subir depois:
-
-```bash
-podman stop languagetool
-podman start languagetool
-```
-
-Esse servidor não volta sozinho quando a máquina reinicia: é preciso rodar `podman start languagetool` de novo.
-
-### 2. Conferir de outra máquina da tailnet
-
-```bash
-curl -s -d 'language=pt-BR' --data-urlencode 'text=Vou a praia amanhã.' http://skynet:8010/v2/check
-```
-
-A resposta é um JSON com um item em `matches` sugerindo "Vou à". Se a conexão for recusada, confira se o container está de pé (`podman ps`) e se o firewall da máquina libera a porta 8010 na interface `tailscale0`.
-
-### 3. Configurar a extensão
-
-1. Abra **Configurações** pelo popup.
-2. Em **Servidor LanguageTool**, digite `http://skynet:8010`.
-3. Clique em **Testar e salvar** e aceite o pedido de permissão do navegador para esse endereço.
-
-Para desligar a camada, apague o endereço e clique em **Testar e salvar**. Quem não configurar servidor fica com a ortografia offline. A mesma tela aceita qualquer servidor LanguageTool, inclusive `https://api.languagetool.org/v2`.
 
 ## Privacidade
 
@@ -129,6 +112,8 @@ Os modelos gratuitos do OpenRouter têm limite por minuto e por dia; o limite di
 ## Desenvolvimento
 
 ```bash
+make testes                              # o mesmo que bash tests/rodar.sh
+make pacote                              # o mesmo que bash tools/empacotar.sh
 bash tests/rodar.sh                      # testes no Chrome headless; sai 0 só se todas as páginas imprimirem PASSED
 python3 tools/carregar-no-chrome.py      # carrega a extensão no Chromium do Playwright, com LanguageTool e OpenRouter simulados, e salva capturas
 bash tools/vendorizar-ortografia.sh      # regera src/vendor/hunspell.js e src/dicionarios/

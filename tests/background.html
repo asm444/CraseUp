@@ -14,9 +14,10 @@
     async remove(chaves) { for (const k of [].concat(chaves)) delete armazem[nome][k]; },
   });
   let aoMensagem = null;
+  let aoConectar = null;
   const nada = { addListener() {} };
   globalThis.chrome = {
-    runtime: { onInstalled: nada, onStartup: nada, onConnect: nada, onMessage: { addListener(fn) { aoMensagem = fn; } }, getURL: (p) => p },
+    runtime: { onInstalled: nada, onStartup: nada, onConnect: { addListener(fn) { aoConectar = fn; } }, onMessage: { addListener(fn) { aoMensagem = fn; } }, getURL: (p) => p },
     contextMenus: { onClicked: nada, removeAll() {}, create() {} },
     tabs: { onRemoved: nada, create() {}, sendMessage: async () => {} },
     storage: { local: area('local'), session: area('session'), onChanged: nada },
@@ -24,9 +25,11 @@
     permissions: { contains: async () => true },
   };
   const respostaDoModelo = (texto) => ({ model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ texto, segundosPoupados: 40 }) } }], usage: { prompt_tokens: 120, completion_tokens: 30, cost: 0 } });
+  const pedidosAoLanguageTool = [];
   globalThis.fetch = async (url) => {
     if (String(url) === 'https://openrouter.ai/api/v1/models') return new Response(JSON.stringify({ data: [{ id: 'liquid/lfm-2.5-2.6b', pricing: { prompt: '0.00000035', completion: '0.0000005' } }] }), { status: 200 });
     if (String(url).startsWith('https://openrouter.ai/')) return new Response(JSON.stringify(respostaDoModelo('Eu vou ao mercado.')), { status: 200 });
+    pedidosAoLanguageTool.push(String(url));
     return new Response(JSON.stringify({ matches: [] }), { status: 200 });
   };
   const enviar = (msg) => new Promise((pronto) => aoMensagem(msg, { tab: { id: 1 } }, pronto));
@@ -54,6 +57,15 @@
       const hoje = new Date().toLocaleDateString('sv');
       confere('cada chamada ao modelo soma tokens e tempo poupado no consumo do dia, por modelo', armazem.local.consumo?.[hoje]?.['modelo-x:free'], { chamadas: 1, entrada: 120, saida: 30, custo: 0, segundos: 40 });
       confere('os preços da versão paga são guardados uma vez por dia', armazem.local.precos, { data: hoje, porModelo: { 'liquid/lfm-2.5-2.6b:free': { entrada: 0.00000035, saida: 0.0000005 } } });
+      const revisar = (texto) => new Promise((pronto) => {
+        const porta = { name: 'revisar', sender: { tab: { id: 1 } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
+        aoConectar(porta);
+        porta.receber({ texto, pedido: false, modelo: false });
+      });
+      await revisar('texto para revisar');
+      delete armazem.local.languagetool;
+      await revisar('outro texto para revisar');
+      confere('com servidor salvo, o LanguageTool salvo é usado; sem servidor, o desta máquina', pedidosAoLanguageTool, ['http://lt.exemplo:8010/v2/check', 'http://localhost:8010/v2/check']);
     } catch (erro) {
       linhas.push(`FALHA exceção: ${erro.message}`);
     }

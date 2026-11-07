@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CraseUp",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Revisão de textos em português e inglês com dicionário offline, LanguageTool e OpenRouter: sugestões mínimas, só quando necessário.",
   "minimum_chrome_version": "105",
   "icons": {
@@ -11,7 +11,7 @@
     "128": "icons/icone-128.png"
   },
   "permissions": ["storage", "activeTab", "contextMenus"],
-  "host_permissions": ["https://openrouter.ai/*"],
+  "host_permissions": ["https://openrouter.ai/*", "http://localhost:8010/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "background": { "service_worker": "src/background.js" },
   "content_security_policy": {
