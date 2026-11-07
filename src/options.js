@@ -52,6 +52,121 @@ function normalizarSite(valor) {
   }
 }
 
+const CORES_CLARO = ['#6B57E8', '#B87A00', '#0E9F86', '#D6404E'];
+const CORES_ESCURO = ['#8C79F2', '#BC800F', '#1F9F84', '#E0596A'];
+
+function painelDeConsumo() {
+  const G = RevisorGraficos;
+  const modelos = RevisorCore.MODELOS;
+  const estado = { periodo: 'dia', metrica: 'chamadas', consumo: {}, precos: {} };
+  const hoje = new Date();
+  const dia = (d) => d.toLocaleDateString('sv');
+  $('consumoAte').value = dia(hoje);
+  $('consumoDe').value = dia(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 29));
+  const dica = document.createElement('div');
+  dica.className = 'dica';
+  dica.style.opacity = '0';
+  $('grafico').after(dica);
+
+  const cor = (serie) => {
+    const paleta = document.documentElement.dataset.efetivo === 'claro' ? CORES_CLARO : CORES_ESCURO;
+    const i = modelos.indexOf(serie);
+    return paleta[i === -1 ? 3 : i];
+  };
+  const nomeCurto = (serie) => serie.split('/').pop().replace(/:free$/, '');
+
+  function mostrarDica(evento, balde, soma) {
+    if (!evento) {
+      dica.style.opacity = '0';
+      return;
+    }
+    const linhas = [Object.assign(document.createElement('strong'), { textContent: G.rotuloDoBalde(balde.chave, estado.periodo) })];
+    for (const serie of [...estado.dados.series].reverse()) {
+      if (!balde.valores[serie]) continue;
+      const linha = document.createElement('div');
+      linha.className = 'linha-dica';
+      const amostra = document.createElement('i');
+      amostra.className = 'amostra';
+      amostra.style.background = cor(serie);
+      const valor = document.createElement('b');
+      valor.textContent = G.formatar(estado.metrica, balde.valores[serie]);
+      linha.append(amostra, nomeCurto(serie), valor);
+      linhas.push(linha);
+    }
+    if (linhas.length === 1) linhas.push(Object.assign(document.createElement('span'), { className: 'suave', textContent: 'Sem uso neste período' }));
+    else if (linhas.length > 2) linhas.push(Object.assign(document.createElement('div'), { className: 'linha-dica suave', textContent: `Total ${G.formatar(estado.metrica, soma)}` }));
+    dica.replaceChildren(...linhas);
+    const caixa = $('consumo').getBoundingClientRect();
+    const x = evento.clientX - caixa.left;
+    dica.style.left = `${Math.min(x + 14, caixa.width - dica.offsetWidth)}px`;
+    dica.style.top = `${evento.clientY - caixa.top + 14}px`;
+    dica.style.opacity = '1';
+  }
+
+  function desenhar() {
+    const de = $('consumoDe').value;
+    const ate = $('consumoAte').value;
+    if (!de || !ate || de > ate) return;
+    estado.dados = G.agrupar(estado.consumo, estado.precos, { de, ate, periodo: estado.periodo, metrica: estado.metrica, modelos });
+    for (const botao of document.querySelectorAll('.indicador')) {
+      botao.classList.toggle('ativo', botao.dataset.metrica === estado.metrica);
+      G.animarNumero(botao.querySelector('strong'), estado.dados.totais[botao.dataset.metrica], botao.dataset.metrica);
+    }
+    if (!estado.dados.series.length) {
+      $('grafico').replaceChildren(Object.assign(document.createElement('p'), { className: 'suave vazio-grafico', textContent: 'Nenhuma chamada ao OpenRouter neste intervalo.' }));
+    } else {
+      G.desenharBarras($('grafico'), estado.dados, { metrica: estado.metrica, periodo: estado.periodo, cor, dica: mostrarDica });
+    }
+    $('legendaGrafico').replaceChildren(...estado.dados.series.map((serie) => {
+      const item = document.createElement('span');
+      const amostra = document.createElement('i');
+      amostra.className = 'amostra';
+      amostra.style.background = cor(serie);
+      item.append(amostra, nomeCurto(serie));
+      return item;
+    }));
+    const cabecalho = document.createElement('tr');
+    for (const titulo of ['Período', ...estado.dados.series.map(nomeCurto)]) cabecalho.append(Object.assign(document.createElement('th'), { textContent: titulo }));
+    const linhas = estado.dados.baldes.map((balde) => {
+      const tr = document.createElement('tr');
+      tr.append(Object.assign(document.createElement('td'), { textContent: G.rotuloDoBalde(balde.chave, estado.periodo) }));
+      for (const serie of estado.dados.series) tr.append(Object.assign(document.createElement('td'), { textContent: G.formatar(estado.metrica, balde.valores[serie] || 0) }));
+      return tr;
+    });
+    $('tabelaConsumo').replaceChildren(cabecalho, ...linhas);
+  }
+
+  for (const radio of document.querySelectorAll('input[name="periodo"]')) {
+    radio.addEventListener('change', () => {
+      estado.periodo = radio.value;
+      const fim = new Date(`${$('consumoAte').value || dia(hoje)}T12:00:00`);
+      const inicio = radio.value === 'ano' ? new Date(fim.getFullYear() - 4, 0, 1) : radio.value === 'mes' ? new Date(fim.getFullYear(), fim.getMonth() - 11, 1) : new Date(fim.getFullYear(), fim.getMonth(), fim.getDate() - 29);
+      $('consumoDe').value = dia(inicio);
+      desenhar();
+    });
+  }
+  for (const botao of document.querySelectorAll('.indicador')) {
+    botao.addEventListener('click', () => {
+      estado.metrica = botao.dataset.metrica;
+      desenhar();
+    });
+  }
+  $('consumoDe').addEventListener('change', desenhar);
+  $('consumoAte').addEventListener('change', desenhar);
+  new ResizeObserver(() => estado.dados && desenhar()).observe($('grafico'));
+  new MutationObserver(() => estado.dados && desenhar()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-efetivo'] });
+
+  const carregar = async () => {
+    const { consumo = {}, precos = {} } = await chrome.storage.local.get(['consumo', 'precos']);
+    Object.assign(estado, { consumo, precos });
+    desenhar();
+  };
+  chrome.storage.onChanged.addListener((mudancas) => {
+    if (mudancas.consumo || mudancas.precos) carregar();
+  });
+  carregar();
+}
+
 async function iniciar() {
   const bemVindo = new URLSearchParams(location.search).has('bemvindo');
   const { chaveOpenrouter: chave, tom = 'neutro' } = await chrome.storage.local.get(['chaveOpenrouter', 'tom']);
@@ -154,6 +269,8 @@ async function iniciar() {
   });
   dicionario.desenhar();
   sites.desenhar();
+
+  painelDeConsumo();
 
   if (RevisorConfig.DOACAO_URL) {
     $('doacao').href = RevisorConfig.DOACAO_URL;

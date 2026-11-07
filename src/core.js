@@ -403,6 +403,7 @@
     TIPOS,
     TONS,
     ROTULOS_DE_TOM,
+    MODELOS,
     ENDPOINT,
     dividirParagrafos,
     revisavel,

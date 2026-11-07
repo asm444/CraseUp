@@ -37,6 +37,40 @@
     .adicionar input { flex: 1; }
     #boasVindas { border-color: color-mix(in srgb, var(--acento) 45%, var(--borda)); }
     #boasVindas h2 { font-size: 22px; }
+    .filtros { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 14px 0 18px; }
+    .filtros label.data { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-suave); }
+    .filtros input[type="date"] { font: inherit; color: var(--texto); background: var(--fundo-campo); border: 1px solid var(--borda); border-radius: 10px; padding: 6px 10px; }
+    .indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .indicador { padding: 14px 16px; border-radius: 14px; background: var(--fundo-campo); display: grid; justify-items: start; justify-content: stretch; text-align: left; gap: 4px; }
+    .indicador strong { font-size: 26px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .indicador span { color: var(--texto-suave); font-size: 13px; }
+    .indicador.ativo { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento) inset; }
+    #consumo { position: relative; }
+    .grafico svg { display: block; overflow: visible; }
+    .grafico .grade-linha { stroke: var(--borda); }
+    .grafico .eixo { stroke: var(--borda-forte); }
+    .grafico .eixo-rotulo { fill: var(--texto-suave); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .grafico .barra path { transform-box: fill-box; transform-origin: bottom; animation: crescer 520ms cubic-bezier(.2,.8,.2,1) both; animation-delay: var(--atraso); }
+    .grafico .barra:hover path { filter: brightness(1.12); }
+    .grafico .toque { fill: transparent; }
+    @media (prefers-reduced-motion: reduce) { .grafico .barra path { animation: none; } }
+    @keyframes crescer { from { transform: scaleY(0); opacity: 0.4; } to { transform: scaleY(1); opacity: 1; } }
+    .dica {
+      position: absolute; pointer-events: none; min-width: 180px; padding: 10px 12px; border-radius: 12px;
+      background: var(--fundo-elevado); border: 1px solid var(--borda); box-shadow: 0 10px 30px var(--sombra);
+      font-size: 13px; display: grid; gap: 4px; transition: opacity 120ms; z-index: 2;
+    }
+    .dica .linha-dica { display: flex; align-items: center; gap: 8px; }
+    .dica .linha-dica b { margin-left: auto; font-variant-numeric: tabular-nums; }
+    .amostra { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+    .legenda-grafico { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; color: var(--texto-suave); font-size: 13px; }
+    .legenda-grafico span { display: inline-flex; align-items: center; gap: 8px; }
+    .vazio-grafico { padding: 48px 0; text-align: center; }
+    details.tabela { margin-top: 14px; }
+    details.tabela summary { cursor: pointer; color: var(--texto-suave); }
+    details.tabela table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+    details.tabela th, details.tabela td { padding: 6px 8px; border-bottom: 1px solid var(--borda); text-align: right; }
+    details.tabela th:first-child, details.tabela td:first-child { text-align: left; }
     @media (max-width: 860px) {
       body { grid-template-columns: 1fr; }
       .lateral { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border-right: none; border-bottom: 1px solid var(--borda); }
@@ -52,6 +86,7 @@
       <h1>CraseUp</h1>
     </div>
     <nav>
+      <a href="#consumo">Consumo</a>
       <a href="#chave-openrouter">Chave do OpenRouter</a>
       <a href="#servidor">Servidor LanguageTool</a>
       <a href="#tom">Tom padrão</a>
@@ -85,6 +120,29 @@
           <li>Copie a chave e cole no campo abaixo.</li>
           <li>Clique em <strong>Testar e salvar</strong>. Pronto: comece a digitar em qualquer site.</li>
         </ol>
+      </section>
+
+      <section class="bloco largo" id="consumo">
+        <h2>Consumo</h2>
+        <div class="suave">Chamadas, tokens, tempo poupado e quanto custaria pelo preço da versão paga de cada modelo, contados pela extensão neste navegador.</div>
+        <div class="filtros">
+          <div class="segmentos">
+            <label><input type="radio" name="periodo" value="dia" checked><span>Dia</span></label>
+            <label><input type="radio" name="periodo" value="mes"><span>Mês</span></label>
+            <label><input type="radio" name="periodo" value="ano"><span>Ano</span></label>
+          </div>
+          <label class="data">De <input type="date" id="consumoDe"></label>
+          <label class="data">Até <input type="date" id="consumoAte"></label>
+        </div>
+        <div class="indicadores">
+          <button class="indicador" data-metrica="chamadas"><span>Chamadas</span><strong>0</strong></button>
+          <button class="indicador" data-metrica="tokens"><span>Tokens</span><strong>0</strong></button>
+          <button class="indicador" data-metrica="segundos"><span>Tempo poupado</span><strong>0 min</strong></button>
+          <button class="indicador" data-metrica="equivalente"><span>Se fosse pago</span><strong>US$ 0,00</strong></button>
+        </div>
+        <div class="grafico" id="grafico"></div>
+        <div class="legenda-grafico" id="legendaGrafico"></div>
+        <details class="tabela"><summary>Ver como tabela</summary><table id="tabelaConsumo"></table></details>
       </section>
 
       <section class="bloco" id="chave-openrouter">
@@ -166,6 +224,8 @@
     </div>
   </main>
   <script src="tema.js"></script>
+  <script src="core.js"></script>
+  <script src="graficos.js"></script>
   <script src="config.js"></script>
   <script src="languagetool.js"></script>
   <script src="options.js"></script>

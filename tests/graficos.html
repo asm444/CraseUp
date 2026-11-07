@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/core.js"></script>
+<script src="../src/graficos.js"></script>
+<script>
+  const G = RevisorGraficos;
+  const linhas = [];
+  let ok = 0, total = 0;
+  const confere = (nome, valor, esperado) => {
+    total++;
+    if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
+    else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
+  };
+  const r = (chamadas, entrada, saida, segundos) => ({ chamadas, entrada, saida, custo: 0, segundos });
+  const consumo = {
+    '2026-10-31': { 'a:free': r(2, 100, 20, 60) },
+    '2026-11-01': { 'a:free': r(1, 50, 10, 30), 'b:free': r(3, 300, 60, 90) },
+    '2026-11-03': { 'estranho:free': r(1, 10, 2, 5) },
+    '2027-01-02': { 'a:free': r(4, 0, 0, 0) },
+  };
+  const precos = { porModelo: { 'a:free': { entrada: 0.001, saida: 0.002 } } };
+  const modelos = ['a:free', 'b:free'];
+
+  confere('dia: um balde por dia do intervalo, inclusive os vazios', G.baldes('2026-10-30', '2026-11-02', 'dia'), ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02']);
+  confere('mês e ano: um balde por mês e por ano', [G.baldes('2026-10-15', '2027-01-10', 'mes'), G.baldes('2025-06-01', '2027-01-10', 'ano')], [['2026-10', '2026-11', '2026-12', '2027-01'], ['2025', '2026', '2027']]);
+
+  const porDia = G.agrupar(consumo, precos, { de: '2026-10-31', ate: '2026-11-03', periodo: 'dia', metrica: 'chamadas', modelos });
+  confere('agrupa chamadas por dia e por modelo, e modelo fora da lista vira Outros', porDia.baldes.map((b) => [b.chave, b.valores]), [
+    ['2026-10-31', { 'a:free': 2 }],
+    ['2026-11-01', { 'a:free': 1, 'b:free': 3 }],
+    ['2026-11-02', {}],
+    ['2026-11-03', { Outros: 1 }],
+  ]);
+  confere('as séries seguem a ordem fixa dos modelos, não o volume', porDia.series, ['a:free', 'b:free', 'Outros']);
+  confere('os totais do intervalo somam todas as métricas e ignoram dias fora dele', { ...porDia.totais, equivalente: porDia.totais.equivalente.toFixed(4) }, { chamadas: 7, tokens: 552, segundos: 185, equivalente: '0.2100' });
+
+  const porMes = G.agrupar(consumo, precos, { de: '2026-10-01', ate: '2027-01-31', periodo: 'mes', metrica: 'tokens', modelos });
+  confere('por mês soma os tokens de cada mês', porMes.baldes.map((b) => [b.chave, b.valores]), [
+    ['2026-10', { 'a:free': 120 }],
+    ['2026-11', { 'a:free': 60, 'b:free': 360, Outros: 12 }],
+    ['2026-12', {}],
+    ['2027-01', { 'a:free': 0 }],
+  ]);
+  const meioDoMes = G.agrupar(consumo, precos, { de: '2026-11-02', ate: '2026-11-30', periodo: 'mes', metrica: 'chamadas', modelos });
+  confere('por mês, dia antes do início do intervalo fica de fora mesmo dentro do mês', [meioDoMes.baldes, meioDoMes.totais.chamadas], [[{ chave: '2026-11', valores: { Outros: 1 } }], 1]);
+  confere('a escala do eixo arredonda para cima num número redondo', [G.escalaBonita(7), G.escalaBonita(432), G.escalaBonita(0)], [10, 500, 1]);
+
+  document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
+</script>
