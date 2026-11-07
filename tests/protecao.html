@@ -1,0 +1,93 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/protecao.js"></script>
+<script>
+  const P = RevisorProtecao;
+  const linhas = [];
+  let ok = 0, total = 0;
+  const confere = (nome, valor, esperado) => {
+    total++;
+    if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
+    else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
+  };
+  const mascara = (texto) => P.mascarar(texto).texto;
+  const repetir = (c, n) => c.repeat(n);
+
+  const SENSIVEIS = [
+    ['e-mail', 'escreve para ana.souza+trabalho@empresa.com.br amanhã', 'escreve para [EMAIL_1] amanhã'],
+    ['link com https', 'veja https://intranet.exemplo.com/rh?id=9 depois', 'veja [LINK_1] depois'],
+    ['link com www e ponto final', 'acesse www.exemplo.com.br.', 'acesse [LINK_1].'],
+    ['URL com usuário e senha', 'use ftp://joao:Segr3do@arquivos.exemplo.com', 'use [URL_COM_CREDENCIAL_1]'],
+    ['senha pelo contexto', 'minha senha é Tr0ub4dor&3 ok', 'minha senha é [SENHA_1] ok'],
+    ['senha curta pelo contexto', 'senha: abc12', 'senha: [SENHA_1]'],
+    ['token pelo contexto', 'o token=9f8e7d6c5b4a', 'o token=[TOKEN_1]'],
+    ['código de verificação', 'o código de verificação é 482913', 'o código de verificação é [CODIGO_1]'],
+    ['segredo pelo formato, sem contexto', 'usa Xk9#mPq2$vL ali', 'usa [SEGREDO_1] ali'],
+    ['chave do OpenRouter', `chave ${'sk-or-v1-' + repetir('a1', 32)} aqui`, 'chave [CHAVE_API_1] aqui'],
+    ['chave da OpenAI', `use ${'sk-proj-' + repetir('Ab3', 10)}`, 'use [CHAVE_API_1]'],
+    ['chave da AWS', `id ${'AKIA' + 'IOSFODNN7EXAMPLE'} no painel`, 'id [CHAVE_API_1] no painel'],
+    ['token do GitHub', `token ${'ghp_' + repetir('x9', 18)}`, 'token [TOKEN_1]'],
+    ['chave do Google', `${'AIza' + repetir('B', 35)} na config`, '[CHAVE_API_1] na config'],
+    ['JWT', `bearer ${'eyJ' + 'hbGciOi' + '.eyJ' + 'zdWIiOi' + '.abcdef123'}`, 'bearer [TOKEN_1]'],
+    ['chave privada PEM', `-----BEGIN ${'PRIVATE'} KEY-----\nMIIEvQ\n-----END ${'PRIVATE'} KEY-----`, '[CHAVE_PRIVADA_1]'],
+    ['CPF formatado', 'meu CPF é 529.982.247-25.', 'meu CPF é [CPF_1].'],
+    ['CPF só dígitos', 'cpf 52998224725', 'cpf [CPF_1]'],
+    ['CNPJ', 'CNPJ 11.222.333/0001-81 ativo', 'CNPJ [CNPJ_1] ativo'],
+    ['cartão com Luhn', 'cartão 4111 1111 1111 1111 vence', 'cartão [CARTAO_1] vence'],
+    ['IBAN', 'IBAN GB82 WEST 1234 5698 7654 32 ok', 'IBAN [IBAN_1] ok'],
+    ['telefone', 'liga no (11) 98765-4321 hoje', 'liga no [TELEFONE_1] hoje'],
+    ['telefone internacional', 'whats +55 11 98765-4321', 'whats [TELEFONE_1]'],
+    ['CEP', 'CEP 01310-100 centro', 'CEP [CEP_1] centro'],
+    ['data com barra', 'até 07/11/2026 sem falta', 'até [DATA_1] sem falta'],
+    ['data ISO', 'em 2026-11-07', 'em [DATA_1]'],
+    ['valor em reais', 'custa R$ 1.250,00 à vista', 'custa [VALOR_1] à vista'],
+    ['protocolo pelo contexto', 'protocolo 48213 aberto', 'protocolo [PROTOCOLO_1] aberto'],
+    ['processo pelo contexto', 'processo nº 0001234-56.2026.8.26.0100', 'processo nº [PROCESSO_1]'],
+    ['agência e conta', 'agência 1234 conta 56789-0', 'agência [AGENCIA_1] conta [CONTA_1]'],
+    ['RG pelo contexto', 'RG 12.345.678-9', 'RG [RG_1]'],
+    ['placa', 'placa ABC1D23 parada', 'placa [PLACA_1] parada'],
+    ['IP', 'servidor 192.168.0.10 caiu', 'servidor [IP_1] caiu'],
+    ['número longo solto', 'o número 48213 saiu', 'o número [NUMERO_1] saiu'],
+    ['número agrupado solto', 'ramal 12-34', 'ramal [NUMERO_1]'],
+    ['hash hexadecimal', `commit ${repetir('a1b2c3d4', 5)}`, 'commit [SEGREDO_1]'],
+  ];
+  for (const [nome, texto, esperado] of SENSIVEIS) confere(`esconde ${nome}`, mascara(texto), esperado);
+
+  const COMUNS = [
+    'Vou ao mercado amanhã e volto em 3 dias.',
+    'Tenho 25 anos e 2 filhos.',
+    'O Covid mudou tudo em 2 anos.',
+    'Reunião às 9h com a equipe de produto.',
+    'Bem-vindo ao time, Ana!',
+    'Leia o capítulo 12 até sexta.',
+    'Isso é extraordinariamente importante.',
+    'Please pass this to the team.',
+    'The key point is clarity.',
+    'A chave do carro sumiu.',
+    'Meu token favorito é o azul.',
+  ];
+  for (const texto of COMUNS) confere(`não mexe em texto comum: ${texto}`, mascara(texto), texto);
+
+  const varios = P.mascarar('Ana (ana@x.com.br) e Bia (bia@y.com) ligam no (11) 98765-4321.');
+  confere('numera cada tipo em ordem e guarda o valor de cada marcador', [varios.texto, varios.itens.map((i) => [i.marcador, i.valor])], [
+    'Ana ([EMAIL_1]) e Bia ([EMAIL_2]) ligam no [TELEFONE_1].',
+    [['[EMAIL_1]', 'ana@x.com.br'], ['[EMAIL_2]', 'bia@y.com'], ['[TELEFONE_1]', '(11) 98765-4321']],
+  ]);
+  confere('restaura os marcadores que o modelo devolveu, mesmo com espaço no lugar do sublinhado', P.restaurar('Ana ([EMAIL 1]) liga no [TELEFONE_1].', varios.itens), {
+    texto: 'Ana (ana@x.com.br) liga no (11) 98765-4321.', usados: ['[EMAIL_1]', '[TELEFONE_1]'], desconhecido: false,
+  });
+  const pedido = P.mascarar('manda pra ana@x.com.br o boleto até 07/11/2026, senha: Tr0ub4dor&3');
+  const reescritoPeloModelo = 'Até [DATA_1], envie o boleto para [EMAIL_1]. A senha é [SENHA_1].';
+  confere('a reescrita pode mudar a ordem dos marcadores e cada dado volta no lugar novo', [pedido.texto, P.restaurar(reescritoPeloModelo, pedido.itens).texto], [
+    'manda pra [EMAIL_1] o boleto até [DATA_1], senha: [SENHA_1]',
+    'Até 07/11/2026, envie o boleto para ana@x.com.br. A senha é Tr0ub4dor&3.',
+  ]);
+  confere('marcador inventado pelo modelo é apontado', P.restaurar('ligue [TELEFONE_9]', varios.itens).desconhecido, true);
+
+  const m = P.mascarar('oi ana@x.com tudo');
+  confere('converte posição do texto mascarado para o original e recusa posição dentro do marcador', [P.posicaoOriginal(0, m.itens), P.posicaoOriginal(m.texto.indexOf('tudo'), m.itens), P.posicaoOriginal(5, m.itens)], [0, 'oi ana@x.com '.length, null]);
+  confere('validadores: Luhn, CPF e IBAN recusam dígito errado', [P.luhnValido('4111111111111112'), P.cpfValido('52998224724'), P.ibanValido('GB82WEST12345698765433')], [false, false, false]);
+
+  document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
+</script>
