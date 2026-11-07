@@ -234,7 +234,7 @@
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca o trecho pela reescrita no tom', area.value, 'Eu irei ao mercado.');
 
-      const menu = (el) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, composed: true, clientX: 60, clientY: 60 }));
+      const menu = (el) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, composed: true, clientX: 600, clientY: 400 }));
       digitar(area, 'eu vou mercado amanha');
       await espera(1500);
       area.setSelectionRange(3, 3);
@@ -248,6 +248,11 @@
         return copia.textContent;
       };
       confere('botão direito sem seleção verifica o campo inteiro, sem tom', reescritas.at(-1), ['eu vou mercado amanha', '']);
+      {
+        const campo = area.getBoundingClientRect();
+        const caixa = verificacao().getBoundingClientRect();
+        confere('o cartão da verificação abre colado ao campo, não no ponto do clique', [caixa.top > campo.bottom && caixa.top - campo.bottom < 16, Math.round(caixa.left - campo.left)], [true, 0]);
+      }
       confere('a prévia da verificação mostra só as palavras que mudam', [...verificacao().querySelectorAll('.de')].map((e) => e.textContent).concat([...verificacao().querySelectorAll('.para')].map((e) => e.textContent)), ['eu', 'amanha', 'Eu', 'ao ', 'amanhã.']);
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
       tomDaVerificacao.value = 'formal';

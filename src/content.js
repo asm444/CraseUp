@@ -558,16 +558,27 @@
     posicionarCartao();
   }
 
+  function ancoraDoCartao() {
+    const { estado, indice, verificacao: v } = alvoDoCartao;
+    if (!v) return rectDaMarca(estado, estado.trechos[indice].indices[0]) || estado.el.getBoundingClientRect();
+    const daSelecao = v.range?.getBoundingClientRect();
+    if (daSelecao && (daSelecao.width || daSelecao.height)) return daSelecao;
+    if (v.el?.isConnected) return v.el.getBoundingClientRect();
+    return { left: v.x, right: v.x, top: v.y, bottom: v.y };
+  }
+
   function posicionarCartao() {
-    const { estado, indice, verificacao } = alvoDoCartao;
-    const rect = verificacao
-      ? { left: verificacao.x, right: verificacao.x, top: verificacao.y, bottom: verificacao.y }
-      : rectDaMarca(estado, estado.trechos[indice].indices[0]) || estado.el.getBoundingClientRect();
+    const rect = ancoraDoCartao();
     const largura = cartao.offsetWidth;
+    const altura = cartao.offsetHeight;
     const esquerda = Math.min(Math.max(8, rect.left), innerWidth - largura - 8);
-    const abaixo = rect.bottom + 8 + cartao.offsetHeight < innerHeight;
+    const cabeAbaixo = rect.bottom + 6 + altura + 8 <= innerHeight;
+    const cabeAcima = rect.top - 6 - altura >= 8;
+    let topo;
+    if (cabeAbaixo || !cabeAcima) topo = Math.min(rect.bottom + 6, innerHeight - altura - 8);
+    else topo = rect.top - 6 - altura;
     cartao.style.left = `${esquerda + scrollX}px`;
-    cartao.style.top = `${(abaixo ? rect.bottom + 6 : Math.max(8, rect.top - cartao.offsetHeight - 6)) + scrollY}px`;
+    cartao.style.top = `${Math.max(8, topo) + scrollY}px`;
   }
 
   function esconderCartao() {
@@ -701,7 +712,7 @@
       if (selecao && el.contains(selecao.commonAncestorContainer)) return { ...base, range: selecao, texto: selecao.toString().replace(INVISIVEIS, '') };
       return { ...base, texto: lerTextoEditavel(el).texto.replace(INVISIVEIS, '').trim() };
     }
-    return selecao ? { ...base, el: null, tipo: null, texto: selecao.toString().replace(INVISIVEIS, '') } : null;
+    return selecao ? { ...base, el: null, tipo: null, range: selecao, texto: selecao.toString().replace(INVISIVEIS, '') } : null;
   }
 
   function verificarAqui() {
@@ -848,7 +859,7 @@
   }
 
   function aoRolarOuRedimensionar() {
-    if (cartao && !alvoDoCartao.verificacao) posicionarCartao();
+    if (cartao) posicionarCartao();
     for (const estado of campos.values()) if (estado.espelho) posicionarEspelho(estado);
   }
 
