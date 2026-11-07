@@ -23,8 +23,9 @@
     action: { setBadgeBackgroundColor: async () => {}, setBadgeText: async () => {} },
     permissions: { contains: async () => true },
   };
-  const respostaDoModelo = (texto) => ({ model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ texto }) } }], usage: { prompt_tokens: 120, completion_tokens: 30, cost: 0 } });
+  const respostaDoModelo = (texto) => ({ model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ texto, segundosPoupados: 40 }) } }], usage: { prompt_tokens: 120, completion_tokens: 30, cost: 0 } });
   globalThis.fetch = async (url) => {
+    if (String(url) === 'https://openrouter.ai/api/v1/models') return new Response(JSON.stringify({ data: [{ id: 'liquid/lfm-2.5-2.6b', pricing: { prompt: '0.00000035', completion: '0.0000005' } }] }), { status: 200 });
     if (String(url).startsWith('https://openrouter.ai/')) return new Response(JSON.stringify(respostaDoModelo('Eu vou ao mercado.')), { status: 200 });
     return new Response(JSON.stringify({ matches: [] }), { status: 200 });
   };
@@ -49,6 +50,10 @@
       confere('a verificação devolve o texto revisado', resposta.texto, 'Eu vou ao mercado.');
       const { camadas } = armazem.local;
       confere('a verificação registra o estado das camadas no armazenamento que sobrevive ao reinício', [camadas?.openrouter?.estado, camadas?.openrouter?.mensagem, camadas?.offline?.estado, typeof camadas?.openrouter?.em], ['ativa', 'modelo-x:free', 'falha', 'number']);
+      await new Promise((pronto) => setTimeout(pronto, 50));
+      const hoje = new Date().toLocaleDateString('sv');
+      confere('cada chamada ao modelo soma tokens e tempo poupado no consumo do dia, por modelo', armazem.local.consumo?.[hoje]?.['modelo-x:free'], { chamadas: 1, entrada: 120, saida: 30, custo: 0, segundos: 40 });
+      confere('os preços da versão paga são guardados uma vez por dia', armazem.local.precos, { data: hoje, porModelo: { 'liquid/lfm-2.5-2.6b:free': { entrada: 0.00000035, saida: 0.0000005 } } });
     } catch (erro) {
       linhas.push(`FALHA exceção: ${erro.message}`);
     }

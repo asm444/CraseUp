@@ -31,6 +31,7 @@
     casual: '- Gíria e abreviação de internet combinam com o tom casual: não marque.',
   };
   const PALAVRAS_A_MAIS_NO_MAXIMO = 10;
+  const SEGUNDOS_POUPADOS_NO_MAXIMO = 3600;
   const TAMANHO_MINIMO_PARAGRAFO = 3;
   const TAMANHO_MAXIMO_PARAGRAFO = 4000;
   const TAMANHO_MAXIMO_TRECHO = 280;
@@ -59,15 +60,16 @@
           additionalProperties: false,
         },
       },
+      segundosPoupados: { type: 'integer' },
     },
-    required: ['sugestoes'],
+    required: ['sugestoes', 'segundosPoupados'],
     additionalProperties: false,
   };
 
   const ESQUEMA_DA_REESCRITA = {
     type: 'object',
-    properties: { texto: { type: 'string' } },
-    required: ['texto'],
+    properties: { texto: { type: 'string' }, segundosPoupados: { type: 'integer' } },
+    required: ['texto', 'segundosPoupados'],
     additionalProperties: false,
   };
 
@@ -108,7 +110,8 @@
       '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
-      '- Responda só com o objeto JSON {"sugestoes": [...]}, sem texto fora dele.',
+      '- "segundosPoupados" estima quantos segundos uma pessoa levaria para achar e fazer sozinha estas trocas; 0 se não há sugestão.',
+      '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0}, sem texto fora dele.',
     ].join('\n');
   }
 
@@ -123,6 +126,7 @@
       reasoning: { enabled: false },
       response_format: { type: 'json_schema', json_schema: { name: 'revisao', strict: true, schema: ESQUEMA_DA_RESPOSTA } },
       provider: { require_parameters: true },
+      usage: { include: true },
     };
   }
 
@@ -135,7 +139,8 @@
       '- Mantenha o sentido, os nomes, os números e os fatos; não acrescente informação.',
       `- Não acrescente frase, saudação, despedida, explicação nem conclusão que o original não tem; o resultado tem no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a mais que o original.`,
       '- Mantenha as quebras de linha e o tamanho próximo do original. Se o texto já estiver bom, devolva-o igual.',
-      '- Responda só com o objeto JSON {"texto": "..."}, sem texto fora dele.',
+      '- "segundosPoupados" estima quantos segundos uma pessoa levaria para revisar e reescrever sozinha o texto assim.',
+      '- Responda só com o objeto JSON {"texto": "...", "segundosPoupados": 0}, sem texto fora dele.',
     ].join('\n');
     return {
       models: MODELOS,
@@ -147,6 +152,7 @@
       reasoning: { enabled: false },
       response_format: { type: 'json_schema', json_schema: { name: 'reescrita', strict: true, schema: ESQUEMA_DA_REESCRITA } },
       provider: { require_parameters: true },
+      usage: { include: true },
     };
   }
 
@@ -155,7 +161,53 @@
     if (typeof conteudo !== 'string') throw new Error('resposta sem conteúdo');
     const dados = JSON.parse(conteudo);
     if (typeof dados?.texto !== 'string' || !dados.texto.trim()) throw new Error('resposta sem texto reescrito');
-    return { texto: dados.texto, modelo: typeof corpo.model === 'string' ? corpo.model : '' };
+    return { texto: dados.texto, modelo: typeof corpo.model === 'string' ? corpo.model : '', uso: lerUso(corpo, dados) };
+  }
+
+  function numeroNaoNegativo(valor) {
+    const n = Number(valor);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function lerUso(corpo, dados) {
+    return {
+      entrada: numeroNaoNegativo(corpo.usage?.prompt_tokens),
+      saida: numeroNaoNegativo(corpo.usage?.completion_tokens),
+      custo: numeroNaoNegativo(corpo.usage?.cost),
+      segundos: Math.min(Math.round(numeroNaoNegativo(dados?.segundosPoupados)), SEGUNDOS_POUPADOS_NO_MAXIMO),
+    };
+  }
+
+  function somarConsumo(consumo, dia, modelo, uso) {
+    const doDia = consumo[dia] || {};
+    const atual = doDia[modelo] || { chamadas: 0, entrada: 0, saida: 0, custo: 0, segundos: 0 };
+    return {
+      ...consumo,
+      [dia]: {
+        ...doDia,
+        [modelo]: {
+          chamadas: atual.chamadas + 1,
+          entrada: atual.entrada + uso.entrada,
+          saida: atual.saida + uso.saida,
+          custo: atual.custo + uso.custo,
+          segundos: atual.segundos + uso.segundos,
+        },
+      },
+    };
+  }
+
+  function precosPagos(modelos) {
+    const porId = new Map(modelos.map((m) => [m.id, m.pricing]));
+    const precos = {};
+    for (const id of MODELOS) {
+      const pago = porId.get(id.replace(/:free$/, ''));
+      if (pago) precos[id] = { entrada: numeroNaoNegativo(pago.prompt), saida: numeroNaoNegativo(pago.completion) };
+    }
+    return precos;
+  }
+
+  function custoEquivalente(registro, preco) {
+    return preco ? registro.entrada * preco.entrada + registro.saida * preco.saida : null;
   }
 
   function acrescentaDemais(original, reescrito) {
@@ -167,7 +219,7 @@
     if (typeof conteudo !== 'string') throw new Error('resposta sem conteúdo');
     const dados = JSON.parse(conteudo);
     if (!Array.isArray(dados?.sugestoes)) throw new Error('resposta sem lista de sugestões');
-    return { sugestoes: dados.sugestoes, modelo: typeof corpo.model === 'string' ? corpo.model : '' };
+    return { sugestoes: dados.sugestoes, modelo: typeof corpo.model === 'string' ? corpo.model : '', uso: lerUso(corpo, dados) };
   }
 
   function escaparRegex(texto) {
@@ -359,6 +411,9 @@
     montarReescrita,
     lerReescrita,
     acrescentaDemais,
+    somarConsumo,
+    precosPagos,
+    custoEquivalente,
     contemPalavraDoDicionario,
     contarPalavras,
     filtrarSugestoes,

@@ -12,6 +12,13 @@
     #site, #pedirRevisao { width: 100%; }
     .camadas { display: grid; gap: 6px; }
     .camadas .estado { text-align: right; max-width: 60%; font-size: 13px; }
+    .consumo { display: grid; gap: 10px; }
+    .totais { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .totais div { display: grid; gap: 2px; }
+    .totais strong { font-size: 16px; font-weight: 650; white-space: nowrap; }
+    .totais span, .modelo-consumo .suave { font-size: 12px; }
+    .modelo-consumo { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid var(--borda); }
+    .modelo-consumo .nome { font-size: 13px; overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
@@ -63,12 +70,23 @@
     <div class="suave" style="font-size:12px">Contagem feita pela extensão; a API não informa a cota restante.</div>
   </div>
 
+  <div class="bloco consumo">
+    <div class="suave">Consumo de hoje</div>
+    <div class="totais">
+      <div><strong id="totalTokens">0</strong><span class="suave">Tokens</span></div>
+      <div><strong id="totalEquivalente">US$ 0</strong><span class="suave">Se fosse pago</span></div>
+      <div><strong id="totalTempo">0 min</strong><span class="suave">Tempo poupado</span></div>
+    </div>
+    <div id="porModelo" class="consumo"></div>
+  </div>
+
   <div class="rodape">
     <a class="botao" id="opcoes" href="#">Configurações</a>
     <a class="botao principal" id="doacao" href="#" target="_blank" rel="noopener" hidden>Apoiar o projeto</a>
   </div>
 
   <script src="tema.js"></script>
+  <script src="core.js"></script>
   <script src="config.js"></script>
   <script src="popup.js"></script>
 </body>

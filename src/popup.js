@@ -28,6 +28,45 @@ function textoDaCamada(camada) {
   return `${comMensagem} · ${haQuanto(camada.em)}`;
 }
 
+const numero = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1, notation: 'compact' });
+
+function dinheiro(valor) {
+  if (valor === null) return '—';
+  return `US$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: valor < 1 ? 4 : 2 })}`;
+}
+
+function duracao(segundos) {
+  const minutos = Math.round(segundos / 60);
+  return minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)} h ${minutos % 60} min`;
+}
+
+function desenharConsumo(consumo = {}, precos = {}) {
+  const doDia = consumo[hoje()] || {};
+  const linhas = Object.entries(doDia).sort(([, a], [, b]) => b.chamadas - a.chamadas);
+  let tokens = 0;
+  let equivalente = 0;
+  let segundos = 0;
+  $('porModelo').replaceChildren(...linhas.map(([modelo, r]) => {
+    const custo = RevisorCore.custoEquivalente(r, precos.porModelo?.[modelo]);
+    tokens += r.entrada + r.saida;
+    equivalente += custo || 0;
+    segundos += r.segundos;
+    const item = document.createElement('div');
+    item.className = 'modelo-consumo';
+    const nome = document.createElement('span');
+    nome.className = 'nome';
+    nome.textContent = modelo;
+    const detalhe = document.createElement('span');
+    detalhe.className = 'suave';
+    detalhe.textContent = `${r.chamadas} chamadas · ${numero.format(r.entrada)} de entrada e ${numero.format(r.saida)} de saída · Custo real ${dinheiro(r.custo)} · Se fosse pago ${dinheiro(custo)} · ${duracao(r.segundos)} poupados`;
+    item.append(nome, detalhe);
+    return item;
+  }));
+  $('totalTokens').textContent = numero.format(tokens);
+  $('totalEquivalente').textContent = dinheiro(equivalente);
+  $('totalTempo').textContent = duracao(segundos);
+}
+
 function desenharCamadas(camadas = {}) {
   $('camadaOffline').textContent = textoDaCamada(camadas.offline);
   $('camadaLanguagetool').textContent = textoDaCamada(camadas.languagetool);
@@ -37,9 +76,10 @@ function desenharCamadas(camadas = {}) {
 async function iniciar() {
   const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
   const host = aba?.url?.startsWith('http') ? new URL(aba.url).hostname : '';
-  const local = await chrome.storage.local.get(['chaveOpenrouter', 'uso', 'cota', 'sitesExcluidos', 'camadas']);
+  const local = await chrome.storage.local.get(['chaveOpenrouter', 'uso', 'cota', 'sitesExcluidos', 'camadas', 'consumo', 'precos']);
   const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
   desenharCamadas(local.camadas);
+  desenharConsumo(local.consumo, local.precos);
   chrome.storage.onChanged.addListener((mudancas, area) => {
     if (area === 'local' && mudancas.camadas) desenharCamadas(mudancas.camadas.newValue);
   });

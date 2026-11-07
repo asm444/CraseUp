@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
@@ -67,6 +67,25 @@ function contarChamada() {
     await chrome.storage.local.set({ uso: { data: hoje(), chamadas } });
   });
   return filaDeContagem;
+}
+
+let filaDeConsumo = Promise.resolve();
+function registrarConsumo(modelo, uso) {
+  filaDeConsumo = filaDeConsumo.catch(() => {}).then(async () => {
+    const { consumo = {} } = await chrome.storage.local.get('consumo');
+    await chrome.storage.local.set({ consumo: somarConsumo(consumo, hoje(), modelo || 'desconhecido', uso) });
+  });
+  return filaDeConsumo;
+}
+
+async function atualizarPrecos() {
+  const { precos } = await chrome.storage.local.get('precos');
+  if (precos?.data === hoje()) return;
+  try {
+    const resposta = await fetch(`${ENDPOINT}models`, { signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS) });
+    const { data } = await resposta.json();
+    await chrome.storage.local.set({ precos: { data: hoje(), porModelo: precosPagos(data) } });
+  } catch {}
 }
 
 let verificadores = null;
@@ -222,6 +241,8 @@ async function lerDoModelo(requisicao, cfg, ler) {
     return { estado: 'falha', mensagem: `resposta em formato inesperado: ${chamada.corpo?.error?.message || erro.message}`.slice(0, 200) };
   }
   if (cfg.cota) await chrome.storage.local.remove('cota');
+  registrarConsumo(lida.modelo, lida.uso).catch(() => {});
+  atualizarPrecos();
   return { estado: 'ativa', lida };
 }
 
