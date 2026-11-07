@@ -536,21 +536,21 @@
     let origens;
     if (reescrita?.texto) {
       previa.append(elemento('span', 'para para-tom', reescrita.texto));
-      motivos.append(elemento('li', 'motivo motivo-tom', `Reescrito no tom ${ROTULOS_DE_TOM[reescrita.tom].toLowerCase()}`));
+      motivos.append(elemento('li', 'motivo motivo-tom', `Reescrito no tom ${ROTULOS_DE_TOM[reescrita.tom]}`));
       origens = [reescrita.modelo ? `${ROTULOS_DE_ORIGEM.openrouter} (${reescrita.modelo})` : ROTULOS_DE_ORIGEM.openrouter];
     } else {
       desenharPartes(previa, partesDoTrecho(trecho.paragrafo, trecho.relativo));
       if (reescrita) {
-        const aviso = reescrita.erro ? `Não deu para reescrever: ${reescrita.erro}` : `Reescrevendo no tom ${ROTULOS_DE_TOM[reescrita.tom].toLowerCase()}…`;
+        const aviso = reescrita.erro ? `Não deu para reescrever: ${reescrita.erro}` : `Reescrevendo no tom ${ROTULOS_DE_TOM[reescrita.tom]}…`;
         motivos.append(elemento('li', 'motivo motivo-tom', aviso));
       }
       for (const m of marcas) {
-        if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}`, m.motivo));
+        if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}`, m.motivo.charAt(0).toLocaleUpperCase('pt-BR') + m.motivo.slice(1)));
       }
       origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
     }
 
-    const tons = seletorDeTom(reescrita?.tom || '', 'ajustar…', reescrever);
+    const tons = seletorDeTom(reescrita?.tom || '', 'Ajustar…', reescrever);
 
     const acoes = elemento('div', 'acoes');
     acoes.append(
@@ -558,7 +558,7 @@
       botao('Ignorar', 'secundario', () => ignorar(estado, marcas)),
       ...(marcas.length === 1 && marcas[0].tipo === 'gramatica' && marcas[0].origem !== 'openrouter' ? [botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marcas[0]))] : []),
     );
-    montarCartao(`cartao cartao-${marcas[0].tipo}`, [cabecalho, previa, motivos, elemento('p', 'origem', `via ${origens.join(' · ')}`), tons, acoes]);
+    montarCartao(`cartao cartao-${marcas[0].tipo}`, [cabecalho, previa, motivos, elemento('p', 'origem', `Via ${origens.join(' · ')}`), tons, acoes]);
   }
 
   function montarCartao(classe, partes) {
@@ -779,8 +779,8 @@
         : botao('Copiar', 'aplicar', () => navigator.clipboard.writeText(v.resultado.texto).then(esconderCartao, () => {})));
     }
     const partes = [cabecalho, previa, motivos];
-    if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `via ${ROTULOS_DE_ORIGEM.openrouter}`));
-    partes.push(seletorDeTom(v.tom, 'manter', pedirVerificacao), acoes);
+    if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `Via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
+    partes.push(seletorDeTom(v.tom, 'Manter', pedirVerificacao), acoes);
     montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
 

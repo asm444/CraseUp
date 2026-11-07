@@ -158,7 +158,8 @@
       await espera(100);
       const cartao = sombra().querySelector('.cartao');
       confere('passar o mouse abre o cartão com a troca', [cartao?.querySelector('.de')?.textContent, cartao?.querySelector('.para')?.textContent], ['vou mercado', 'vou ao mercado']);
-      confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'via OpenRouter');
+      confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'Via OpenRouter');
+      confere('motivo e rótulos do cartão começam com maiúscula', [cartao?.querySelector('.motivo')?.textContent, cartao?.querySelector('.escolha-tom option')?.textContent], ['Falta preposição', 'Ajustar…']);
       confere('com um trecho só, o cartão não pagina', cartao?.querySelector('.pagina'), null);
       confere('o botão principal é Substituir', cartao?.querySelector('.aplicar')?.textContent, 'Substituir');
       await clicar(cartao.querySelector('.aplicar'));
@@ -237,7 +238,9 @@
       confere('o seletor de tom do cartão oferece dez tons, com LinkedIn e Advogado', [...seletor.options].slice(1).map((o) => o.value), ['formal', 'profissional', 'neutro', 'amigavel', 'casual', 'confiante', 'empatico', 'persuasivo', 'linkedin', 'advogado']);
       seletor.value = 'formal';
       seletor.dispatchEvent(new Event('change'));
+      const avisoEnquantoReescreve = sombra().querySelector('.cartao .motivo-tom')?.textContent;
       await espera(50);
+      confere('o aviso e o motivo da reescrita trazem o rótulo do tom com maiúscula', [avisoEnquantoReescreve, sombra().querySelector('.cartao .motivo-tom')?.textContent], ['Reescrevendo no tom Formal…', 'Reescrito no tom Formal']);
       confere('escolher o tom pede a reescrita do trecho e a prévia mostra o resultado', [reescritas, sombra().querySelector('.cartao .previa')?.textContent], [[['eu vou mercado', 'formal']], 'Eu irei ao mercado.']);
       confere('trocar o tom muda o conteúdo do mesmo cartão, sem recriá-lo nem movê-lo', [sombra().querySelector('.cartao') === cartaoAntesDoTom, sombra().querySelector('.cartao').style.top === topoAntesDoTom], [true, true]);
       await clicar(sombra().querySelector('.cartao .aplicar'));
@@ -263,6 +266,7 @@
         confere('o cartão da verificação abre colado ao campo, não no ponto do clique', [caixa.top > campo.bottom && caixa.top - campo.bottom < 16, Math.round(caixa.left - campo.left)], [true, 0]);
       }
       confere('a prévia da verificação mostra só as palavras que mudam', [...verificacao().querySelectorAll('.de')].map((e) => e.textContent).concat([...verificacao().querySelectorAll('.para')].map((e) => e.textContent)), ['eu', 'amanha', 'Eu', 'ao ', 'amanhã.']);
+      confere('na verificação, a origem e a opção de manter o tom começam com maiúscula', [verificacao().querySelector('.origem')?.textContent, verificacao().querySelector('.escolha-tom option')?.textContent], ['Via OpenRouter (m)', 'Manter']);
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
       const verificacaoAntesDoTom = verificacao();
       const topoDaVerificacao = verificacao().style.top;
