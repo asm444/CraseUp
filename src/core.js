@@ -129,6 +129,7 @@
       '- Corrija maiúsculas e minúsculas: maiúscula no início de frase, em nome próprio e em sigla; minúscula no resto, sem palavra toda em maiúsculas sem motivo.',
       '- Melhore a escrita: frase confusa fica clara, repetição sai, palavra vaga vira precisa.',
       '- Mantenha o sentido, os nomes, os números e os fatos; não acrescente informação.',
+      `- Não acrescente frase, saudação, despedida, explicação nem conclusão que o original não tem; o resultado tem no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a mais que o original.`,
       '- Mantenha as quebras de linha e o tamanho próximo do original. Se o texto já estiver bom, devolva-o igual.',
       '- Responda só com o objeto JSON {"texto": "..."}, sem texto fora dele.',
     ].join('\n');
@@ -151,6 +152,10 @@
     const dados = JSON.parse(conteudo);
     if (typeof dados?.texto !== 'string' || !dados.texto.trim()) throw new Error('resposta sem texto reescrito');
     return { texto: dados.texto, modelo: typeof corpo.model === 'string' ? corpo.model : '' };
+  }
+
+  function acrescentaDemais(original, reescrito) {
+    return contarPalavras(reescrito) - contarPalavras(original) > PALAVRAS_A_MAIS_NO_MAXIMO;
   }
 
   function lerResposta(corpo) {
@@ -349,6 +354,7 @@
     lerResposta,
     montarReescrita,
     lerReescrita,
+    acrescentaDemais,
     contemPalavraDoDicionario,
     contarPalavras,
     filtrarSugestoes,

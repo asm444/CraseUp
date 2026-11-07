@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, filtrarSugestoes } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
@@ -238,6 +238,7 @@ async function reescrever(texto, tom) {
   const { idioma } = await camadaOffline(texto);
   const r = await lerDoModelo(montarReescrita(texto, { tom, idioma }), cfg, lerReescrita);
   if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
+  if (acrescentaDemais(texto, r.lida.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
   return r.lida;
 }
 

@@ -178,6 +178,12 @@
     igual(C.manterQuebrasDeLinha('a b\n\nc d', 'A b. C d.'), 'A b.\n\nC d.');
   });
 
+  caso('reescrita com mais de 10 palavras a mais que o original é recusada', () => {
+    const original = 'vou ao mercado amanhã';
+    igual([C.acrescentaDemais(original, 'Vou ao mercado amanhã cedo.'), C.acrescentaDemais(original, `${original} ${'muito texto inventado aqui '.repeat(3)}`)], [false, true]);
+    igual(C.acrescentaDemais(original, `${original} um dois três quatro cinco seis sete oito nove dez`), false);
+  });
+
   caso('lê a reescrita e rejeita resposta sem texto', () => {
     igual(C.lerReescrita({ model: 'x:free', choices: [{ message: { content: '{"texto":"Você vem?"}' } }] }), { texto: 'Você vem?', modelo: 'x:free' });
     const erros = ['{"texto":"  "}', '{"outro":1}'].map((c) => { try { C.lerReescrita({ choices: [{ message: { content: c } }] }); return 'aceitou'; } catch { return 'rejeitou'; } });
