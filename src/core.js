@@ -402,7 +402,6 @@
   }
 
   raiz.RevisorCore = {
-    TIPOS,
     TONS,
     ROTULOS_DE_TOM,
     MODELOS,

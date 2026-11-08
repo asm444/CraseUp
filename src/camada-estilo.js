@@ -60,6 +60,11 @@ globalThis.RevisorEstiloDaCamada = `:host {
   text-underline-offset: 3px;
   text-decoration-skip-ink: none;
 }
+.traco { position: absolute; height: 4px; pointer-events: none; box-sizing: border-box; }
+.traco-gramatica { background: radial-gradient(circle at 50% 0, transparent 2px, var(--gramatica) 2px 3.2px, transparent 3.2px) 0 0 / 6px 4px repeat-x; }
+.traco-clareza { border-bottom: 2px solid var(--clareza); }
+.traco-palavra { border-bottom: 2px dotted var(--palavra); }
+.traco-tom { border-bottom: 2px dashed var(--tom); }
 .marca-gramatica { text-decoration-style: wavy; text-decoration-color: var(--gramatica); }
 .marca-clareza { text-decoration-style: solid; text-decoration-color: var(--clareza); }
 .marca-palavra { text-decoration-style: dotted; text-decoration-color: var(--palavra); }

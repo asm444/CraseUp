@@ -150,6 +150,14 @@
     if ('value' in el) el.value = texto; else el.textContent = texto;
     el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
   };
+  const tracos = (tipo, dentroDe) => [...sombra().querySelectorAll(`.traco-${tipo}`)].filter((t) => {
+    if (!dentroDe) return true;
+    const r = t.getBoundingClientRect();
+    const c = dentroDe.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    return x >= c.left && x <= c.right && y >= c.top && y <= c.bottom;
+  });
   const passarMouse = (rect) => {
     document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }));
   };
@@ -171,7 +179,7 @@
       confere('envia só os campos comuns, nunca senha e cartão', enviados.slice().sort(), ['eu vou mercado', 'isso é açim mesmo']);
       const spans = [...sombra().querySelectorAll('.marca')];
       confere('textarea: um sublinhado de gramática; a troca com mais de 10 palavras a mais sumiu', spans.map((s) => [s.className, s.textContent]), [['marca marca-gramatica', 'vou mercado']]);
-      confere('contenteditable: um highlight de gramática', CSS.highlights.get('revisor-gramatica')?.size, 1);
+      confere('contenteditable: um traço de gramática dentro da camada fechada e nada no registro de realces da página', [tracos('gramatica').length, [...CSS.highlights.keys()]], [1, []]);
 
       passarMouse(spans[0].getBoundingClientRect());
       await espera(100);
@@ -198,8 +206,7 @@
       confere('após aplicar, o parágrafo novo não volta a ser enviado', enviados.filter((t) => t === 'eu vou ao mercado').length, 0);
       confere('após aplicar, o sublinhado some', sombra().querySelectorAll('.marca').length, 0);
 
-      const range = [...CSS.highlights.get('revisor-gramatica')][0];
-      passarMouse(range.getBoundingClientRect());
+      passarMouse(tracos('gramatica')[0].getBoundingClientRect());
       await espera(100);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto no contenteditable', editavel.textContent, 'isso é assim mesmo');
@@ -248,7 +255,7 @@
 
       await digitar(editavel, 'tá bom, vc vem?');
       await espera(1500);
-      passarMouse([...CSS.highlights.get('revisor-tom')][0].getBoundingClientRect());
+      passarMouse(tracos('tom')[0].getBoundingClientRect());
       await espera(100);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca tudo do trecho no contenteditable', editavel.textContent, 'está bom, você vem?');
@@ -411,8 +418,8 @@
       await espera(100);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto do textarea em shadow DOM', areaSombra.value, 'sombra com assim');
-      confere('contenteditable em shadow DOM ganha highlight', CSS.highlights.get('revisor-gramatica')?.size, 1);
-      passarMouse([...CSS.highlights.get('revisor-gramatica')][0].getBoundingClientRect());
+      confere('contenteditable em shadow DOM ganha traço', tracos('gramatica').length, 1);
+      passarMouse(tracos('gramatica')[0].getBoundingClientRect());
       await espera(100);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto do contenteditable em shadow DOM', editavelSombra.textContent, 'outra sombra assim');
@@ -449,8 +456,7 @@
       modeloRico = 'rico com açim';
       await digitar(rico, modeloRico);
       await espera(1500);
-      const rangeRico = [...CSS.highlights.get('revisor-gramatica')].find((r) => rico.contains(r.startContainer));
-      passarMouse(rangeRico.getBoundingClientRect());
+      passarMouse(tracos('gramatica', rico)[0].getBoundingClientRect());
       await espera(100);
       desfeitasNoRico = 0;
       await clicar(sombra().querySelector('.cartao .aplicar'));
@@ -460,7 +466,7 @@
       modeloRico = 'rico bom demais';
       await digitar(rico, modeloRico);
       await espera(1500);
-      passarMouse([...CSS.highlights.get('revisor-clareza')].find((r) => rico.contains(r.startContainer)).getBoundingClientRect());
+      passarMouse(tracos('clareza', rico)[0].getBoundingClientRect());
       await espera(100);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('remoção pelo Substituir também chega ao editor pelo beforeinput', [modeloRico, rico.textContent], ['rico bom', 'rico bom']);

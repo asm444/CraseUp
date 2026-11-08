@@ -2,7 +2,7 @@
   if (globalThis.__revisorGemini) return;
   globalThis.__revisorGemini = true;
 
-  const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho, diferencaDePalavras, manterQuebrasDeLinha } = RevisorCore;
+  const { ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho, diferencaDePalavras, manterQuebrasDeLinha } = RevisorCore;
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const INTERACAO_VALE_MS = 15_000;
@@ -101,8 +101,8 @@
     estado.espelho?.remove();
     estado.observador?.disconnect();
     estado.mutacoes?.disconnect();
+    estado.tracos?.remove();
     estado.ranges = [];
-    reconstruirHighlights();
   }
 
   function lerTextoEditavel(raiz) {
@@ -254,16 +254,19 @@
     posicionarEspelho(estado);
   }
 
-  function reconstruirHighlights() {
-    if (!globalThis.CSS?.highlights) return;
-    for (const tipo of TIPOS) {
-      const ranges = [];
-      for (const estado of campos.values()) {
-        estado.ranges.forEach((r, i) => r && estado.marcas[i]?.tipo === tipo && ranges.push(r));
+  function desenharTracos(estado) {
+    estado.tracos?.remove();
+    if (!estado.ranges.length) return;
+    const caixa = elemento('div');
+    estado.ranges.forEach((r, i) => {
+      for (const ret of r.getClientRects()) {
+        const traco = elemento('span', `traco traco-${estado.marcas[i].tipo}`);
+        traco.style.cssText = `left:${ret.left + scrollX}px;top:${ret.bottom + scrollY}px;width:${ret.width}px`;
+        caixa.append(traco);
       }
-      if (ranges.length) CSS.highlights.set(`revisor-${tipo}`, new Highlight(...ranges));
-      else CSS.highlights.delete(`revisor-${tipo}`);
-    }
+    });
+    garantirCamada().sombra.append(caixa);
+    estado.tracos = caixa;
   }
 
   function desenharEditavel(estado) {
@@ -276,7 +279,7 @@
       r.setEnd(...fim);
       return r;
     });
-    reconstruirHighlights();
+    desenharTracos(estado);
   }
 
   function desenhar(estado) {
@@ -878,7 +881,10 @@
 
   function aoRolarOuRedimensionar() {
     if (cartao) posicionarCartao();
-    for (const estado of campos.values()) if (estado.espelho) posicionarEspelho(estado);
+    for (const estado of campos.values()) {
+      if (estado.espelho) posicionarEspelho(estado);
+      desenharTracos(estado);
+    }
   }
 
   document.addEventListener('input', aoDigitar, true);
