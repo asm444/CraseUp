@@ -14,6 +14,14 @@ async def rodar_pagina(navegador, pagina):
     await aba.expose_function('cliqueReal', lambda x, y: aba.mouse.click(x, y))
     await aba.expose_function('teclarReal', lambda texto: aba.keyboard.type(texto))
     await aba.expose_function('apertarReal', lambda tecla: aba.keyboard.press(tecla))
+
+    async def arrastar(x1, y1, x2, y2):
+        await aba.mouse.move(x1, y1)
+        await aba.mouse.down()
+        await aba.mouse.move(x2, y2, steps=10)
+        await aba.mouse.up()
+
+    await aba.expose_function('arrastarReal', arrastar)
     await aba.goto(pagina.as_uri())
     try:
         await aba.wait_for_function(PRONTO, timeout=180_000)

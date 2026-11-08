@@ -556,6 +556,27 @@
       areaDaPagina.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
       await espera(1600);
       confere('depois de uma tecla real no campo, a revisão volta a acontecer', enviados.includes('agora quem escreveu foi a pessoa'), true);
+
+      const origemDoArrasto = novo('p');
+      origemDoArrasto.textContent = 'texto que a pessoa arrastou';
+      const destinoDoArrasto = novo('textarea');
+      getSelection().selectAllChildren(origemDoArrasto);
+      const de = origemDoArrasto.getBoundingClientRect();
+      const para = destinoDoArrasto.getBoundingClientRect();
+      await arrastarReal(de.left + 20, de.top + de.height / 2, para.left + 20, para.top + para.height / 2);
+      await espera(1600);
+      confere('texto arrastado de verdade para o campo é revisado', [destinoDoArrasto.value, enviados.includes('texto que a pessoa arrastou')], ['texto que a pessoa arrastou', true]);
+
+      const campoDaPausa = novo('textarea');
+      ouvinte({ tipo: 'pausa', pausado: true });
+      campoDaPausa.focus();
+      await apertarReal('Shift');
+      ouvinte({ tipo: 'pausa', pausado: false });
+      await espera(100);
+      campoDaPausa.value = 'a pagina escreveu depois da pausa';
+      campoDaPausa.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
+      await espera(1600);
+      confere('tecla dada com a extensão pausada não libera revisão depois de reativar', enviados.includes('a pagina escreveu depois da pausa'), false);
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;
