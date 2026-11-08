@@ -188,8 +188,9 @@ async function iniciar() {
     $('salvarChave').disabled = false;
     if (resposta?.ok) {
       await chrome.storage.local.set({ chaveOpenrouter: valor });
+      $('chave').value = '';
       status.className = 'ok';
-      status.textContent = 'Chave funcionando e salva. Já pode digitar em qualquer site.';
+      status.textContent = `Chave funcionando e salva, terminando em …${valor.slice(-4)}. Já pode digitar em qualquer site.`;
     } else {
       status.className = 'erro';
       status.textContent = `A chave não funcionou: ${resposta?.mensagem || 'erro desconhecido'}`;

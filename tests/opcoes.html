@@ -4,11 +4,19 @@
 <div id="pagina"></div>
 <script>
   const CHAVE = ['sk-or-v1-', 'abcd'.repeat(15), 'f9e8'].join('');
-  globalThis.chrome = {
-    storage: { local: { get: async () => ({ chaveOpenrouter: CHAVE, tom: 'neutro' }), set: async () => {}, remove: async () => {} }, onChanged: { addListener() {} } },
-    runtime: { sendMessage: async () => ({}), getURL: (p) => p },
+  const NOVA = ['sk-or-v1-', 'ef01'.repeat(15), '7c3a'].join('');
+  globalThis.criarChrome = (armazem) => ({
+    storage: {
+      local: {
+        get: async () => ({ ...armazem }),
+        set: async (itens) => Object.assign(armazem, itens),
+        remove: async () => {},
+      },
+      onChanged: { addListener() {} },
+    },
+    runtime: { sendMessage: async (msg) => (msg.tipo === 'testarChave' ? { ok: true } : {}), getURL: (p) => p },
     permissions: { request: async () => true },
-  };
+  });
   const linhas = [];
   let ok = 0, total = 0;
   const confere = (nome, valor, esperado) => {
@@ -16,19 +24,36 @@
     if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
     else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
   };
-  const carregar = (src) => new Promise((pronto, falha) => document.head.append(Object.assign(document.createElement('script'), { src, onload: pronto, onerror: falha })));
+  const espera = (ms) => new Promise((pronto) => setTimeout(pronto, ms));
+  const montar = async (salvo) => {
+    const armazem = { tom: 'neutro', ...salvo };
+    const html = await (await fetch('../src/options.html')).text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.head.prepend(Object.assign(doc.createElement('base'), { href: new URL('../src/', location).href }));
+    doc.head.prepend(Object.assign(doc.createElement('script'), { textContent: 'window.chrome = parent.criarChrome(parent.armazemAtual);' }));
+    globalThis.armazemAtual = armazem;
+    const quadro = document.createElement('iframe');
+    quadro.style.cssText = 'width:1200px;height:900px';
+    document.getElementById('pagina').replaceChildren(quadro);
+    await new Promise((pronto) => { quadro.onload = pronto; quadro.srcdoc = '<!doctype html>' + doc.documentElement.outerHTML; });
+    await espera(300);
+    return { doc: quadro.contentDocument, armazem };
+  };
   (async () => {
     try {
-      const html = await (await fetch('../src/options.html')).text();
-      const corpo = new DOMParser().parseFromString(html, 'text/html').body;
-      corpo.querySelectorAll('script').forEach((s) => s.remove());
-      document.getElementById('pagina').append(...corpo.childNodes);
-      for (const s of ['tema.js', 'core.js', 'graficos.js', 'config.js', 'languagetool.js', 'options.js']) await carregar(`../src/${s}`);
-      await new Promise((pronto) => setTimeout(pronto, 200));
-      const campo = document.getElementById('chave');
-      confere('a chave salva não volta para o campo das configurações', [campo.value, document.body.innerHTML.includes(CHAVE)], ['', false]);
-      confere('o status diz que há chave e mostra só o fim dela', document.getElementById('statusChave').textContent, 'Chave configurada, terminando em …f9e8. Cole outra para trocar.');
+      const comChave = await montar({ chaveOpenrouter: CHAVE });
+      const campo = comChave.doc.getElementById('chave');
+      confere('a chave salva não volta para o campo das configurações', [campo.value, comChave.doc.body.innerHTML.includes(CHAVE)], ['', false]);
+      confere('o status diz que há chave e mostra só o fim dela', comChave.doc.getElementById('statusChave').textContent, 'Chave configurada, terminando em …f9e8. Cole outra para trocar.');
+      campo.value = NOVA;
+      comChave.doc.getElementById('salvarChave').click();
+      await espera(100);
+      confere('depois de salvar, a chave nova sai do campo e o status mostra só o fim dela', [comChave.armazem.chaveOpenrouter === NOVA, campo.value, comChave.doc.getElementById('statusChave').textContent], [true, '', 'Chave funcionando e salva, terminando em …7c3a. Já pode digitar em qualquer site.']);
+
+      const semChave = await montar({});
+      confere('sem chave salva, a página abre inteira: campo vazio, sem status, com as boas-vindas e o tom marcado', [semChave.doc.getElementById('chave').value, semChave.doc.getElementById('statusChave').textContent, semChave.doc.getElementById('boasVindas').hidden, semChave.doc.querySelector('input[name="tom"]:checked')?.value], ['', '', false, 'neutro']);
     } catch (erro) {
+      total++;
       linhas.push(`FALHA exceção: ${erro.message}`);
     }
     document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
