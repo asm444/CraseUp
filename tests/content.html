@@ -44,6 +44,7 @@
     'rico bom demais': [{ tipo: 'clareza', original: ' demais', substituicao: '', motivo: 'redundante' }],
     'rico com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'outra sombra açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'dicionário com açim': [{ tipo: 'gramatica', origem: 'languagetool', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
   let raizDaCamada = null;
@@ -59,6 +60,7 @@
   const reescritas = [];
   let ouvinte = null;
   const ouvintesDoStorage = [];
+  const gravados = [];
   globalThis.chrome = {
     runtime: {
       async sendMessage(msg) {
@@ -66,6 +68,7 @@
         if (msg.tipo === 'reescrever') {
           reescritas.push([msg.texto, msg.tom]);
           if (msg.tom === '') return { texto: MELHORIAS[msg.texto] ?? msg.texto, modelo: 'm' };
+          await new Promise((pronto) => setTimeout(pronto, 60));
           return { texto: 'Eu irei ao mercado.', modelo: 'm' };
         }
         return {};
@@ -99,14 +102,20 @@
       getURL: (p) => `../${p}`,
       onMessage: { addListener(fn) { ouvinte = fn; } },
     },
-    storage: { local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
+    storage: { local: { get: async () => ({}), set: async (itens) => { gravados.push(itens); } }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
   };
 </script>
 <script src="../src/content.js"></script>
 <script>
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
-  const clicar = async (botao) => {
-    botao.click();
+  const clicar = async (alvo) => {
+    const r = alvo.getBoundingClientRect();
+    await cliqueReal(r.left + r.width / 2, r.top + r.height / 2);
+    await espera(30);
+  };
+  const escolherTom = async (seletor, valor) => {
+    seletor.focus();
+    for (let i = 0; i < 15 && seletor.value !== valor; i++) await apertarReal(seletor.selectedIndex < [...seletor.options].findIndex((o) => o.value === valor) ? 'ArrowDown' : 'ArrowUp');
     await espera(30);
   };
   const rico = document.getElementById('editorRico');
@@ -171,6 +180,14 @@
       confere('a página não alcança a camada do cartão pelo shadowRoot', document.querySelector('revisor-gemini-camada').shadowRoot, null);
       cartao.querySelector('.aplicar').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true }));
       confere('apertar o mouse dentro do cartão não o fecha', sombra().querySelector('.cartao') === cartao, true);
+      const escolhaSintetica = cartao.querySelector('.escolha-tom');
+      escolhaSintetica.value = 'formal';
+      escolhaSintetica.dispatchEvent(new Event('change'));
+      await espera(120);
+      escolhaSintetica.value = '';
+      cartao.querySelector('.aplicar').click();
+      await espera(30);
+      confere('clique e troca de tom sintéticos da página não acionam o cartão', [area.value, reescritas.length], ['eu vou mercado', 0]);
       confere('o botão principal é Substituir', cartao?.querySelector('.aplicar')?.textContent, 'Substituir');
       await clicar(cartao.querySelector('.aplicar'));
       confere('aplicar troca o texto no textarea', area.value, 'eu vou ao mercado');
@@ -190,7 +207,7 @@
       confere('remoção aparece como sublinhado de clareza', marca?.className, 'marca marca-clareza');
       passarMouse(marca.getBoundingClientRect());
       await espera(100);
-      [...sombra().querySelectorAll('.cartao button')].find((b) => b.textContent === 'Ignorar').click();
+      await clicar([...sombra().querySelectorAll('.cartao button')].find((b) => b.textContent === 'Ignorar'));
       confere('ignorar some com o sublinhado', sombra().querySelectorAll('.marca').length, 0);
       digitar(area, 'texto bom demais');
       await espera(100);
@@ -246,10 +263,10 @@
       const cartaoAntesDoTom = sombra().querySelector('.cartao');
       const topoAntesDoTom = cartaoAntesDoTom.style.top;
       confere('o seletor de tom do cartão oferece dez tons, com LinkedIn e Advogado', [...seletor.options].slice(1).map((o) => o.value), ['formal', 'profissional', 'neutro', 'amigavel', 'casual', 'confiante', 'empatico', 'persuasivo', 'linkedin', 'advogado']);
-      seletor.value = 'formal';
-      seletor.dispatchEvent(new Event('change'));
+      seletor.focus();
+      await apertarReal('ArrowDown');
       const avisoEnquantoReescreve = sombra().querySelector('.cartao .motivo-tom')?.textContent;
-      await espera(50);
+      await espera(120);
       confere('o aviso e o motivo da reescrita trazem o rótulo do tom com maiúscula', [avisoEnquantoReescreve, sombra().querySelector('.cartao .motivo-tom')?.textContent], ['Reescrevendo no tom Formal…', 'Reescrito no tom Formal']);
       confere('escolher o tom pede a reescrita do trecho e a prévia mostra o resultado', [reescritas, sombra().querySelector('.cartao .previa')?.textContent], [[['eu vou mercado', 'formal']], 'Eu irei ao mercado.']);
       confere('trocar o tom muda o conteúdo do mesmo cartão, sem recriá-lo nem movê-lo', [sombra().querySelector('.cartao') === cartaoAntesDoTom, sombra().querySelector('.cartao').style.top === topoAntesDoTom], [true, true]);
@@ -280,9 +297,8 @@
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
       const verificacaoAntesDoTom = verificacao();
       const topoDaVerificacao = verificacao().style.top;
-      tomDaVerificacao.value = 'formal';
-      tomDaVerificacao.dispatchEvent(new Event('change'));
-      await espera(50);
+      await escolherTom(tomDaVerificacao, 'formal');
+      await espera(120);
       confere('trocar o tom na verificação refaz o pedido com o tom', [reescritas.at(-1), textoNovo(verificacao().querySelector('.previa'))], [['eu vou mercado amanha', 'formal'], 'Eu irei ao mercado.']);
       confere('na verificação, o tom troca o texto no mesmo cartão e no mesmo lugar', [verificacao() === verificacaoAntesDoTom, verificacao().style.top === topoDaVerificacao], [true, true]);
       await clicar(verificacao().querySelector('.aplicar'));
@@ -357,7 +373,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('texto já bom: o cartão diz que não há o que corrigir e não oferece Substituir', [verificacao().querySelector('.motivo')?.textContent, verificacao().querySelector('.aplicar')], ['Nada a corrigir.', null]);
-      verificacao().querySelector('.fechar').click();
+      await clicar(verificacao().querySelector('.fechar'));
 
       const estatico = document.getElementById('estatico');
       const fixo = document.createRange();
@@ -368,7 +384,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('seleção fora de campo editável oferece Copiar em vez de Substituir', verificacao().querySelector('.aplicar')?.textContent, 'Copiar');
-      verificacao().querySelector('.fechar').click();
+      await clicar(verificacao().querySelector('.fechar'));
       getSelection().removeAllRanges();
 
       const raizSombra = document.getElementById('hospedeiro').attachShadow({ mode: 'open' });
@@ -466,7 +482,7 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('menção inline não editável continua no texto verificado', reescritas.at(-1), ['oi @Fulano tudo bem', '']);
-      verificacao().querySelector('.fechar').click();
+      await clicar(verificacao().querySelector('.fechar'));
 
       editavel.innerHTML = 'eu <b>vou</b> mercado <a href="#x">amanha</a>';
       await espera(50);
@@ -494,6 +510,18 @@
       semInput.querySelector('p').firstChild.data += ' açim';
       await espera(1500);
       confere('editor que muda o texto sem disparar input também é revisado', enviados.includes('editor sem input açim'), true);
+
+      digitar(area, 'dicionário com açim');
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(100);
+      const adicionar = () => [...sombra().querySelectorAll('.cartao button')].find((b) => b.textContent === 'Adicionar ao dicionário');
+      adicionar().click();
+      await espera(50);
+      confere('clique sintético da página em Adicionar ao dicionário não grava nada', gravados.some((g) => 'dicionario' in g), false);
+      await clicar(adicionar());
+      await espera(50);
+      confere('clique real em Adicionar ao dicionário grava a palavra', gravados.find((g) => 'dicionario' in g)?.dicionario, ['açim']);
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;

@@ -414,7 +414,7 @@
     b.className = classe;
     b.textContent = texto;
     b.addEventListener('mousedown', (e) => e.preventDefault());
-    b.addEventListener('click', acao);
+    b.addEventListener('click', (e) => e.isTrusted && acao());
     return b;
   }
 
@@ -463,7 +463,7 @@
     escolha.append(new Option(rotuloVazio, ''), ...Object.entries(ROTULOS_DE_TOM).map(([v, rotulo]) => new Option(rotulo, v)));
     escolha.value = valor;
     escolha.addEventListener('mousedown', () => (alvoDoCartao.fixo = true));
-    escolha.addEventListener('change', () => aoMudar(escolha.value));
+    escolha.addEventListener('change', (e) => e.isTrusted && aoMudar(escolha.value));
     tons.append(escolha);
     return tons;
   }
