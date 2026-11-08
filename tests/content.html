@@ -109,6 +109,7 @@
 <script>
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const clicar = async (alvo) => {
+    alvo.scrollIntoView({ block: 'center' });
     const r = alvo.getBoundingClientRect();
     await cliqueReal(r.left + r.width / 2, r.top + r.height / 2);
     await espera(30);
@@ -274,11 +275,18 @@
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca o trecho pela reescrita no tom', area.value, 'Eu irei ao mercado.');
 
-      const menu = (el) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, composed: true, clientX: 600, clientY: 400 }));
+      const menu = async (el, ponto = el) => {
+        ponto.scrollIntoView({ block: 'center' });
+        const raiz = el.getRootNode();
+        const sel = raiz.getSelection ? raiz.getSelection() : getSelection();
+        const range = sel?.rangeCount && !sel.isCollapsed ? sel.getRangeAt(0) : null;
+        const r = range && el.contains(range.commonAncestorContainer) ? range.getBoundingClientRect() : ponto.getBoundingClientRect();
+        await cliqueDireitoReal(r.left + r.width / 2, r.top + r.height / 2);
+      };
       await digitar(area, 'eu vou mercado amanha');
       await espera(1500);
       area.setSelectionRange(3, 3);
-      menu(area);
+      await menu(area);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       const verificacao = () => sombra().querySelector('.cartao-verificacao');
@@ -312,7 +320,7 @@
       selecao.setEnd(editavel.firstChild, 8);
       getSelection().removeAllRanges();
       getSelection().addRange(selecao);
-      menu(editavel);
+      await menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('com seleção, verifica só o selecionado', reescritas.at(-1), ['ola joao', '']);
@@ -322,7 +330,7 @@
       await digitar(area, 'eu vou mercado amanha');
       await espera(1500);
       area.setSelectionRange(0, 0);
-      menu(area);
+      await menu(area);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       area.value = `ok, ${area.value} e volto`;
@@ -332,7 +340,7 @@
       editavel.textContent = 'ola joao\u2060';
       await espera(50);
       getSelection().removeAllRanges();
-      menu(editavel);
+      await menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('caractere invisível de editor (U+2060) não vai para a verificação', reescritas.at(-1), ['ola joao', '']);
@@ -344,7 +352,7 @@
       await digitar(area, 'eu vou mercado amanha\u200B');
       await espera(1500);
       area.setSelectionRange(0, 0);
-      menu(area);
+      await menu(area);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       await clicar(verificacao().querySelector('.aplicar'));
@@ -353,7 +361,7 @@
       editavel.textContent = 'ola\u2060 joao';
       await espera(50);
       getSelection().removeAllRanges();
-      menu(editavel);
+      await menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       await clicar(verificacao().querySelector('.aplicar'));
@@ -362,7 +370,7 @@
       editavel.innerHTML = '<br>ola joao';
       await espera(50);
       getSelection().removeAllRanges();
-      menu(editavel);
+      await menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       await clicar(verificacao().querySelector('.aplicar'));
@@ -370,7 +378,7 @@
 
       area.value = 'nada a mudar aqui';
       area.setSelectionRange(0, 0);
-      menu(area);
+      await menu(area);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('texto já bom: o cartão diz que não há o que corrigir e não oferece Substituir', [verificacao().querySelector('.motivo')?.textContent, verificacao().querySelector('.aplicar')], ['Nada a corrigir.', null]);
@@ -381,7 +389,7 @@
       fixo.selectNodeContents(estatico);
       getSelection().removeAllRanges();
       getSelection().addRange(fixo);
-      menu(estatico);
+      await menu(estatico);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('seleção fora de campo editável oferece Copiar em vez de Substituir', verificacao().querySelector('.aplicar')?.textContent, 'Copiar');
@@ -469,7 +477,7 @@
       editavel.innerHTML = '<blockquote>Fulano: texto citado</blockquote><div contenteditable="false">outra citacao</div><div>ola joao</div>';
       await espera(50);
       getSelection().removeAllRanges();
-      menu(editavel);
+      await menu(editavel, editavel.lastElementChild);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('sem seleção, a verificação ignora citação e trecho não editável', reescritas.at(-1), ['ola joao', '']);
@@ -479,7 +487,7 @@
       editavel.innerHTML = 'oi <span contenteditable="false" style="display:inline">@Fulano</span> tudo bem';
       await espera(50);
       getSelection().removeAllRanges();
-      menu(editavel);
+      await menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('menção inline não editável continua no texto verificado', reescritas.at(-1), ['oi @Fulano tudo bem', '']);
@@ -488,7 +496,7 @@
       editavel.innerHTML = 'eu <b>vou</b> mercado <a href="#x">amanha</a>';
       await espera(50);
       getSelection().removeAllRanges();
-      menu(editavel);
+      await menu(editavel);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       await clicar(verificacao().querySelector('.aplicar'));
@@ -498,7 +506,7 @@
       await espera(50);
       editavelSombra.focus();
       getSelection().setBaseAndExtent(editavelSombra.firstChild, 0, editavelSombra.firstChild, 8);
-      menu(editavelSombra);
+      await menu(editavelSombra);
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('editor em shadow DOM: a verificação usa a seleção, não o campo inteiro', reescritas.at(-1), ['ola joao', '']);
@@ -577,6 +585,17 @@
       campoDaPausa.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
       await espera(1600);
       confere('tecla dada com a extensão pausada não libera revisão depois de reativar', enviados.includes('a pagina escreveu depois da pausa'), false);
+
+      const escolhidoPelaPessoa = novo('textarea');
+      escolhidoPelaPessoa.value = 'texto que a pessoa escolheu';
+      const escolhidoPelaPagina = novo('textarea');
+      escolhidoPelaPagina.value = 'texto que a pagina escolheu';
+      await menu(escolhidoPelaPessoa);
+      escolhidoPelaPagina.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, composed: true, clientX: 10, clientY: 10 }));
+      ouvinte({ tipo: 'verificarAqui' });
+      await espera(50);
+      confere('contextmenu sintético da página não troca o campo que a pessoa escolheu verificar', reescritas.at(-1), ['texto que a pessoa escolheu', '']);
+      await clicar(sombra().querySelector('.cartao-verificacao .fechar'));
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;

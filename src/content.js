@@ -887,7 +887,7 @@
   document.addEventListener('input', aoDigitar, true);
   document.addEventListener('focusin', aoFocar, true);
   for (const tipo of ['keydown', 'paste', 'drop']) document.addEventListener(tipo, marcarInteracao, true);
-  document.addEventListener('contextmenu', (e) => (alvoDoMenu = capturarAlvoDoMenu(e)), true);
+  document.addEventListener('contextmenu', (e) => e.isTrusted && (alvoDoMenu = capturarAlvoDoMenu(e)), true);
   document.addEventListener('mousemove', aoMoverMouse, { passive: true, capture: true });
   document.addEventListener('mousedown', (e) => cartao && !e.composedPath().includes(camada.host) && esconderCartao(), true);
   document.addEventListener('keydown', (e) => e.key === 'Escape' && cartao && esconderCartao(), true);

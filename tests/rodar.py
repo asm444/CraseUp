@@ -14,6 +14,7 @@ async def rodar_pagina(navegador, pagina):
     await aba.expose_function('cliqueReal', lambda x, y: aba.mouse.click(x, y))
     await aba.expose_function('teclarReal', lambda texto: aba.keyboard.type(texto))
     await aba.expose_function('apertarReal', lambda tecla: aba.keyboard.press(tecla))
+    await aba.expose_function('cliqueDireitoReal', lambda x, y: aba.mouse.click(x, y, button='right'))
 
     async def arrastar(x1, y1, x2, y2):
         await aba.mouse.move(x1, y1)
