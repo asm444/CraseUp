@@ -50,6 +50,7 @@
       { offset: 13, length: 6, message: 'acento', replacements: [{ value: 'amanhã' }], rule: { issueType: 'misspelling' } },
     ],
   };
+  const fetchReal = globalThis.fetch;
   globalThis.fetch = async (url, opcoes) => {
     if (String(url) === 'https://openrouter.ai/api/v1/models') return new Response(JSON.stringify({ data: [{ id: 'liquid/lfm-2.5-2.6b', pricing: { prompt: '0.00000035', completion: '0.0000005' } }] }), { status: 200 });
     if (String(url).startsWith('https://openrouter.ai/')) {
@@ -114,6 +115,8 @@
       const sugerida = await revisar('escreve pra ana@x.com e bia@y.com amanha', true);
       confere('sugestão do modelo volta com o e-mail verdadeiro; a que inventa ou apaga um dado protegido é descartada', sugerida.sugestoes.filter((x) => x.origem === 'openrouter').map((x) => [x.original, x.substituicao]), [['pra ana@x.com', 'para ana@x.com']]);
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
+      const manifesto = await (await fetchReal('../manifest.json')).json();
+      confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/camada-estilo.js', 'src/content.js']]);
       const respostasDaAba = [];
       const usoAntesDaRajada = armazem.local.uso.chamadas;
       for (let i = 0; i < 16; i++) respostasDaAba.push(await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: `texto da rajada ${i}`, tom: '' }, { tab: { id: 7 } }, pronto)));
@@ -125,6 +128,7 @@
       await revisar('revisão de outra aba depois da rajada', true, 10);
       confere('a revisão também respeita o teto da aba, e o teto de uma aba não atinge outra', [estadoDaAbaCheia, armazem.local.camadas.openrouter.estado], ['limite_da_aba', 'ativa']);
     } catch (erro) {
+      total++;
       linhas.push(`FALHA exceção: ${erro.message}`);
     }
     document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;

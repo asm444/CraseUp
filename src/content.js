@@ -195,10 +195,7 @@
     host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
     host.dataset.tema = tema;
     const sombra = host.attachShadow({ mode: 'closed' });
-    const estilo = document.createElement('link');
-    estilo.rel = 'stylesheet';
-    estilo.href = chrome.runtime.getURL('src/camada.css');
-    sombra.append(estilo);
+    sombra.append(elemento('style', '', RevisorEstiloDaCamada));
     document.documentElement.append(host);
     camada = { host, sombra };
     return camada;

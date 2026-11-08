@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CraseUp",
-  "version": "0.13.10",
+  "version": "0.13.11",
   "description": "Revisão de textos em português e inglês com dicionário offline, LanguageTool e OpenRouter: sugestões mínimas, só quando necessário.",
   "minimum_chrome_version": "105",
   "icons": {
@@ -29,14 +29,11 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["src/core.js", "src/content.js"],
+      "js": ["src/core.js", "src/camada-estilo.js", "src/content.js"],
       "css": ["src/content.css"],
       "all_frames": true,
       "match_about_blank": true,
       "run_at": "document_idle"
     }
-  ],
-  "web_accessible_resources": [
-    { "resources": ["src/camada.css"], "matches": ["http://*/*", "https://*/*"] }
   ]
 }

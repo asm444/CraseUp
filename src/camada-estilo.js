@@ -1,4 +1,4 @@
-:host {
+globalThis.RevisorEstiloDaCamada = `:host {
   --fundo: #12141B;
   --fundo-elevado: #1A1D27;
   --borda: #282C3A;
@@ -221,3 +221,4 @@ button.seta, button.fechar {
   line-height: 22px;
 }
 button.seta:hover, button.fechar:hover { color: var(--texto); border-color: var(--borda); }
+`;

@@ -105,6 +105,7 @@
     storage: { local: { get: async () => ({}), set: async (itens) => { gravados.push(itens); } }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
   };
 </script>
+<script src="../src/camada-estilo.js"></script>
 <script src="../src/content.js"></script>
 <script>
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
