@@ -5,6 +5,7 @@
   const { TIPOS, ROTULOS_DE_TOM, dividirParagrafos, revisavel, contemPalavraDoDicionario, trechosDoParagrafo, partesDoTrecho, aplicarTrecho, diferencaDePalavras, manterQuebrasDeLinha } = RevisorCore;
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
+  const INTERACAO_VALE_MS = 15_000;
   const PARAGRAFOS_POR_PAUSA = 3;
   const PARAGRAFOS_POR_PEDIDO = 10;
   const ENTRADAS_NO_CACHE = 300;
@@ -324,6 +325,7 @@
 
   async function revisarCampo(estado, pedido, rapida = false) {
     if (!ativo || !estado.el.isConnected) return;
+    if (!pedido && !(Date.now() - estado.interagiuEm < INTERACAO_VALE_MS)) return;
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
     const candidatos = dividirParagrafos(texto)
@@ -366,6 +368,12 @@
     if (!ativo) return;
     const estado = campoDoEvento(evento);
     if (estado) agendarRevisao(estado);
+  }
+
+  function marcarInteracao(evento) {
+    if (!ativo || !evento.isTrusted) return;
+    const estado = campoDoEvento(evento);
+    if (estado) estado.interagiuEm = Date.now();
   }
 
   function aoFocar(evento) {
@@ -878,6 +886,7 @@
 
   document.addEventListener('input', aoDigitar, true);
   document.addEventListener('focusin', aoFocar, true);
+  for (const tipo of ['keydown', 'paste', 'drop']) document.addEventListener(tipo, marcarInteracao, true);
   document.addEventListener('contextmenu', (e) => (alvoDoMenu = capturarAlvoDoMenu(e)), true);
   document.addEventListener('mousemove', aoMoverMouse, { passive: true, capture: true });
   document.addEventListener('mousedown', (e) => cartao && !e.composedPath().includes(camada.host) && esconderCartao(), true);
