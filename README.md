@@ -141,7 +141,7 @@ Os modelos gratuitos do OpenRouter têm limite por minuto e por dia ([tabela ofi
 ### Desenvolvimento
 
 ```bash
-make testes                            # suítes no Chrome sem janela; precisa de google-chrome e python3
+make testes                            # suítes no Chrome sem janela; precisa de google-chrome, python3 e o pacote playwright (pip install playwright)
 make pacote                            # gera dist/craseup-<versão>.zip
 python3 tools/gerar-icones.py icons    # gera os PNGs a partir de icons/icone.svg
 bash tools/vendorizar-ortografia.sh    # regera src/vendor/hunspell.js e src/dicionarios/
@@ -206,6 +206,6 @@ Password and card fields are never read. Only the paragraph you changed is revie
 
 ### Tests
 
-`make testes` runs the suites in headless Chrome. It needs `google-chrome` and `python3`.
+`make testes` runs the suites in headless Chrome. It needs `google-chrome`, `python3` and the `playwright` package (`pip install playwright`).
 
 [Like it? A coffee is always a great motivation!](https://buymeacoffee.com/asm444/support-craseup-development)

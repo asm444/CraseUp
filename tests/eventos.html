@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<button id="botao" style="position:fixed;left:20px;top:60px;width:120px;height:40px">botão</button>
+<input id="campo" style="position:fixed;left:20px;top:120px">
+<script>
+  const vistos = [];
+  document.getElementById('botao').addEventListener('click', (e) => vistos.push(['click', e.isTrusted]));
+  document.getElementById('campo').addEventListener('keydown', (e) => vistos.push([e.key, e.isTrusted]));
+  (async () => {
+    document.getElementById('botao').click();
+    const r = document.getElementById('botao').getBoundingClientRect();
+    await cliqueReal(r.left + r.width / 2, r.top + r.height / 2);
+    document.getElementById('campo').focus();
+    await teclarReal('a');
+    const esperado = [['click', false], ['click', true], ['a', true]];
+    const ok = JSON.stringify(vistos) === JSON.stringify(esperado);
+    document.getElementById('resultado').textContent = ok ? 'PASSED 1/1\nok   clique e tecla do runner chegam com isTrusted; .click() não' : `FAILED 0/1\nFALHA esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(vistos)}`;
+  })();
+</script>
