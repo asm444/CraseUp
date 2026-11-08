@@ -8,6 +8,7 @@ const TEXTOS_DE_ESTADO = {
   sem_chave: 'Indisponível: falta a chave',
   cota: 'Indisponível: a cota de hoje acabou',
   limite_por_minuto: 'Pausada por um minuto: limite de chamadas',
+  limite_da_aba: 'Pausada por um minuto: muitas chamadas desta aba',
   sem_conexao: 'Indisponível: sem conexão com a internet',
   falha: 'Indisponível: falha do serviço',
 };

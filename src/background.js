@@ -9,7 +9,18 @@ const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
 const TEMPO_MAXIMO_MODELO_MS = 30_000;
 const COR_SELO_COTA = '#EDAE49';
 const COR_SELO_PAUSA = '#6B6475';
-const ESTADOS_PASSAGEIROS = new Set(['falha', 'sem_conexao', 'limite_por_minuto', 'cota']);
+const ESTADOS_PASSAGEIROS = new Set(['falha', 'sem_conexao', 'limite_por_minuto', 'limite_da_aba', 'cota']);
+const CHAMADAS_POR_ABA_POR_MINUTO = 15;
+const chamadasPorAba = new Map();
+
+function dentroDoTetoDaAba(abaId) {
+  const agora = Date.now();
+  const recentes = (chamadasPorAba.get(abaId) || []).filter((momento) => agora - momento < 60_000);
+  const dentro = recentes.length < CHAMADAS_POR_ABA_POR_MINUTO;
+  if (dentro) recentes.push(agora);
+  chamadasPorAba.set(abaId, recentes);
+  return dentro;
+}
 const MENU_VERIFICAR = 'craseup-verificar';
 
 const hoje = () => new Date().toLocaleDateString('sv');
@@ -120,7 +131,7 @@ async function camadaOffline(texto) {
 
 async function revisar(texto, abaId, { pedido, modelo }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool']);
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool'])), abaId };
   let protegidos = [];
   const juntar = (...listas) => filtrarSugestoes(texto, listas.flat(), { dicionario: cfg.dicionario || [], protegidos });
   const offline = await camadaOffline(texto);
@@ -214,6 +225,7 @@ async function chamarModelo(requisicao, cfg) {
   if (!cfg.chaveOpenrouter) return { estado: 'sem_chave' };
   if (cfg.cota?.ate > Date.now()) return { estado: 'cota' };
   if (cfg.esperaAte && Date.now() < cfg.esperaAte) return { estado: 'limite_por_minuto' };
+  if (!dentroDoTetoDaAba(cfg.abaId)) return { estado: 'limite_da_aba' };
 
   await contarChamada();
   let resposta;
@@ -282,10 +294,11 @@ const MOTIVOS_SEM_REESCRITA = {
   sem_chave: 'falta configurar a chave do OpenRouter',
   cota: 'a cota de hoje dos modelos gratuitos acabou',
   limite_por_minuto: 'limite de chamadas; tente de novo em um minuto',
+  limite_da_aba: 'muitas chamadas desta aba; tente de novo em um minuto',
 };
 
-async function reescrever(texto, tom) {
-  const cfg = await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte']);
+async function reescrever(texto, tom, abaId) {
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte'])), abaId };
   const offline = await camadaOffline(texto);
   const { texto: mascarado, itens } = mascarar(texto);
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
@@ -337,7 +350,7 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
     return true;
   }
   if (msg?.tipo === 'reescrever' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto) && (msg.tom === '' || Object.hasOwn(TONS, msg.tom))) {
-    reescrever(msg.texto, msg.tom).then(responder);
+    reescrever(msg.texto, msg.tom, abaId).then(responder);
     return true;
   }
   if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && paginaDaExtensao(remetente)) {

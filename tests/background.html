@@ -88,8 +88,8 @@
       const hoje = new Date().toLocaleDateString('sv');
       confere('cada chamada ao modelo soma tokens e tempo poupado no consumo do dia, por modelo', armazem.local.consumo?.[hoje]?.['modelo-x:free'], { chamadas: 1, entrada: 120, saida: 30, custo: 0, segundos: 40 });
       confere('os preços da versão paga são guardados uma vez por dia', armazem.local.precos, { data: hoje, porModelo: { 'liquid/lfm-2.5-2.6b:free': { entrada: 0.00000035, saida: 0.0000005 } } });
-      const revisar = (texto, pedido = false) => new Promise((pronto) => {
-        const porta = { name: 'revisar', sender: { tab: { id: 1 } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
+      const revisar = (texto, pedido = false, aba = 1) => new Promise((pronto) => {
+        const porta = { name: 'revisar', sender: { tab: { id: aba } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
         aoConectar(porta);
         porta.receber({ texto, pedido, modelo: pedido });
       });
@@ -114,6 +114,16 @@
       const sugerida = await revisar('escreve pra ana@x.com e bia@y.com amanha', true);
       confere('sugestão do modelo volta com o e-mail verdadeiro; a que inventa ou apaga um dado protegido é descartada', sugerida.sugestoes.filter((x) => x.origem === 'openrouter').map((x) => [x.original, x.substituicao]), [['pra ana@x.com', 'para ana@x.com']]);
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
+      const respostasDaAba = [];
+      const usoAntesDaRajada = armazem.local.uso.chamadas;
+      for (let i = 0; i < 16; i++) respostasDaAba.push(await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: `texto da rajada ${i}`, tom: '' }, { tab: { id: 7 } }, pronto)));
+      const outraAba = await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: 'texto de outra aba', tom: '' }, { tab: { id: 8 } }, pronto));
+      confere('uma aba passa de 15 chamadas ao modelo por minuto e é barrada; outra aba segue normal', [respostasDaAba.filter((r) => r.texto).length, respostasDaAba.at(-1), Boolean(outraAba.texto)], [15, { erro: 'muitas chamadas desta aba; tente de novo em um minuto' }, true]);
+      confere('a chamada barrada pelo teto da aba não conta no uso do dia', armazem.local.uso.chamadas - usoAntesDaRajada, 16);
+      for (let i = 0; i < 16; i++) await revisar(`revisão automática da rajada ${i}`, true, 9);
+      const estadoDaAbaCheia = armazem.local.camadas.openrouter.estado;
+      await revisar('revisão de outra aba depois da rajada', true, 10);
+      confere('a revisão também respeita o teto da aba, e o teto de uma aba não atinge outra', [estadoDaAbaCheia, armazem.local.camadas.openrouter.estado], ['limite_da_aba', 'ativa']);
     } catch (erro) {
       linhas.push(`FALHA exceção: ${erro.message}`);
     }
