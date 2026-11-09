@@ -101,9 +101,12 @@
   confere('CPF com espaços e telefone 0800 são mascarados; números em grupo que não fecham o CPF ficam', [
     mascara('cpf 529 982 247 25'), mascara('0800 123 4567'), mascara('tenho 123 456 789 10 itens'),
   ], ['cpf [CPF_1]', '[TELEFONE_1]', 'tenho 123 456 789 10 itens']);
-  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1'];
+  confere('e-mail escrito por extenso ou com espaços é mascarado; arroba e ponto soltos na frase não', [
+    mascara('ana arroba x ponto com'), mascara('escreve pra ana @ x.com amanhã'), mascara('joao [at] empresa [dot] com'), mascara('a arroba é um símbolo'), mascara('fui ao ponto de ônibus'),
+  ], ['[EMAIL_1]', 'escreve pra [EMAIL_1] amanhã', '[EMAIL_1]', 'a arroba é um símbolo', 'fui ao ponto de ônibus']);
+  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1', 'a@ '.repeat(1330)];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
-  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true]);
+  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true, true]);
   linhas.push(`     tempos em ms: ${tempos.map((ms) => ms.toFixed(1)).join(', ')}`);
 
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
