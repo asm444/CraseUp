@@ -47,3 +47,34 @@ timeout 280 node $S $B/ext-wt down $B/perfil-a
 timeout 280 node $S $B/ext-istrusted up $B/perfil-b
 timeout 280 node $S $B/ext-head up $B/perfil-c
 ```
+
+## Desfecho
+
+Fechado em 2026-11-09, no HEAD `9024cd2` (v0.13.17). Cada correção tem teste que falha no código anterior e passa no novo; as hipóteses refutadas foram medidas com a extensão carregada de verdade no Chromium do Playwright.
+
+| Vetor | Desfecho | Onde |
+|---|---|---|
+| S1 | corrigido: botões e seletor de tom do cartão só agem com evento do usuário (`isTrusted`) | `9932619` v0.13.6 |
+| S2 | corrigido: revisão automática só no campo com tecla, colagem ou soltura reais nos últimos 15 s; teto de 15 chamadas ao modelo por aba por minuto (o OpenRouter permite 20 por chave nos modelos gratuitos) | `f61215a` v0.13.7, `a5afc2f` v0.13.8, testes em `153d3c3` v0.13.9 |
+| S3 | corrigido: sombra da camada fechada | `dc2126f` v0.13.4 |
+| S4 | demonstrado (a página leu `açim`, `tambem`, `estranhu` em `CSS.highlights`) e corrigido: marcas do contenteditable desenhadas na sombra fechada; a página lê `{}` | `2c381c9` v0.13.13 |
+| S5 | corrigido: nenhum arquivo em `web_accessible_resources`; o estilo da camada vem num script do content script | `6585711` v0.13.11 |
+| S6 | corrigido: a chave não volta ao campo nem fica nele depois de salvar | `e49aef7` v0.13.3, `ef66411` v0.13.12 |
+| S7 | demonstrado (servidor falso em 8010 recebeu o texto mascarado) e mitigado: só envia depois de `/v2/languages` responder como LanguageTool com pt-BR | `374e36d` v0.13.14 |
+| S8 | refutado depois de S1/S2: iframe de outra origem com input sintético, mutação, `execCommand` e `keydown` falso não gerou envio; só digitação real revisa | sem código |
+| S9 | corrigido: só o botão direito real escolhe o texto da verificação | `259d2e2` v0.13.10 |
+| S10 | refutado depois de S1–S4: extensão com content script no mundo da página não gerou envio, leu a sombra como `null` e nenhum realce | sem código |
+| S11 | refutado: um site que conhece o id não abre `tests/*.html` (`fetch` falha; o iframe mostra só a página de erro) | sem código |
+| S12 | logs e cabeçalhos limpos; corrigido: senha mascarada por CSS, PIN, token, código de verificação, CPF e chave de API deixam de ser revisados | `9dc0044` v0.13.15 |
+| S13 | demonstrado (sugestão do modelo saiu como `offline`) e corrigido: a origem é carimbada pela camada | `56c094d` v0.13.16 |
+| S14 | achado na sonda da S10 e mitigado: o elemento da camada tem nome sorteado por página | `9024cd2` v0.13.17 |
+
+Confidencialidade do texto: desde `b350ea0` v0.13.0 (OpenRouter) e `6fa0325` v0.13.2 (LanguageTool), dados sensíveis saem como marcadores `[TIPO_n]` e voltam só no navegador.
+
+## Limites conhecidos
+
+- S7: um impostor que imite `/v2/languages` passa na conferência; ele recebe o texto já mascarado.
+- S14: o elemento da camada, com nome sorteado, fica sob `<html>` desde a primeira marca ou cartão, inclusive o de "Verificar com o CraseUp", até a página fechar, e um site que procure elementos estranhos o encontra; o teste confere só o formato do nome, não que ele muda a cada carga.
+- A chave do OpenRouter fica em claro no `storage.local` do perfil (diretório `drwx------`).
+- `sensivel()` usa `\b` sem a flag `u`: "pinça" casa `pin` e o campo deixa de ser revisado; `otp`, `cnpj`, `ssn`, `segredo`, `secret` e `api key` não têm caso de teste.
+- O teto por aba e as conferências do servidor zeram quando o service worker reinicia; o teto do OpenRouter continua valendo.
