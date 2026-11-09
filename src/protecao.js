@@ -28,7 +28,7 @@
   ];
   const PALAVRAS_DE_SEGREDO = 'senha|password|passwd|pwd|pass|passcode|passphrase|token|bearer|access[_-]?token|refresh[_-]?token|api[_-]?key|apikey|chave(?:\\s+(?:de\\s+)?api)?|key|client[_-]?secret|secret|segredo|pin|otp|c[oó]digo(?:\\s+de\\s+(?:verifica[cç][aã]o|acesso|seguran[cç]a))?';
   const PALAVRAS_DE_NUMERO = 'protocolo|pedido|ordem|conta(?:\\s+corrente)?|cc|ag[eê]ncia|matr[ií]cula|processo|rg|cnh|pis|pasep|nis|nit|t[ií]tulo(?:\\s+de\\s+eleitor)?|renavam|passaporte|boleto|linha\\s+digit[aá]vel|c[oó]digo\\s+de\\s+barras|nota(?:\\s+fiscal)?|nf-?e?|chave\\s+pix|pix|cart[aã]o|card|cvv|cvc|csc|ip|endere[cç]o\\s+ip';
-  const LIGACAO = '\\s*(?:n[ºo°]\\.?|número|numero|#)?\\s*(?:é|eh|e|=|:|is|-)?\\s*[:=]?\\s*';
+  const LIGACAO = '\\s{0,3}(?:(?:n[ºo°]\\.?|número|numero|#)\\s{0,3})?(?:(?:é|eh|e|=|:|is|-)\\s{0,3})?(?:[:=]\\s{0,3})?';
   const FIM_DE_TOKEN = /[.,;:!?)\]}"'»]+$/;
 
   function rotuloPorContexto(palavra, tabela, padrao) {
