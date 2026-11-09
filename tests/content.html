@@ -22,6 +22,7 @@
       { tipo: 'palavra', original: 'eu', substituicao: 'nós todos juntos e mais um grupo grande de pessoas felizes hoje', motivo: 'mais de 10 palavras a mais, deve sumir' },
     ],
     'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'manda pra ana@x.com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
     'sombra com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'eu vou mercado e açim': [
@@ -109,6 +110,7 @@
     storage: { local: { get: async () => ({}), set: async (itens) => { gravados.push(itens); } }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
   };
 </script>
+<script src="../src/protecao.js"></script>
 <script src="../src/camada-estilo.js"></script>
 <script src="../src/content.js"></script>
 <script>
@@ -223,8 +225,16 @@
 
       passarMouse(tracos('gramatica')[0].getBoundingClientRect());
       await espera(100);
+      const semProtegidos = sombra().querySelector('.cartao .protegidos');
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('aplicar troca o texto no contenteditable', editavel.textContent, 'isso é assim mesmo');
+
+      await digitar(area, 'manda pra ana@x.com açim');
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca-gramatica').getBoundingClientRect());
+      await espera(100);
+      confere('o cartão diz quantos dados protegidos não saíram do navegador, e só quando há algum', [sombra().querySelector('.cartao .protegidos')?.textContent, semProtegidos], ['1 dado protegido não saiu do navegador', null]);
+      await apertarReal('Escape');
 
       await digitar(area, 'texto bom demais');
       await espera(1500);

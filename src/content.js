@@ -584,7 +584,13 @@
       botao('Ignorar', 'secundario', () => ignorar(estado, marcas)),
       ...(marcas.length === 1 && marcas[0].tipo === 'gramatica' && marcas[0].origem !== 'openrouter' ? [botao('Adicionar ao dicionário', 'secundario', () => adicionarAoDicionario(marcas[0]))] : []),
     );
-    montarCartao(`cartao cartao-${marcas[0].tipo}`, [cabecalho, previa, motivos, elemento('p', 'origem', `Via ${origens.join(' · ')}`), tons, acoes]);
+    montarCartao(`cartao cartao-${marcas[0].tipo}`, [cabecalho, previa, motivos, elemento('p', 'origem', `Via ${origens.join(' · ')}`), ...avisoDeProtegidos(trecho.paragrafo), tons, acoes]);
+  }
+
+  function avisoDeProtegidos(texto) {
+    const n = RevisorProtecao.mascarar(texto).itens.length;
+    if (!n) return [];
+    return [elemento('p', 'protegidos', n === 1 ? '1 dado protegido não saiu do navegador' : `${n} dados protegidos não saíram do navegador`)];
   }
 
   function montarCartao(classe, partes) {
@@ -808,7 +814,7 @@
     }
     const partes = [cabecalho, previa, motivos];
     if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `Via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
-    partes.push(seletorDeTom(v.tom, 'Manter', pedirVerificacao), acoes);
+    partes.push(...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, 'Manter', pedirVerificacao), acoes);
     montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
 

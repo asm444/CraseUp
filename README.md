@@ -76,6 +76,7 @@ Passe o mouse num sublinhado: o cartão abre colado ao campo, com todas as corre
 - O seletor **Tom** reescreve o trecho num destes tons: formal, profissional, neutro, amigável, casual, confiante, empático, persuasivo, LinkedIn ou advogado. O texto muda dentro do mesmo cartão, sem ele piscar nem trocar de lugar.
   - **LinkedIn** troca verbos vagos (fiz, ajudei, mexi) por verbos de ação e resultado (entreguei, implementei, liderei) e foca no impacto.
   - **Advogado** afirma só o que dá para provar, põe ressalva no lugar de afirmação absoluta e não admite culpa, obrigação nem prazo.
+- Quando o trecho tem dado sensível, o cartão diz quantos dados protegidos não saíram do navegador (veja **Privacidade**).
 - O cartão fecha no ×, no Esc ou com um clique fora dele.
 - O dicionário pessoal, em **Configurações**, vale para as três camadas.
 
@@ -124,6 +125,8 @@ podman run -d --name languagetool -p "$(tailscale ip -4):8010:8010" docker.io/er
 - Campos de senha e de cartão nunca são lidos.
 - Só o parágrafo que você alterou é revisado, depois de uma pausa de ~1,2 s na digitação.
 - O dicionário offline não envia nada para fora do navegador.
+- Antes de qualquer envio, inclusive ao LanguageTool local, dados sensíveis viram marcadores como `[EMAIL_1]`, `[SENHA_1]`, `[CPF_1]`, `[TELEFONE_1]` ou `[NUMERO_1]`, e o valor real volta só no navegador. Entram e-mail (também escrito como `ana arroba x ponto com`), link, senha, token e chave de API pelo rótulo ou pela forma, CPF, CNPJ, cartão, IBAN, telefone, CEP, data, valor em dinheiro, protocolo, processo, conta, placa, IP e números de 4 ou mais dígitos. O modelo pode reorganizar a frase; cada marcador volta no lugar novo.
+- A proteção reconhece a senha pela forma do valor (dígito, pontuação ou símbolo) e não pega senha de várias palavras comuns nem de 1 a 3 caracteres. Os limites estão em `docs/seguranca/auditoria-1.md`.
 - O parágrafo vai para o servidor LanguageTool e, quando o OpenRouter é chamado, para o provedor do modelo gratuito que atender. Provedores gratuitos podem registrar os textos; a política de cada um aparece na página do modelo no OpenRouter. Não use a revisão de estilo em texto que não pode sair do seu controle.
 - Você desliga a extensão numa aba pelo popup, ou exclui sites inteiros em **Configurações → Sites sem revisão**.
 
@@ -202,7 +205,7 @@ The popup shows today's usage. **Configurações → Consumo** (Settings → Usa
 
 ### Privacy
 
-Password and card fields are never read. Only the paragraph you changed is reviewed. The offline dictionary sends nothing out. The paragraph goes to your LanguageTool server and, when OpenRouter is called, to the free model provider that answers; free providers may log the texts, so don't use the style review on text that must stay under your control.
+Password and card fields are never read. Only the paragraph you changed is reviewed. The offline dictionary sends nothing out. Before anything leaves the browser, including to a local LanguageTool, sensitive data (e-mail, links, passwords, tokens, API keys, CPF, CNPJ, cards, IBAN, phones, dates, amounts, IDs and numbers with 4+ digits) becomes markers like `[EMAIL_1]`, and the real values come back only in the browser; the card tells how many protected items stayed home. Passwords are recognized by shape (digit, punctuation or symbol), so multi-word or 1–3 character passwords are not caught; see `docs/seguranca/auditoria-1.md`. The paragraph goes to your LanguageTool server and, when OpenRouter is called, to the free model provider that answers; free providers may log the texts, so don't use the style review on text that must stay under your control.
 
 ### Tests
 

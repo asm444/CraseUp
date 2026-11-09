@@ -126,7 +126,7 @@
       confere('sugestão do modelo volta com o e-mail verdadeiro; a que inventa ou apaga um dado protegido é descartada', sugerida.sugestoes.filter((x) => x.origem === 'openrouter').map((x) => [x.original, x.substituicao]), [['pra ana@x.com', 'para ana@x.com']]);
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
       const manifesto = await (await fetchReal('../manifest.json')).json();
-      confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/camada-estilo.js', 'src/content.js']]);
+      confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/protecao.js', 'src/camada-estilo.js', 'src/content.js']]);
       armazem.local.dicionario = ['xiquexiquezal', '4111 1111 1111 1111', ['sk-or-v1-', 'a'.repeat(40)].join('')];
       await revisar('texto com o dicionário cheio', true);
       const prompt = corposAoModelo.at(-1).messages[0].content;
