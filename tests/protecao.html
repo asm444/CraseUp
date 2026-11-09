@@ -98,6 +98,9 @@
   confere('com palavras entre o rótulo e o valor, a senha é mascarada e não a palavra do meio', [
     mascara('senha nova: hunter2'), mascara('a senha do wifi é hunter2'), mascara('my password was hunter2'), mascara('senha número hunter2'), mascara('a senha do wifi é a mesma'),
   ], ['senha nova: [SENHA_1]', 'a senha do wifi é [SENHA_1]', 'my password was [SENHA_1]', 'senha número [SENHA_1]', 'a senha do wifi é a mesma']);
+  confere('CPF com espaços e telefone 0800 são mascarados; números em grupo que não fecham o CPF ficam', [
+    mascara('cpf 529 982 247 25'), mascara('0800 123 4567'), mascara('tenho 123 456 789 10 itens'),
+  ], ['cpf [CPF_1]', '[TELEFONE_1]', 'tenho 123 456 789 10 itens']);
   const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1'];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
   confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true]);
