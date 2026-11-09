@@ -150,9 +150,20 @@
   };
   const digitar = async (el, texto) => {
     el.focus();
-    await apertarReal('Shift');
-    if ('value' in el) el.value = texto; else el.textContent = texto;
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
+    if ('value' in el) {
+      el.value = texto.slice(0, -1);
+      el.setSelectionRange(el.value.length, el.value.length);
+    } else {
+      el.textContent = texto.slice(0, -1);
+      const sel = el.getRootNode().getSelection ? el.getRootNode().getSelection() : getSelection();
+      sel.selectAllChildren(el);
+      sel.collapseToEnd();
+    }
+    await teclarReal(texto.slice(-1));
+    if ('value' in el) {
+      el.setSelectionRange(0, 0);
+      el.scrollTop = 0;
+    }
   };
   const tracos = (tipo, dentroDe) => [...sombra().querySelectorAll(`.traco-${tipo}`)].filter((t) => {
     if (!dentroDe) return true;
@@ -458,8 +469,8 @@
       confere('parcial com menos sugestões não apaga o que já está sublinhado', marcasDe('sem piscar'), ['açim']);
       await espera(1000);
 
-      modeloRico = 'rico com açim';
-      await digitar(rico, modeloRico);
+      modeloRico = 'rico com açim'.slice(0, -1);
+      await digitar(rico, 'rico com açim');
       await espera(1500);
       passarMouse(tracos('gramatica', rico)[0].getBoundingClientRect());
       await espera(100);
@@ -468,8 +479,8 @@
       confere('editor que só aceita mudança por beforeinput (Slate, CKEditor) guarda a troca do Substituir', [modeloRico, rico.textContent], ['rico com assim', 'rico com assim']);
       confere('quando o editor aplica a troca pelo beforeinput, a extensão não insere o texto de novo', desfeitasNoRico, 0);
 
-      modeloRico = 'rico bom demais';
-      await digitar(rico, modeloRico);
+      modeloRico = 'rico bom demais'.slice(0, -1);
+      await digitar(rico, 'rico bom demais');
       await espera(1500);
       passarMouse(tracos('clareza', rico)[0].getBoundingClientRect());
       await espera(100);
@@ -570,10 +581,7 @@
       await espera(1600);
       confere('tecla sintética da página não conta como interação do usuário', enviados.includes('a pagina fingiu uma tecla'), false);
       confere('input sintético, mutação por script e execCommand da página não disparam revisão', ['a pagina escreveu sozinha', 'a pagina mexeu no editor', 'a pagina usou execCommand'].filter((t) => enviados.includes(t)), []);
-      areaDaPagina.focus();
-      await apertarReal('Shift');
-      areaDaPagina.value = 'agora quem escreveu foi a pessoa';
-      areaDaPagina.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
+      await digitar(areaDaPagina, 'agora quem escreveu foi a pessoa');
       await espera(1600);
       confere('depois de uma tecla real no campo, a revisão volta a acontecer', enviados.includes('agora quem escreveu foi a pessoa'), true);
 
@@ -623,6 +631,22 @@
       }
       await espera(1600);
       confere('campos de senha mascarada, PIN, token, código, CPF e chave de API não são revisados', sensiveis.map(([, , texto]) => texto).filter((t) => enviados.includes(t)), []);
+
+      const areaTrocada = novo('textarea');
+      areaTrocada.focus();
+      await apertarReal('Shift');
+      for (let i = 0; i < 4; i++) {
+        areaTrocada.value = `a pagina trocou o texto ${i}`;
+        areaTrocada.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
+        await espera(300);
+      }
+      const editorTrocado = novo('div', true);
+      editorTrocado.focus();
+      await apertarReal('Shift');
+      await espera(1300);
+      editorTrocado.textContent = 'a pagina trocou o editor depois';
+      await espera(1600);
+      confere('depois de uma tecla real, troca de texto feita pela página não vira revisão', [0, 1, 2, 3].map((i) => `a pagina trocou o texto ${i}`).concat('a pagina trocou o editor depois').filter((t) => enviados.includes(t)), []);
       await clicar(sombra().querySelector('.cartao-verificacao .fechar'));
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);

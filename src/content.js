@@ -6,6 +6,7 @@
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const INTERACAO_VALE_MS = 15_000;
+  const MUTACAO_SEGUE_TECLA_MS = 1000;
   const NOME_DA_CAMADA = 'x-' + Math.random().toString(16).slice(2, 14).padEnd(12, '0');
   const PARAGRAFOS_POR_PAUSA = 3;
   const PARAGRAFOS_POR_PEDIDO = 10;
@@ -367,7 +368,7 @@
   }
 
   function aoDigitar(evento) {
-    if (!ativo) return;
+    if (!ativo || !evento.isTrusted) return;
     const estado = campoDoEvento(evento);
     if (estado) agendarRevisao(estado);
   }
@@ -382,7 +383,7 @@
     if (!ativo) return;
     const estado = campoDoEvento(evento);
     if (estado?.tipo !== 'editavel' || estado.mutacoes) return;
-    estado.mutacoes = new MutationObserver(() => agendarRevisao(estado));
+    estado.mutacoes = new MutationObserver(() => Date.now() - estado.interagiuEm < MUTACAO_SEGUE_TECLA_MS && agendarRevisao(estado));
     estado.mutacoes.observe(estado.el, { characterData: true, childList: true, subtree: true });
   }
 
