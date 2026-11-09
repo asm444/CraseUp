@@ -95,9 +95,12 @@
   confere('conectores encadeados e até 120 espaços entre o rótulo e o valor continuam mascarados', [
     mascara('senha é := hunter2'), mascara('senha é é hunter2'), mascara('senha' + ' '.repeat(120) + 'hunter2'), mascara('protocolo nº é 482913'), mascara('senha é' + ' '.repeat(120) + 'hunter2'),
   ], ['senha é := [SENHA_1]', 'senha é é [SENHA_1]', 'senha' + ' '.repeat(120) + '[SENHA_1]', 'protocolo nº é [PROTOCOLO_1]', 'senha é' + ' '.repeat(120) + '[SENHA_1]']);
-  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x'];
+  confere('com palavras entre o rótulo e o valor, a senha é mascarada e não a palavra do meio', [
+    mascara('senha nova: hunter2'), mascara('a senha do wifi é hunter2'), mascara('my password was hunter2'), mascara('senha número hunter2'), mascara('a senha do wifi é a mesma'),
+  ], ['senha nova: [SENHA_1]', 'a senha do wifi é [SENHA_1]', 'my password was [SENHA_1]', 'senha número [SENHA_1]', 'a senha do wifi é a mesma']);
+  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1'];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
-  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true]);
+  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true]);
   linhas.push(`     tempos em ms: ${tempos.map((ms) => ms.toFixed(1)).join(', ')}`);
 
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;

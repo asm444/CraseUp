@@ -31,6 +31,10 @@
   const LIGACAO = '\\s{0,120}(?:(?:n[ºo°]\\.?|número|numero|#|é|eh|e|=|:|is|-)\\s{0,120}){0,3}';
   const FIM_DE_TOKEN = /[.,;:!?)\]}"'»]+$/;
 
+  function temValorAdiante(m) {
+    return m.input.slice(m.index + m[0].length).split(/\s+/, 5).map((t) => t.replace(FIM_DE_TOKEN, '')).some((t) => t.length >= 4 && /[\p{N}\p{P}\p{S}]/u.test(t));
+  }
+
   function rotuloPorContexto(palavra, tabela, padrao) {
     return (tabela.find(([re]) => re.test(palavra)) || [null, padrao])[1];
   }
@@ -42,7 +46,13 @@
     {
       re: new RegExp(`(?<=\\b(${PALAVRAS_DE_SEGREDO})${LIGACAO})(?![:=])[^\\s]{4,}`, 'giu'),
       tipoDe: (m) => rotuloPorContexto(m[1], ROTULOS_DE_SEGREDO, 'SEGREDO'),
-      valido: (v, m) => /[\p{N}\p{P}\p{S}]/u.test(v) || /^(?:senha|password|passwd|passphrase|passcode|segredo|secret)$/i.test(m[1]),
+      valido: (v, m) => /[\p{N}\p{P}\p{S}]/u.test(v) || (/^(?:senha|password|passwd|passphrase|passcode|segredo|secret)$/i.test(m[1]) && !temValorAdiante(m)),
+      limpar: true,
+    },
+    {
+      re: new RegExp(`(?<=\\b(${PALAVRAS_DE_SEGREDO})(?:\\s{1,40}\\p{L}{1,20}[:,]?){1,4}${LIGACAO})(?![:=])[^\\s]{4,}`, 'giu'),
+      tipoDe: (m) => rotuloPorContexto(m[1], ROTULOS_DE_SEGREDO, 'SEGREDO'),
+      valido: (v) => /[\p{N}\p{P}\p{S}]/u.test(v),
       limpar: true,
     },
     {
