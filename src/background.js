@@ -42,6 +42,7 @@ chrome.contextMenus.onClicked.addListener((info, aba) => {
 chrome.runtime.onStartup.addListener(atualizarSeloGlobal);
 
 chrome.tabs.onRemoved.addListener(async (abaId) => {
+  chamadasPorAba.delete(abaId);
   const { abasPausadas = [] } = await chrome.storage.session.get('abasPausadas');
   if (abasPausadas.includes(abaId)) {
     await chrome.storage.session.set({ abasPausadas: abasPausadas.filter((id) => id !== abaId) });

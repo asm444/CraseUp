@@ -15,11 +15,12 @@
   });
   let aoMensagem = null;
   let aoConectar = null;
+  let aoFecharAba = null;
   const nada = { addListener() {} };
   globalThis.chrome = {
     runtime: { onInstalled: nada, onStartup: nada, onConnect: { addListener(fn) { aoConectar = fn; } }, onMessage: { addListener(fn) { aoMensagem = fn; } }, getURL: (p) => p },
     contextMenus: { onClicked: nada, removeAll() {}, create() {} },
-    tabs: { onRemoved: nada, create() {}, sendMessage: async () => {} },
+    tabs: { onRemoved: { addListener(fn) { aoFecharAba = fn; } }, create() {}, sendMessage: async () => {} },
     storage: { local: area('local'), session: area('session'), onChanged: nada },
     action: { setBadgeBackgroundColor: async () => {}, setBadgeText: async () => {} },
     permissions: { contains: async () => true },
@@ -155,6 +156,9 @@
       const estadoDaAbaCheia = armazem.local.camadas.openrouter.estado;
       await revisar('revisão de outra aba depois da rajada', true, 10);
       confere('a revisão também respeita o teto da aba, e o teto de uma aba não atinge outra', [estadoDaAbaCheia, armazem.local.camadas.openrouter.estado], ['limite_da_aba', 'ativa']);
+      await aoFecharAba(7);
+      await aoFecharAba(9);
+      confere('fechar a aba apaga o contador dela', [chamadasPorAba.has(7), chamadasPorAba.has(9), chamadasPorAba.has(8)], [false, false, true]);
     } catch (erro) {
       total++;
       linhas.push(`FALHA exceção: ${erro.message}`);
