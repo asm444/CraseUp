@@ -602,6 +602,22 @@
       ouvinte({ tipo: 'verificarAqui' });
       await espera(50);
       confere('contextmenu sintético da página não troca o campo que a pessoa escolheu verificar', reescritas.at(-1), ['texto que a pessoa escolheu', '']);
+
+      const sensiveis = [
+        ['input', { type: 'text', style: '-webkit-text-security: disc' }, 'senha mascarada por css'],
+        ['input', { type: 'text', name: 'pin' }, 'campo chamado pin'],
+        ['input', { type: 'text', name: 'auth_token' }, 'campo chamado token'],
+        ['input', { type: 'text', 'aria-label': 'Código de verificação' }, 'campo de codigo de verificacao'],
+        ['input', { type: 'text', placeholder: 'Seu CPF' }, 'campo de cpf'],
+        ['textarea', { name: 'chave-api' }, 'campo de chave de api'],
+      ];
+      for (const [tag, atributos, texto] of sensiveis) {
+        const campo = novo(tag);
+        for (const [nome, valor] of Object.entries(atributos)) campo.setAttribute(nome, valor);
+        await digitar(campo, texto);
+      }
+      await espera(1600);
+      confere('campos de senha mascarada, PIN, token, código, CPF e chave de API não são revisados', sensiveis.map(([, , texto]) => texto).filter((t) => enviados.includes(t)), []);
       await clicar(sombra().querySelector('.cartao-verificacao .fechar'));
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);

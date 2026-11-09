@@ -14,7 +14,7 @@
   const ATRASO_PARA_ESCONDER_MS = 250;
   const HOSTS_FORA_DO_ESCOPO = ['docs.google.com'];
   const EDITORES_DE_CODIGO = '.cm-editor,.CodeMirror,.monaco-editor,.ace_editor';
-  const CAMPO_SENSIVEL = /senha|password|passwd|cart[aã]o|card.?(num|number)|cc-?(num|number|csc|exp)|cvv|cvc|security.?code|validade|expira/i;
+  const CAMPO_SENSIVEL = /senha|password|passwd|cart[aã]o|card.?num|cc-?(num|csc|exp)|cvv|cvc|security.?code|validade|expira|\bpin\b|token|\botp\b|c[oó]digo.{0,4}(verifica|seguran|acesso)|\bcpf\b|\bcnpj\b|\bssn\b|segredo|secret|api.?key|chave.{0,4}api/i;
   const BLOCOS = new Set(['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TR', 'SECTION', 'ARTICLE']);
   const ROTULOS = { gramatica: 'Ortografia e gramática', clareza: 'Clareza', palavra: 'Troca de palavra', tom: 'Tom' };
   const ROTULOS_DE_ORIGEM = { offline: 'Dicionário offline', languagetool: 'LanguageTool', openrouter: 'OpenRouter' };
@@ -71,6 +71,7 @@
   function sensivel(el) {
     const auto = (el.getAttribute('autocomplete') || '').toLowerCase();
     if (auto.startsWith('cc-') || auto.includes('password') || auto === 'one-time-code') return true;
+    if (getComputedStyle(el).webkitTextSecurity !== 'none') return true;
     const pistas = ['name', 'id', 'aria-label', 'placeholder'].map((a) => el.getAttribute(a) || '').join(' ');
     return CAMPO_SENSIVEL.test(pistas);
   }
