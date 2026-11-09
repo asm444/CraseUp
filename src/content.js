@@ -7,6 +7,8 @@
   const ESPERA_MODELO_MS = 1200;
   const INTERACAO_VALE_MS = 15_000;
   const MUTACAO_SEGUE_TECLA_MS = 1000;
+  const REENVIO_INICIAL_MS = 5000;
+  const REENVIO_MAXIMO_MS = 5 * 60_000;
   const NOME_DA_CAMADA = 'x-' + Math.random().toString(16).slice(2, 14).padEnd(12, '0');
   const PARAGRAFOS_POR_PAUSA = 3;
   const PARAGRAFOS_POR_PEDIDO = 10;
@@ -25,6 +27,7 @@
   const campos = new Map();
   const cache = new Map();
   const provisorios = new Set();
+  const reenvios = new Map();
   const emVoo = new Set();
   let camada = null;
   let cartao = null;
@@ -157,12 +160,14 @@
       const maisAntigo = cache.keys().next().value;
       cache.delete(maisAntigo);
       provisorios.delete(maisAntigo);
+      reenvios.delete(maisAntigo);
     }
   }
 
   function limparCache() {
     cache.clear();
     provisorios.clear();
+    reenvios.clear();
   }
 
   function calcularMarcas(estado, texto) {
@@ -332,7 +337,7 @@
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
     const candidatos = dividirParagrafos(texto)
-      .filter((p) => revisavel(p.texto) && (pedido || !cache.has(p.texto) || (!rapida && provisorios.has(p.texto))));
+      .filter((p) => revisavel(p.texto) && (pedido || !cache.has(p.texto) || (!rapida && provisorios.has(p.texto) && !(Date.now() < reenvios.get(p.texto)?.em))));
     if (!rapida && candidatos.some((p) => emVoo.has(p.texto))) {
       clearTimeout(estado.timerModelo);
       estado.timerModelo = setTimeout(() => revisarCampo(estado, false), ESPERA_RAPIDA_MS);
@@ -351,6 +356,10 @@
             if (ativo && campos.get(estado.el) === estado) desenhar(estado);
           });
           if (resposta?.sugestoes) guardarNoCache(paragrafo, resposta.sugestoes, Boolean(resposta.provisorio));
+          if (!rapida && resposta?.provisorio) {
+            const tentativas = (reenvios.get(paragrafo)?.tentativas ?? 0) + 1;
+            reenvios.set(paragrafo, { tentativas, em: Date.now() + Math.min(REENVIO_INICIAL_MS * 2 ** (tentativas - 1), REENVIO_MAXIMO_MS) });
+          } else if (!rapida) reenvios.delete(paragrafo);
           if (resposta?.erro === 'pausado') definirAtivo(false);
         } catch {
           definirAtivo(false);

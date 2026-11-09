@@ -98,7 +98,7 @@
               setTimeout(() => ouvinteDaPorta({ final: { sugestoes } }), 1000);
               return;
             }
-            const provisorio = ['duas etapas açim', 'rápida lenta açim', 'sem piscar açim'].includes(msg.texto) && !msg.modelo;
+            const provisorio = (['duas etapas açim', 'rápida lenta açim', 'sem piscar açim'].includes(msg.texto) && !msg.modelo) || msg.texto === 'o modelo sempre falha açim';
             setTimeout(() => ouvinteDaPorta({ final: { sugestoes, provisorio } }), msg.texto === 'rápida lenta açim' && !msg.modelo ? 1500 : 0);
           },
         };
@@ -284,6 +284,15 @@
       await clicar(sombra().querySelector('.cartao .aplicar'));
       await espera(50);
       confere('a página mexe no editor no meio do Substituir e o resto da troca para em vez de corromper', editavel.textContent, 'ZZZZ tá bom, você vem?');
+
+      await digitar(area, 'o modelo sempre falha açim\noutro parágrafo');
+      area.setSelectionRange(area.value.length, area.value.length);
+      await espera(1300);
+      for (const tecla of ['a', 'b']) {
+        await teclarReal(tecla);
+        await espera(1300);
+      }
+      confere('parágrafo que o modelo não conseguiu revisar não volta a cada pausa', etapas.filter(([t, modelo]) => t === 'o modelo sempre falha açim' && modelo).length, 1);
 
       await digitar(area, 'eu vou mercado');
       await espera(1500);
