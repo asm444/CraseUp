@@ -9,7 +9,7 @@
   const MUTACAO_SEGUE_TECLA_MS = 1000;
   const REENVIO_INICIAL_MS = 5000;
   const REENVIO_MAXIMO_MS = 5 * 60_000;
-  const NOME_DA_CAMADA = 'x-' + Math.random().toString(16).slice(2, 14).padEnd(12, '0');
+  const NOME_DA_CAMADA = 'craseup-camada';
   const PARAGRAFOS_POR_PAUSA = 3;
   const PARAGRAFOS_POR_PEDIDO = 10;
   const ENTRADAS_NO_CACHE = 300;
@@ -55,7 +55,13 @@
 
   function aplicarTema(valor) {
     tema = valor || 'auto';
-    if (camada) camada.host.dataset.tema = tema;
+    if (camada) camada.estiloDoTema.textContent = cssDoTema();
+  }
+
+  function cssDoTema() {
+    const claro = `:host {${RevisorCoresClarasDaCamada}}`;
+    if (tema === 'claro') return claro;
+    return tema === 'escuro' ? '' : `@media (prefers-color-scheme: light) { ${claro} }`;
   }
 
   function definirAtivo(valor) {
@@ -201,11 +207,11 @@
     if (camada?.host.isConnected) return camada;
     const host = document.createElement(NOME_DA_CAMADA);
     host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
-    host.dataset.tema = tema;
     const sombra = host.attachShadow({ mode: 'closed' });
-    sombra.append(elemento('style', '', RevisorEstiloDaCamada));
+    const estiloDoTema = elemento('style', '', cssDoTema());
+    sombra.append(elemento('style', '', RevisorEstiloDaCamada), estiloDoTema);
     document.documentElement.append(host);
-    camada = { host, sombra };
+    camada = { host, sombra, estiloDoTema };
     return camada;
   }
 

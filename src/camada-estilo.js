@@ -1,3 +1,17 @@
+globalThis.RevisorCoresClarasDaCamada = `
+  --fundo: #F7F4EE;
+  --fundo-elevado: #FFFFFF;
+  --borda: #E2DCD0;
+  --texto: #1C1E27;
+  --texto-suave: #646A79;
+  --gramatica: #D6404E;
+  --clareza: #0E9F86;
+  --palavra: #B87A00;
+  --tom: #6B57E8;
+  --sobre-acento: #FFFFFF;
+  --sombra: rgba(40, 32, 20, 0.16);
+`;
+
 globalThis.RevisorEstiloDaCamada = `:host {
   --fundo: #12141B;
   --fundo-elevado: #1A1D27;
@@ -10,34 +24,6 @@ globalThis.RevisorEstiloDaCamada = `:host {
   --tom: #A594FF;
   --sobre-acento: #0D0F15;
   --sombra: rgba(4, 5, 10, 0.55);
-}
-:host([data-tema="claro"]) {
-  --fundo: #F7F4EE;
-  --fundo-elevado: #FFFFFF;
-  --borda: #E2DCD0;
-  --texto: #1C1E27;
-  --texto-suave: #646A79;
-  --gramatica: #D6404E;
-  --clareza: #0E9F86;
-  --palavra: #B87A00;
-  --tom: #6B57E8;
-  --sobre-acento: #FFFFFF;
-  --sombra: rgba(40, 32, 20, 0.16);
-}
-@media (prefers-color-scheme: light) {
-  :host(:not([data-tema="escuro"])) {
-    --fundo: #F7F4EE;
-    --fundo-elevado: #FFFFFF;
-    --borda: #E2DCD0;
-    --texto: #1C1E27;
-    --texto-suave: #646A79;
-    --gramatica: #D6404E;
-    --clareza: #0E9F86;
-    --palavra: #B87A00;
-    --tom: #6B57E8;
-    --sobre-acento: #FFFFFF;
-    --sombra: rgba(40, 32, 20, 0.16);
-  }
 }
 
 .espelho {

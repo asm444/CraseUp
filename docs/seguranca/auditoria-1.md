@@ -74,7 +74,7 @@ Confidencialidade do texto: desde `b350ea0` v0.13.0 (OpenRouter) e `6fa0325` v0.
 ## Limites conhecidos
 
 - S7: um impostor que imite `/v2/languages` passa na conferência; ele recebe o texto já mascarado.
-- S14: o elemento da camada, com nome sorteado, fica sob `<html>` desde a primeira marca ou cartão, inclusive o de "Verificar com o CraseUp", até a página fechar, e um site que procure elementos estranhos o encontra; o teste confere só o formato do nome, não que ele muda a cada carga.
+- S14/R9: uma página descobre que o CraseUp está instalado. O elemento `craseup-camada` fica sob `<html>` desde a primeira marca ou cartão até a página fechar, com `z-index` fixo, e um `MutationObserver` o vê entrar. O sorteio do nome (v0.13.17) não escondia nada e saiu; o tema deixou de ficar em atributo do elemento. Aceito: o que vaza é a presença, e não texto, sugestão ou chave, que seguem na sombra fechada e atrás de `isTrusted`.
 - A chave do OpenRouter fica em claro no `storage.local` do perfil (diretório `drwx------`).
 - `sensivel()` usa `\b` sem a flag `u`: "pinça" casa `pin` e o campo deixa de ser revisado; `otp`, `cnpj`, `ssn`, `segredo`, `secret` e `api key` não têm caso de teste.
 - O teto por aba e as conferências do servidor zeram quando o service worker reinicia; o teto do OpenRouter continua valendo.
