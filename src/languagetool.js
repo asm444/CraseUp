@@ -18,6 +18,14 @@
     return /\/v2$/.test(base) ? `${base}/check` : `${base}/v2/check`;
   }
 
+  function enderecoDeIdiomas(base) {
+    return /\/v2$/.test(base) ? `${base}/languages` : `${base}/v2/languages`;
+  }
+
+  function pareceLanguageTool(corpo) {
+    return Array.isArray(corpo) && corpo.some((idioma) => idioma?.longCode === 'pt-BR' && typeof idioma.name === 'string');
+  }
+
   function padraoDePermissao(base) {
     return `${new URL(base).origin}/*`;
   }
@@ -47,5 +55,5 @@
     return { sugestoes, abreviacoes, acusou: corpo.matches.length > 0 };
   }
 
-  raiz.RevisorLanguageTool = { ENDERECO_LOCAL, normalizarEndereco, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches };
+  raiz.RevisorLanguageTool = { ENDERECO_LOCAL, normalizarEndereco, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches };
 })(globalThis);

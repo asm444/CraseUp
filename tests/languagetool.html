@@ -26,6 +26,12 @@
     ], ['http://skynet:8010/v2/check', 'https://api.languagetool.org/v2/check', 'http://skynet:8010/*']);
   });
 
+  caso('a lista de idiomas sai do endereço base e só um LanguageTool com pt-BR é reconhecido', () => {
+    igual([L.enderecoDeIdiomas('http://skynet:8010'), L.enderecoDeIdiomas('https://api.languagetool.org/v2')], ['http://skynet:8010/v2/languages', 'https://api.languagetool.org/v2/languages']);
+    const real = [{ name: 'English (US)', code: 'en', longCode: 'en-US' }, { name: 'Portuguese (Brazil)', code: 'pt', longCode: 'pt-BR' }];
+    igual([real, {}, [], [{ name: 'x' }], 'ok', null].map(L.pareceLanguageTool), [true, false, false, false, false, false]);
+  });
+
   caso('corpo leva texto e idioma codificados', () => {
     igual(Object.fromEntries(new URLSearchParams(L.montarCorpo('à pé & cia', 'pt-BR'))), { text: 'à pé & cia', language: 'pt-BR' });
   });

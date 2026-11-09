@@ -3,7 +3,9 @@ importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'ven
 const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
-const { ENDERECO_LOCAL, enderecoDeVerificacao, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
+const { ENDERECO_LOCAL, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
+const CONFERENCIA_DO_SERVIDOR_VALE_MS = 10 * 60_000;
+const servidoresConferidos = new Map();
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
 const TEMPO_MAXIMO_CHAMADA_MS = 15_000;
 const TEMPO_MAXIMO_MODELO_MS = 30_000;
@@ -182,6 +184,13 @@ function matchesForaDosMarcadores(corpo, itens) {
 }
 
 async function consultarLanguageTool(base, texto, idioma) {
+  if (!(Date.now() - servidoresConferidos.get(base) < CONFERENCIA_DO_SERVIDOR_VALE_MS)) {
+    const conferencia = await fetch(enderecoDeIdiomas(base), { signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS) }).catch(() => null);
+    if (!conferencia) return semResposta('do servidor');
+    if (!conferencia.ok) return { estado: 'falha', mensagem: `HTTP ${conferencia.status}` };
+    if (!pareceLanguageTool(await conferencia.json().catch(() => null))) return { estado: 'falha', mensagem: 'o endereço não respondeu como um LanguageTool' };
+    servidoresConferidos.set(base, Date.now());
+  }
   const { texto: mascarado, itens } = mascarar(texto);
   let resposta;
   try {

@@ -58,6 +58,12 @@
       corposAoModelo.push(corpo);
       return new Response(JSON.stringify(respostaAoCorpo(corpo)), { status: 200 });
     }
+    if (String(url).includes('fora.exemplo')) throw new TypeError('Failed to fetch');
+    if (String(url).includes('quebrado.exemplo')) return new Response('erro', { status: 503 });
+    if (String(url).endsWith('/v2/languages')) {
+      const idiomas = String(url).includes('impostor.exemplo') ? { ok: true } : [{ name: 'Portuguese (Brazil)', code: 'pt', longCode: 'pt-BR' }];
+      return new Response(JSON.stringify(idiomas), { status: 200 });
+    }
     pedidosAoLanguageTool.push(String(url));
     const enviado = new URLSearchParams(opcoes.body).get('text');
     textosAoLanguageTool.push(enviado);
@@ -117,6 +123,16 @@
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
       const manifesto = await (await fetchReal('../manifest.json')).json();
       confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/camada-estilo.js', 'src/content.js']]);
+      armazem.local.languagetool = 'http://impostor.exemplo:8010';
+      await revisar('texto que não pode ir ao impostor');
+      confere('servidor que não responde como LanguageTool não recebe o texto', [textosAoLanguageTool.includes('texto que não pode ir ao impostor'), armazem.local.camadas.languagetool.estado], [false, 'falha']);
+      armazem.local.languagetool = 'http://fora.exemplo:8010';
+      await revisar('texto com o servidor fora do ar');
+      const foraDoAr = { ...armazem.local.camadas.languagetool };
+      armazem.local.languagetool = 'http://quebrado.exemplo:8010';
+      await revisar('texto com o servidor quebrado');
+      confere('servidor fora do ar ou com erro HTTP não é chamado de impostor', [foraDoAr.estado, foraDoAr.mensagem, armazem.local.camadas.languagetool.mensagem], ['falha', 'sem resposta do servidor', 'HTTP 503']);
+      delete armazem.local.languagetool;
       const respostasDaAba = [];
       const usoAntesDaRajada = armazem.local.uso.chamadas;
       for (let i = 0; i < 16; i++) respostasDaAba.push(await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: `texto da rajada ${i}`, tom: '' }, { tab: { id: 7 } }, pronto)));
