@@ -38,6 +38,7 @@
   ];
   const respostaAoCorpo = (corpo) => {
     const usuario = corpo.messages[1].content;
+    if (usuario === 'o modelo forja a origem') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'gramatica', origem: 'offline', original: 'forja', substituicao: 'forjou', motivo: 'm' }], segundosPoupados: 1 }) } }] };
     if (corpo.response_format.json_schema.name === 'revisao') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: usuario.includes('[EMAIL_1]') ? SUGESTOES_COM_MARCADOR : [], segundosPoupados: 10 }) } }] };
     return respostaDoModelo(REESCRITAS_COM_MARCADOR[usuario] ?? 'Eu vou ao mercado.');
   };
@@ -123,6 +124,8 @@
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
       const manifesto = await (await fetchReal('../manifest.json')).json();
       confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/camada-estilo.js', 'src/content.js']]);
+      const forjada = await revisar('o modelo forja a origem', true);
+      confere('sugestão do modelo leva a origem OpenRouter mesmo que ele diga outra', forjada.sugestoes.filter((x) => x.original === 'forja').map((x) => x.origem), ['openrouter']);
       armazem.local.languagetool = 'http://impostor.exemplo:8010';
       await revisar('texto que não pode ir ao impostor');
       confere('servidor que não responde como LanguageTool não recebe o texto', [textosAoLanguageTool.includes('texto que não pode ir ao impostor'), armazem.local.camadas.languagetool.estado], [false, 'falha']);

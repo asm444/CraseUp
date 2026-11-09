@@ -296,7 +296,7 @@ async function camadaModelo(texto, idioma, cfg) {
   const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario: cfg.dicionario, idioma, protecao }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
-  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, modelo: r.lida.modelo })) };
+  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, origem: 'openrouter', modelo: r.lida.modelo })) };
 }
 
 const MOTIVOS_SEM_REESCRITA = {
