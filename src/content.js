@@ -6,6 +6,7 @@
   const ESPERA_RAPIDA_MS = 250;
   const ESPERA_MODELO_MS = 1200;
   const INTERACAO_VALE_MS = 15_000;
+  const NOME_DA_CAMADA = 'x-' + Math.random().toString(16).slice(2, 14).padEnd(12, '0');
   const PARAGRAFOS_POR_PAUSA = 3;
   const PARAGRAFOS_POR_PEDIDO = 10;
   const ENTRADAS_NO_CACHE = 300;
@@ -192,7 +193,7 @@
 
   function garantirCamada() {
     if (camada?.host.isConnected) return camada;
-    const host = document.createElement('revisor-gemini-camada');
+    const host = document.createElement(NOME_DA_CAMADA);
     host.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
     host.dataset.tema = tema;
     const sombra = host.attachShadow({ mode: 'closed' });

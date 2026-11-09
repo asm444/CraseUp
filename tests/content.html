@@ -48,10 +48,14 @@
   };
   globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 16);
   let raizDaCamada = null;
+  let hostDaCamada = null;
   const attachShadowOriginal = Element.prototype.attachShadow;
   Element.prototype.attachShadow = function (opcoes) {
     const raiz = attachShadowOriginal.call(this, opcoes);
-    if (this.localName === 'revisor-gemini-camada') raizDaCamada = raiz;
+    if (opcoes?.mode === 'closed') {
+      raizDaCamada = raiz;
+      hostDaCamada = this;
+    }
     return raiz;
   };
   const enviados = [];
@@ -188,7 +192,8 @@
       confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'Via OpenRouter');
       confere('motivo e rótulos do cartão começam com maiúscula', [cartao?.querySelector('.motivo')?.textContent, cartao?.querySelector('.escolha-tom option')?.textContent], ['Falta preposição', 'Ajustar…']);
       confere('com um trecho só, o cartão não pagina', cartao?.querySelector('.pagina'), null);
-      confere('a página não alcança a camada do cartão pelo shadowRoot', document.querySelector('revisor-gemini-camada').shadowRoot, null);
+      confere('a página não alcança a camada do cartão pelo shadowRoot', hostDaCamada.shadowRoot, null);
+      confere('a camada não tem nome fixo que a página possa procurar', [document.querySelector('revisor-gemini-camada'), /^[a-z]+-[a-z0-9]{8,}$/.test(hostDaCamada.localName)], [null, true]);
       cartao.querySelector('.aplicar').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true }));
       confere('apertar o mouse dentro do cartão não o fecha', sombra().querySelector('.cartao') === cartao, true);
       const escolhaSintetica = cartao.querySelector('.escolha-tom');
