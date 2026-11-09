@@ -92,9 +92,12 @@
   confere('rótulo separado do valor por vários espaços ou quebras de linha continua mascarado', [
     mascara('senha    Tr0ub4dor&3'), mascara('senha:\n\n\n\nTr0ub4dor&3'), mascara('protocolo          482913'), mascara('senha := hunter2'),
   ], ['senha    [SENHA_1]', 'senha:\n\n\n\n[SENHA_1]', 'protocolo          [PROTOCOLO_1]', 'senha := [SENHA_1]']);
-  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x'];
+  confere('conectores encadeados e até 120 espaços entre o rótulo e o valor continuam mascarados', [
+    mascara('senha é := hunter2'), mascara('senha é é hunter2'), mascara('senha' + ' '.repeat(120) + 'hunter2'), mascara('protocolo nº é 482913'), mascara('senha é' + ' '.repeat(120) + 'hunter2'),
+  ], ['senha é := [SENHA_1]', 'senha é é [SENHA_1]', 'senha' + ' '.repeat(120) + '[SENHA_1]', 'protocolo nº é [PROTOCOLO_1]', 'senha é' + ' '.repeat(120) + '[SENHA_1]']);
+  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x'];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
-  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true]);
+  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true]);
   linhas.push(`     tempos em ms: ${tempos.map((ms) => ms.toFixed(1)).join(', ')}`);
 
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
