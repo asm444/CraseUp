@@ -688,9 +688,11 @@
         el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
         return;
       }
+      const original = lerTextoEditavel(el).texto;
       for (const e of ordem) {
         await new Promise((pronto) => setTimeout(pronto, 0));
-        const { mapa } = lerTextoEditavel(el);
+        const { texto, mapa } = lerTextoEditavel(el);
+        if (texto.slice(0, e.fim) !== original.slice(0, e.fim)) return;
         const inicio = pontoNoDom(mapa, e.inicio);
         const fim = pontoNoDom(mapa, e.fim);
         if (!inicio || !fim) return;

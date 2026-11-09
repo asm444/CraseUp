@@ -276,6 +276,15 @@
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('Substituir troca tudo do trecho no contenteditable', editavel.textContent, 'está bom, você vem?');
 
+      await digitar(editavel, 'tá bom, vc vem?');
+      await espera(1500);
+      passarMouse(tracos('tom')[0].getBoundingClientRect());
+      await espera(100);
+      editavel.addEventListener('beforeinput', () => setTimeout(() => editavel.prepend('ZZZZ ')), { once: true });
+      await clicar(sombra().querySelector('.cartao .aplicar'));
+      await espera(50);
+      confere('a página mexe no editor no meio do Substituir e o resto da troca para em vez de corromper', editavel.textContent, 'ZZZZ tá bom, você vem?');
+
       await digitar(area, 'eu vou mercado');
       await espera(1500);
       passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
