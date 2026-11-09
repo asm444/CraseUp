@@ -52,7 +52,9 @@
     ],
   };
   const fetchReal = globalThis.fetch;
+  const redirecionamentos = new Map();
   globalThis.fetch = async (url, opcoes) => {
+    if (/^https?:/.test(String(url))) redirecionamentos.set(new URL(String(url)).pathname, opcoes?.redirect);
     if (String(url) === 'https://openrouter.ai/api/v1/models') return new Response(JSON.stringify({ data: [{ id: 'liquid/lfm-2.5-2.6b', pricing: { prompt: '0.00000035', completion: '0.0000005' } }] }), { status: 200 });
     if (String(url).startsWith('https://openrouter.ai/')) {
       const corpo = JSON.parse(opcoes.body);
@@ -129,6 +131,8 @@
       const prompt = corposAoModelo.at(-1).messages[0].content;
       confere('o dicionário vai ao modelo sem os termos que a proteção esconderia', [prompt.includes('xiquexiquezal'), prompt.includes('4111'), prompt.includes('sk-or-v1-')], [true, false, false]);
       delete armazem.local.dicionario;
+      await new Promise((pronto) => aoMensagem({ tipo: 'testarChave', chave: 'x' }, { url: 'chrome-extension://teste/' }, pronto));
+      confere('nenhuma chamada externa segue redirecionamento', [...redirecionamentos].filter(([, r]) => r !== 'error').map(([caminho]) => caminho), []);
       const forjada = await revisar('o modelo forja a origem', true);
       confere('sugestão do modelo leva a origem OpenRouter mesmo que ele diga outra', forjada.sugestoes.filter((x) => x.original === 'forja').map((x) => x.origem), ['openrouter']);
       armazem.local.languagetool = 'http://impostor.exemplo:8010';

@@ -96,7 +96,7 @@ async function atualizarPrecos() {
   const { precos } = await chrome.storage.local.get('precos');
   if (precos?.data === hoje()) return;
   try {
-    const resposta = await fetch(`${ENDPOINT}models`, { signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS) });
+    const resposta = await fetch(`${ENDPOINT}models`, { redirect: 'error', signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS) });
     const { data } = await resposta.json();
     await chrome.storage.local.set({ precos: { data: hoje(), porModelo: precosPagos(data) } });
   } catch {}
@@ -185,7 +185,7 @@ function matchesForaDosMarcadores(corpo, itens) {
 
 async function consultarLanguageTool(base, texto, idioma) {
   if (!(Date.now() - servidoresConferidos.get(base) < CONFERENCIA_DO_SERVIDOR_VALE_MS)) {
-    const conferencia = await fetch(enderecoDeIdiomas(base), { signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS) }).catch(() => null);
+    const conferencia = await fetch(enderecoDeIdiomas(base), { redirect: 'error', signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS) }).catch(() => null);
     if (!conferencia) return semResposta('do servidor');
     if (!conferencia.ok) return { estado: 'falha', mensagem: `HTTP ${conferencia.status}` };
     if (!pareceLanguageTool(await conferencia.json().catch(() => null))) return { estado: 'falha', mensagem: 'o endereço não respondeu como um LanguageTool' };
@@ -195,6 +195,7 @@ async function consultarLanguageTool(base, texto, idioma) {
   let resposta;
   try {
     resposta = await fetch(enderecoDeVerificacao(base), {
+      redirect: 'error',
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: montarCorpo(mascarado, idioma),
@@ -240,6 +241,7 @@ async function chamarModelo(requisicao, cfg) {
   let resposta;
   try {
     resposta = await fetch(`${ENDPOINT}chat/completions`, {
+      redirect: 'error',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.chaveOpenrouter}`, 'X-Title': 'CraseUp' },
       body: JSON.stringify(requisicao),
@@ -324,6 +326,7 @@ async function reescrever(texto, tom, abaId) {
 async function testarChave(chave) {
   try {
     const resposta = await fetch(`${ENDPOINT}key`, {
+      redirect: 'error',
       headers: { Authorization: `Bearer ${chave}` },
       signal: AbortSignal.timeout(TEMPO_MAXIMO_CHAMADA_MS),
     });
