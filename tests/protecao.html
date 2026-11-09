@@ -104,9 +104,12 @@
   confere('e-mail escrito por extenso ou com espaços é mascarado; arroba e ponto soltos na frase não', [
     mascara('ana arroba x ponto com'), mascara('escreve pra ana @ x.com amanhã'), mascara('joao [at] empresa [dot] com'), mascara('a arroba é um símbolo'), mascara('fui ao ponto de ônibus'),
   ], ['[EMAIL_1]', 'escreve pra [EMAIL_1] amanhã', '[EMAIL_1]', 'a arroba é um símbolo', 'fui ao ponto de ônibus']);
-  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1', 'a@ '.repeat(1330)];
+  confere('valor com cara de senha antes do rótulo é mascarado; palavra comum antes do rótulo não', [
+    mascara('hunter2 é a senha'), mascara('Xk9#mPq2 is the password'), mascara('essa é a senha'), mascara('ana@x.com é o token'),
+  ], ['[SENHA_1] é a senha', '[SENHA_1] is the password', 'essa é a senha', '[EMAIL_1] é o token']);
+  const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1', 'a@ '.repeat(1330), 'ab1 é a '.repeat(500)];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
-  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true, true]);
+  confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true, true, true]);
   linhas.push(`     tempos em ms: ${tempos.map((ms) => ms.toFixed(1)).join(', ')}`);
 
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;

@@ -104,6 +104,12 @@
     { tipo: 'CEP', re: /\b\d{5}-\d{3}\b/g },
     { tipo: 'DATA', re: /\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b/g },
     { tipo: 'VALOR', re: /(?:R\$|US\$|\$|€|£)\s?\d[\d.,]*/g },
+    {
+      re: new RegExp(`(?<![^\\s])[^\\s]{4,}(?=\\s{1,40}(?:(?:é|eh|is|was|era|foi|=|:)\\s{1,40})?(?:(?:a|o|the|my|minha|meu|sua|seu)\\s{1,40})?(${PALAVRAS_DE_SEGREDO})\\b)`, 'giu'),
+      tipoDe: (m) => rotuloPorContexto(m[1], ROTULOS_DE_SEGREDO, 'SEGREDO'),
+      valido: (v) => /[\p{N}\p{P}\p{S}]/u.test(v),
+      limpar: true,
+    },
     { tipo: 'SEGREDO', re: /(?<![\p{L}\p{N}])(?=[^\s]{8,})(?=[^\s]*\p{N})(?=[^\s]*\p{L})[^\s]+/gu, valido: pareceSegredo, limpar: true },
     { tipo: 'SEGREDO', re: /\b[a-f0-9]{32,}\b|\b[A-Za-z0-9+/]{32,}={0,2}(?![\p{L}\p{N}])/gu },
     { tipo: 'NUMERO', re: /\d+(?:[.,\-/:]\d+)+|\d{4,}/g, valido: (v) => v.match(/\d/g).length >= 4 },
