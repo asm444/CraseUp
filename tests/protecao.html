@@ -89,6 +89,9 @@
   confere('converte posição do texto mascarado para o original e recusa posição dentro do marcador', [P.posicaoOriginal(0, m.itens), P.posicaoOriginal(m.texto.indexOf('tudo'), m.itens), P.posicaoOriginal(5, m.itens)], [0, 'oi ana@x.com '.length, null]);
   confere('validadores: Luhn, CPF e IBAN recusam dígito errado', [P.luhnValido('4111111111111112'), P.cpfValido('52998224724'), P.ibanValido('GB82WEST12345698765433')], [false, false, false]);
 
+  confere('rótulo separado do valor por vários espaços ou quebras de linha continua mascarado', [
+    mascara('senha    Tr0ub4dor&3'), mascara('senha:\n\n\n\nTr0ub4dor&3'), mascara('protocolo          482913'), mascara('senha := hunter2'),
+  ], ['senha    [SENHA_1]', 'senha:\n\n\n\n[SENHA_1]', 'protocolo          [PROTOCOLO_1]', 'senha := [SENHA_1]']);
   const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x'];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
   confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true]);
