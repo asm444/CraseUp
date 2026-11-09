@@ -124,6 +124,11 @@
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
       const manifesto = await (await fetchReal('../manifest.json')).json();
       confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/camada-estilo.js', 'src/content.js']]);
+      armazem.local.dicionario = ['xiquexiquezal', '4111 1111 1111 1111', ['sk-or-v1-', 'a'.repeat(40)].join('')];
+      await revisar('texto com o dicionário cheio', true);
+      const prompt = corposAoModelo.at(-1).messages[0].content;
+      confere('o dicionário vai ao modelo sem os termos que a proteção esconderia', [prompt.includes('xiquexiquezal'), prompt.includes('4111'), prompt.includes('sk-or-v1-')], [true, false, false]);
+      delete armazem.local.dicionario;
       const forjada = await revisar('o modelo forja a origem', true);
       confere('sugestão do modelo leva a origem OpenRouter mesmo que ele diga outra', forjada.sugestoes.filter((x) => x.original === 'forja').map((x) => x.origem), ['openrouter']);
       armazem.local.languagetool = 'http://impostor.exemplo:8010';

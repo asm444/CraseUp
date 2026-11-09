@@ -293,7 +293,8 @@ function restaurarSugestao(s, itens) {
 async function camadaModelo(texto, idioma, cfg) {
   const { texto: mascarado, itens } = mascarar(texto);
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario: cfg.dicionario, idioma, protecao }), cfg, lerResposta);
+  const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
   return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, origem: 'openrouter', modelo: r.lida.modelo })) };
