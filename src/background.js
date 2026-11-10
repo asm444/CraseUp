@@ -1,4 +1,4 @@
-importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'vendor/hunspell.js');
+importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'vendor/hunspell.js');
 
 const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, filtrarSugestoes, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
@@ -27,7 +27,13 @@ const MENU_VERIFICAR = 'craseup-verificar';
 
 const hoje = () => new Date().toLocaleDateString('sv');
 
+async function arrumarArmazem() {
+  await RevisorArmazem.migrar(chrome.storage.local);
+  await RevisorArmazem.limparExpirados(chrome.storage.local);
+}
+
 chrome.runtime.onInstalled.addListener(({ reason }) => {
+  arrumarArmazem();
   if (reason === 'install') chrome.tabs.create({ url: chrome.runtime.getURL('src/options.html?bemvindo=1') });
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: MENU_VERIFICAR, title: 'Verificar com o CraseUp', contexts: ['editable', 'selection'] });
@@ -39,7 +45,10 @@ chrome.contextMenus.onClicked.addListener((info, aba) => {
   if (info.menuItemId !== MENU_VERIFICAR || aba?.id === undefined) return;
   chrome.tabs.sendMessage(aba.id, { tipo: 'verificarAqui' }, { frameId: info.frameId }).catch(() => {});
 });
-chrome.runtime.onStartup.addListener(atualizarSeloGlobal);
+chrome.runtime.onStartup.addListener(() => {
+  arrumarArmazem();
+  atualizarSeloGlobal();
+});
 
 chrome.tabs.onRemoved.addListener(async (abaId) => {
   chamadasPorAba.delete(abaId);

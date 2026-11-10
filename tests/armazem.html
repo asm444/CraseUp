@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="resultado">NAO EXECUTADO</pre>
+<script src="../src/protecao.js"></script>
+<script src="../src/armazem.js"></script>
+<script>
+  const A = RevisorArmazem;
+  const linhas = [];
+  let ok = 0, total = 0;
+  const confere = (nome, valor, esperado) => {
+    total++;
+    if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
+    else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
+  };
+  const area = (inicial = {}) => {
+    const dados = structuredClone(inicial);
+    return {
+      dados,
+      async get(chaves) {
+        const lista = Array.isArray(chaves) ? chaves : [chaves];
+        return Object.fromEntries(lista.filter((c) => c in dados).map((c) => [c, structuredClone(dados[c])]));
+      },
+      async set(itens) { Object.assign(dados, structuredClone(itens)); },
+      async remove(chaves) { for (const c of [].concat(chaves)) delete dados[c]; },
+    };
+  };
+  const DIA = 86_400_000;
+  const rejeita = async (fn) => { try { await fn(); return false; } catch { return true; } };
+
+  (async () => {
+    try {
+      const antiga = area({
+        dicionario: [' Jusgrok ', 'Jusgrok', '', 7, 'CraseUp'],
+        consumo: { '2026-11-09': { 'm:free': { chamadas: 1 } }, lixo: { x: 1 }, '2026-11-08': 3 },
+        camadas: { openrouter: { estado: 'ativa', em: 1 }, velha: { estado: 'ativa' }, offline: { mensagem: 'sem estado' } },
+        tema: 'escuro',
+      });
+      confere('migra a versão atual: dicionário sem repetição, consumo só por data, camadas conhecidas, resto intocado', [await A.migrar(antiga), antiga.dados], [1, {
+        dicionario: ['Jusgrok', 'CraseUp'],
+        consumo: { '2026-11-09': { 'm:free': { chamadas: 1 } } },
+        camadas: { openrouter: { estado: 'ativa', em: 1 } },
+        tema: 'escuro',
+        versaoDoArmazem: 1,
+      }]);
+      const ja = area({ versaoDoArmazem: 1, dicionario: ['', 'x'] });
+      confere('armazém já migrado não é mexido de novo', [await A.migrar(ja), ja.dados.dicionario], [1, ['', 'x']]);
+
+      const a = area();
+      await A.gravar(a, 'cache', 'p1', ['[EMAIL_1] chegou'], { agora: 0 });
+      await A.gravar(a, 'cache', 'p2', ['outro'], { agora: DIA - 1 });
+      confere('a entrada do cache vale até expirar e some depois', [await A.ler(a, 'cache', 'p1', { agora: DIA - 1 }), await A.ler(a, 'cache', 'p1', { agora: DIA })], [['[EMAIL_1] chegou'], undefined]);
+      await A.limparExpirados(a, { agora: DIA });
+      confere('limpar expirados tira do armazenamento o que venceu', Object.keys(a.dados.cache), ['p2']);
+
+      const b = area();
+      for (let i = 0; i < 302; i++) await A.gravar(b, 'cache', `p${i}`, [i], { agora: i });
+      confere('o teto da coleção descarta as entradas mais antigas', [Object.keys(b.dados.cache).length, 'p0' in b.dados.cache, 'p1' in b.dados.cache, 'p301' in b.dados.cache], [300, false, false, true]);
+
+      confere('texto em claro não entra sem opt-in, e dado sensível não entra no cache', [
+        await rejeita(() => A.gravar(area(), 'historico', 'f', 'bom dia, equipe')),
+        await rejeita(() => A.gravar(area(), 'historico', 'f', 'bom dia, equipe', { optIn: true })),
+        await rejeita(() => A.gravar(area(), 'cache', 'p', ['manda pra ana@x.com'])),
+      ], [true, false, true]);
+
+      const c = area({ cache: {}, historico: {}, dicionario: ['x'], chaveOpenrouter: 'k', tema: 'claro' });
+      await A.apagarTudo(c);
+      confere('apagar tudo tira os dados e deixa a configuração', Object.keys(c.dados).sort(), ['chaveOpenrouter', 'tema']);
+    } catch (erro) {
+      total++;
+      linhas.push(`FALHA exceção: ${erro.message}`);
+    }
+    document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
+  })();
+</script>
