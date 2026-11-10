@@ -266,6 +266,12 @@
     return -1;
   }
 
+  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario }) {
+    const casual = tom === 'casual';
+    const protegidos = casual ? abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length })) : [];
+    return filtrarSugestoes(texto, [...offline, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos });
+  }
+
   function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [] } = {}) {
     const aceitas = protegidos.map(({ inicio, fim }) => ({ inicio, fim, protegido: true }));
     const prioridade = (s) => -ORIGENS.indexOf(ORIGENS.includes(s?.origem) ? s.origem : 'openrouter');
@@ -443,6 +449,7 @@
     contemPalavraDoDicionario,
     contarPalavras,
     filtrarSugestoes,
+    juntarCamadas,
     aplicarNoParagrafo,
     trechosDoParagrafo,
     partesDoTrecho,
