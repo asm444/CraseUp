@@ -124,7 +124,7 @@
     const sistema = sistemaDe(req);
     igual([sistema.includes('formal ('), sistema.includes('Jusgrok'), req.messages[1], req.response_format.type, req.response_format.json_schema.strict,
       req.response_format.json_schema.schema.properties.sugestoes.items.properties.tipo.enum],
-    [true, true, { role: 'user', content: 'oi' }, 'json_schema', true, ['gramatica', 'clareza', 'palavra', 'tom']]);
+    [true, true, { role: 'user', content: '<texto>\noi\n</texto>' }, 'json_schema', true, ['gramatica', 'clareza', 'palavra', 'tom']]);
   });
 
   caso('roteia só entre modelos gratuitos e só por provedores que aceitam o schema', () => {
@@ -151,7 +151,7 @@
     const req = C.montarReescrita('vc vem?', { tom: 'empatico', idioma: 'en-US' });
     const sistema = sistemaDe(req);
     igual([sistema.includes('em inglês, no tom empático ('), req.messages[1].content, req.response_format.json_schema.schema.required, req.models.every((m) => m.endsWith(':free'))],
-      [true, 'vc vem?', ['texto', 'segundosPoupados'], true]);
+      [true, '<texto>\nvc vem?\n</texto>', ['texto', 'segundosPoupados'], true]);
   });
 
   caso('tom LinkedIn pede verbos de ação e tom Advogado pede escrita defensiva', () => {
@@ -245,6 +245,11 @@
   caso('o esquema do modelo exige categoria, confiança e regra', () => {
     const itens = C.montarRequisicao('oi', { tom: '', idioma: 'pt-BR' }).response_format.json_schema.schema.properties.sugestoes.items;
     igual([itens.required, itens.properties.categoria.enum], [['tipo', 'original', 'substituicao', 'motivo', 'categoria', 'confianca', 'regra'], C.CATEGORIAS]);
+  });
+
+  caso('troca que acrescenta link com https, www ou e-mail é descartada; link que já estava no original passa', () => {
+    const troca = (substituicao, original = 'relatório') => C.filtrarSugestoes(`mande o ${original}`, [{ ...s('palavra', original, substituicao) }]).length;
+    igual([troca('relatório em https://golpe.exemplo'), troca('relatório em www.golpe.exemplo'), troca('relatório para ana@golpe.exemplo'), troca('site https://x.exemplo/a', 'site https://x.exemplo'), troca('documento')], [0, 0, 0, 1, 1]);
   });
 
   const linhas = [];
