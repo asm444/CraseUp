@@ -33,5 +33,13 @@
   confere('a mesma palavra repetida 40 mil vezes é medida em menos de 1 s', [muitas, ms < 1000], [39999, true]);
   linhas.push(`     distancias com 40 mil repetições: ${ms.toFixed(0)} ms`);
 
+  const abreviado = 'Sr. Silva chegou. '.repeat(20000);
+  const t1 = performance.now();
+  const quantas = A.frases(abreviado).length;
+  const ms1 = performance.now() - t1;
+  confere('texto com 20 mil abreviações é dividido em frases em menos de 1 s', [quantas, ms1 < 1000], [20000, true]);
+  linhas.push(`     frases com 20 mil abreviações: ${ms1.toFixed(0)} ms`);
+  confere('idioma com nome de propriedade do objeto cai no português', A.distancias('a casa casa', '__proto__').get('cas'), [1]);
+
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
 </script>

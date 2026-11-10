@@ -18,7 +18,7 @@
     let inicio = 0;
     for (let i = 0; i < texto.length; i++) {
       const c = texto[i];
-      if (c !== '!' && c !== '?' && c !== '…' && (c !== '.' || ABREVIACOES.has(texto.slice(0, i).match(/(?:\p{L}+\.)*\p{L}+$/u)?.[0].toLowerCase()))) continue;
+      if (c !== '!' && c !== '?' && c !== '…' && (c !== '.' || ABREVIACOES.has(texto.slice(Math.max(0, i - 40), i).match(/(?:\p{L}+\.)*\p{L}+$/u)?.[0].toLowerCase()))) continue;
       let fim = i + 1;
       while (/[."'”»)]/.test(texto[fim])) fim++;
       const resto = texto.slice(fim).match(/^\s+(\S)/u);
@@ -44,7 +44,7 @@
   }
 
   function ehStopword(palavra, idioma) {
-    return (STOPWORDS[idioma] || STOPWORDS['pt-BR']).has(palavra.toLowerCase());
+    return (Object.hasOwn(STOPWORDS, idioma) ? STOPWORDS[idioma] : STOPWORDS['pt-BR']).has(palavra.toLowerCase());
   }
 
   function radical(palavra, idioma) {
@@ -54,7 +54,7 @@
     };
     const p = palavra.toLowerCase();
     const singular = p.endsWith('s') && !p.endsWith('ões') && p.length > 4 ? p.slice(0, -1) : p;
-    const sufixo = (SUFIXOS[idioma] || SUFIXOS['pt-BR']).find((s) => singular.endsWith(s) && singular.length - s.length >= 3);
+    const sufixo = (Object.hasOwn(SUFIXOS, idioma) ? SUFIXOS[idioma] : SUFIXOS['pt-BR']).find((s) => singular.endsWith(s) && singular.length - s.length >= 3);
     return sufixo ? singular.slice(0, -sufixo.length) : singular;
   }
 
