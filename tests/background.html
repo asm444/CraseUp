@@ -108,6 +108,11 @@
       delete armazem.local.languagetool;
       await revisar('outro texto para revisar');
       confere('com servidor salvo, o LanguageTool salvo é usado; sem servidor, o desta máquina', pedidosAoLanguageTool, ['http://lt.exemplo:8010/v2/check', 'http://localhost:8010/v2/check']);
+      const metricas = armazem.local.camadas;
+      confere('cada camada grava estado, tipo de erro e latência, e nenhum texto revisado', [
+        ['offline', 'languagetool', 'openrouter'].map((n) => [Object.keys(metricas[n]).sort().join(','), Number.isInteger(metricas[n].latenciaMs) && metricas[n].latenciaMs >= 0]),
+        metricas.offline.erro, metricas.languagetool.erro, JSON.stringify(metricas).includes('para revisar'),
+      ], [[['em,erro,estado,latenciaMs,mensagem', true], ['em,erro,estado,latenciaMs,mensagem', true], ['em,erro,estado,latenciaMs,mensagem', true]], metricas.offline.estado === 'ativa' ? null : metricas.offline.estado, null, false]);
       const comEmail = await revisar('oi joana@x.com.br amanha');
       confere('o LanguageTool recebe o marcador no lugar do e-mail', [textosAoLanguageTool.at(-1), textosAoLanguageTool.some((t) => t.includes('joana@x.com.br'))], ['oi [EMAIL_1] amanha', false]);
       confere('a correção do LanguageTool volta na posição do texto original, e a que cai no marcador ou o atravessa é descartada', comEmail.sugestoes.filter((x) => x.origem === 'languagetool').map((x) => [x.original, x.substituicao, x.inicio]), [['amanha', 'amanhã', 18]]);

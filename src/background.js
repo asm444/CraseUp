@@ -132,21 +132,32 @@ async function camadaOffline(texto) {
   }
 }
 
+const ESTADOS_SEM_ERRO = new Set(['ativa', 'ocioso', 'bloqueado']);
+const POLITICA = {
+  adiarModelo: ({ modelo, languagetool }) => !modelo && languagetool.estado === 'ativa' && languagetool.acusou,
+};
+
+async function executarCamada(executar) {
+  const inicio = performance.now();
+  const resultado = await executar();
+  return { ...resultado, latenciaMs: Math.round(performance.now() - inicio) };
+}
+
 async function revisar(texto, abaId, { pedido, modelo }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
   const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool'])), abaId };
   let protegidos = [];
   const juntar = (...listas) => filtrarSugestoes(texto, listas.flat(), { dicionario: cfg.dicionario || [], protegidos });
-  const offline = await camadaOffline(texto);
+  const offline = await executarCamada(() => camadaOffline(texto));
   aoAvancar({ sugestoes: juntar(offline.sugestoes) });
-  const languagetool = await camadaLanguageTool(texto, offline.idioma, cfg.languagetool);
+  const languagetool = await executarCamada(() => camadaLanguageTool(texto, offline.idioma, cfg.languagetool));
   const abreviacoes = languagetool.abreviacoes || [];
   const casual = cfg.tom === 'casual';
   if (casual) protegidos = abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length }));
   const rapidas = [offline.sugestoes, languagetool.sugestoes || [], casual ? [] : abreviacoes];
   aoAvancar({ sugestoes: juntar(...rapidas) });
-  const adiar = !modelo && languagetool.estado === 'ativa' && languagetool.acusou;
-  const openrouter = adiar ? { estado: 'adiado' } : await camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido);
+  const adiar = POLITICA.adiarModelo({ modelo, languagetool });
+  const openrouter = adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido));
   await registrarCamadas({ offline, languagetool, openrouter });
   return {
     sugestoes: juntar(...rapidas, openrouter.sugestoes || []),
@@ -163,8 +174,8 @@ function registrarCamadas(novas) {
   filaDeCamadas = filaDeCamadas.catch(() => {}).then(async () => {
     const { camadas: anteriores } = await chrome.storage.local.get('camadas');
     const resumo = { ...anteriores };
-    for (const [nome, { estado, mensagem }] of Object.entries(novas)) {
-      if (estado !== 'adiado') resumo[nome] = { estado, mensagem, em: Date.now() };
+    for (const [nome, { estado, mensagem, latenciaMs }] of Object.entries(novas)) {
+      if (estado !== 'adiado') resumo[nome] = { estado, mensagem, latenciaMs, erro: ESTADOS_SEM_ERRO.has(estado) ? null : estado, em: Date.now() };
     }
     await chrome.storage.local.set({ camadas: resumo });
   });
