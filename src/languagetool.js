@@ -34,6 +34,9 @@
     return new URLSearchParams({ text: texto, language: idioma }).toString();
   }
 
+  const CATEGORIA_DO_LT = { TYPOS: 'ortografia', CASING: 'ortografia', PUNCTUATION: 'pontuacao', TYPOGRAPHY: 'pontuacao', GRAMMAR: 'gramatica', CONFUSED_WORDS: 'gramatica', REDUNDANCY: 'repeticao', STYLE: 'fluidez' };
+  const CATEGORIA_DO_PROBLEMA = { misspelling: 'ortografia', typographical: 'pontuacao', whitespace: 'pontuacao', duplication: 'repeticao' };
+
   function lerMatches(corpo, texto) {
     if (!Array.isArray(corpo?.matches)) throw new Error('resposta sem matches');
     const sugestoes = [];
@@ -50,6 +53,8 @@
         substituicao: troca,
         motivo: typeof m.message === 'string' ? m.message : '',
         inicio: m.offset,
+        categoria: abreviacao ? 'tom' : CATEGORIA_DO_LT[m.rule?.category?.id] || CATEGORIA_DO_PROBLEMA[m.rule?.issueType] || 'gramatica',
+        regra: { id: m.rule?.id, nome: m.rule?.description || m.rule?.category?.name || '', explicacao: m.message },
       });
     }
     return { sugestoes, abreviacoes, acusou: corpo.matches.length > 0 };

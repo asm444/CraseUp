@@ -1,6 +1,10 @@
 (function (raiz) {
   const TIPOS = ['gramatica', 'clareza', 'palavra', 'tom'];
   const ORIGENS = ['offline', 'languagetool', 'openrouter'];
+  const CATEGORIAS = ['ortografia', 'gramatica', 'pontuacao', 'clareza', 'fluidez', 'estrutura', 'repeticao', 'legibilidade', 'tom'];
+  const CATEGORIA_DO_TIPO = { gramatica: 'gramatica', clareza: 'clareza', palavra: 'fluidez', tom: 'tom' };
+  const NIVEL_DA_CATEGORIA = { ortografia: 1, gramatica: 1, pontuacao: 1, clareza: 2, fluidez: 2, repeticao: 3, legibilidade: 3, tom: 3, estrutura: 4 };
+  const CONFIANCA_DA_ORIGEM = { offline: 0.5, languagetool: 0.8, openrouter: 0.6 };
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
@@ -55,8 +59,16 @@
             original: { type: 'string' },
             substituicao: { type: 'string' },
             motivo: { type: 'string' },
+            categoria: { type: 'string', enum: CATEGORIAS },
+            confianca: { type: 'number' },
+            regra: {
+              type: 'object',
+              properties: { id: { type: 'string' }, nome: { type: 'string' }, explicacao: { type: 'string' } },
+              required: ['id', 'nome', 'explicacao'],
+              additionalProperties: false,
+            },
           },
-          required: ['tipo', 'original', 'substituicao', 'motivo'],
+          required: ['tipo', 'original', 'substituicao', 'motivo', 'categoria', 'confianca', 'regra'],
           additionalProperties: false,
         },
       },
@@ -110,6 +122,9 @@
       '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
+      `- "categoria" é uma destas: ${CATEGORIAS.join(', ')}.`,
+      '- "confianca" vai de 0 a 1: quanto você tem certeza de que a troca melhora o texto.',
+      '- "regra" nomeia a regra aplicada: "id" curto em maiúsculas, "nome" em poucas palavras e "explicacao" em uma frase.',
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para achar e fazer sozinha estas trocas; 0 se não há sugestão.',
       protecao,
       '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0}, sem texto fora dele.',
@@ -271,13 +286,21 @@
         while (posicao !== -1 && sobrepoe(posicao)) posicao = ocorrencia(texto, original, posicao + 1);
         if (posicao === -1) continue;
       }
+      const origem = ORIGENS.includes(s.origem) ? s.origem : 'openrouter';
+      const motivo = typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '';
+      const categoria = CATEGORIAS.includes(s.categoria) ? s.categoria : CATEGORIA_DO_TIPO[s.tipo];
+      const textoDe = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
       aceitas.push({
         tipo: s.tipo,
-        origem: ORIGENS.includes(s.origem) ? s.origem : 'openrouter',
+        origem,
         modelo: typeof s.modelo === 'string' ? s.modelo : '',
         original,
         substituicao,
-        motivo: typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '',
+        motivo,
+        categoria,
+        nivel: [1, 2, 3, 4].includes(s.nivel) ? s.nivel : NIVEL_DA_CATEGORIA[categoria],
+        confianca: Number.isFinite(s.confianca) ? Math.min(1, Math.max(0, s.confianca)) : CONFIANCA_DA_ORIGEM[origem],
+        regra: { id: textoDe(s.regra?.id, 80), nome: textoDe(s.regra?.nome, 80), explicacao: textoDe(s.regra?.explicacao, 300) || motivo },
         inicio: posicao,
         fim: posicao + original.length,
       });
@@ -402,6 +425,7 @@
   }
 
   raiz.RevisorCore = {
+    CATEGORIAS,
     TONS,
     ROTULOS_DE_TOM,
     MODELOS,

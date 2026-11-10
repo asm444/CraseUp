@@ -234,6 +234,19 @@
     igual(C.filtrarSugestoes('vou açim', [{ ...s('clareza', 'açim', 'assim'), modelo: 'x/y:free' }]).map((x) => x.modelo), ['x/y:free']);
   });
 
+  caso('sugestão v2: campos de cada origem passam, campos ausentes ganham padrão e valores fora da faixa são contidos', () => {
+    const campos = (x) => [x.origem, x.categoria, x.nivel, x.confianca, x.regra.id, x.regra.explicacao];
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('palavra', 'açim', 'assim'), origem: 'languagetool' }]).map(campos), [['languagetool', 'fluidez', 2, 0.8, '', 'm']]);
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('gramatica', 'açim', 'assim'), origem: 'offline', categoria: 'ortografia', nivel: 1, regra: { id: 'ORTOGRAFIA_OFFLINE', nome: 'Ortografia', explicacao: 'grafia' } }]).map(campos), [['offline', 'ortografia', 1, 0.5, 'ORTOGRAFIA_OFFLINE', 'grafia']]);
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('clareza', 'açim', 'assim'), categoria: 'repeticao', confianca: 1.7, regra: { id: 'REP', nome: 'Repetição', explicacao: 'palavra repetida' } }]).map(campos), [['openrouter', 'repeticao', 3, 1, 'REP', 'palavra repetida']]);
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('tom', 'açim', 'assim'), categoria: 'inventada', nivel: 9, confianca: 'alta' }]).map(campos), [['openrouter', 'tom', 3, 0.6, '', 'm']]);
+  });
+
+  caso('o esquema do modelo exige categoria, confiança e regra', () => {
+    const itens = C.montarRequisicao('oi', { tom: '', idioma: 'pt-BR' }).response_format.json_schema.schema.properties.sugestoes.items;
+    igual([itens.required, itens.properties.categoria.enum], [['tipo', 'original', 'substituicao', 'motivo', 'categoria', 'confianca', 'regra'], C.CATEGORIAS]);
+  });
+
   const linhas = [];
   let ok = 0;
   for (const [nome, fn] of casos) {

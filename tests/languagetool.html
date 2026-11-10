@@ -49,6 +49,13 @@
       [['Vou a', 'Vou à', 0, 'gramatica', 'languagetool'], ['açim', 'assim', 46, 'gramatica', 'languagetool']]);
   });
 
+  caso('a regra e a categoria do LanguageTool viram regra e categoria da sugestão', () => {
+    const corpo = { matches: [{ offset: 3, length: 1, message: 'Falta vírgula.', replacements: [{ value: 'a,' }], rule: { id: 'VIRGULA', description: 'Vírgula', issueType: 'typographical', category: { id: 'PUNCTUATION', name: 'Pontuação' } } }] };
+    igual([...L.lerMatches(RESPOSTA_LT, TEXTO_LT).sugestoes, ...L.lerMatches(corpo, 'oi a b').sugestoes].map((s) => [s.categoria, s.regra.id, s.regra.nome, s.regra.explicacao.slice(0, 12)]), [
+      ['gramatica', 'CRASE_CONFUSION', '', 'Esta palavra'], ['ortografia', 'MORFOLOGIK_RULE_PT_BR', '', 'Encontrado p'], ['pontuacao', 'VIRGULA', 'Vírgula', 'Falta vírgul'],
+    ]);
+  });
+
   caso('acusou conta qualquer match, até um só de estilo que não vira sugestão', () => {
     const soEstilo = { matches: [RESPOSTA_LT.matches[2]] };
     igual([L.lerMatches(soEstilo, TEXTO_LT).acusou, L.lerMatches(soEstilo, TEXTO_LT).sugestoes.length, L.lerMatches({ matches: [] }, 'ok').acusou], [true, 0, false]);

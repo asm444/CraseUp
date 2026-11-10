@@ -37,6 +37,7 @@
 
   caso('palavra sem sugestão do dicionário não é marcada', () => {
     igual(O.sugestoesOrtograficas('eu vou kkkk', 'pt-BR', PT), []);
+    igual(O.sugestoesOrtograficas('casa açim', 'pt-BR', PT).map((s) => [s.categoria, s.nivel, s.regra.id]), [['ortografia', 1, 'ORTOGRAFIA_OFFLINE']]);
   });
 
   const linhas = [];

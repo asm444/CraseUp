@@ -48,6 +48,9 @@
         substituicao: troca,
         motivo: MOTIVO[idioma],
         inicio: item.inicio,
+        categoria: 'ortografia',
+        nivel: 1,
+        regra: { id: 'ORTOGRAFIA_OFFLINE', nome: 'Ortografia' },
       });
     }
     return sugestoes;
