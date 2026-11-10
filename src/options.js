@@ -169,7 +169,7 @@ function painelDeConsumo() {
 
 async function iniciar() {
   const bemVindo = new URLSearchParams(location.search).has('bemvindo');
-  const { chaveOpenrouter: chave, tom = 'neutro' } = await chrome.storage.local.get(['chaveOpenrouter', 'tom']);
+  const { chaveOpenrouter: chave, tom = 'neutro', nivel = RevisorCore.NIVEL_PADRAO } = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'nivel']);
   $('boasVindas').hidden = !(bemVindo || !chave);
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
   if (chave) $('statusChave').textContent = `Chave configurada, terminando em …${chave.slice(-4)}. Cole outra para trocar.`;
@@ -239,6 +239,11 @@ async function iniciar() {
   for (const radio of document.querySelectorAll('input[name="tom"]')) {
     radio.checked = radio.value === tom;
     radio.addEventListener('change', () => chrome.storage.local.set({ tom: radio.value }));
+  }
+
+  for (const radio of document.querySelectorAll('input[name="nivel"]')) {
+    radio.checked = Number(radio.value) === nivel;
+    radio.addEventListener('change', () => chrome.storage.local.set({ nivel: Number(radio.value) }));
   }
 
   const radiosDeTema = document.querySelectorAll('input[name="tema"]');

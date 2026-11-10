@@ -18,5 +18,16 @@
     if (!faltou.length && !sobrou.length) { ok++; linhas.push(`ok   [${c.categoria}] ${c.nome}`); }
     else linhas.push(`FALHA [${c.categoria}] ${c.nome}: faltou ${JSON.stringify(faltou)}, sobrou ${JSON.stringify(sobrou)}, veio ${JSON.stringify(pares)}`);
   }
+  for (const nivel of [1, 2, 3, 4]) {
+    total++;
+    const acima = [];
+    for (const c of CORPUS) {
+      const lt = c.lt ? RevisorLanguageTool.lerMatches({ matches: c.lt }, c.texto) : { sugestoes: [], abreviacoes: [] };
+      const modelo = (c.modelo || []).map((s) => ({ ...s, origem: 'openrouter' }));
+      for (const s of RevisorCore.juntarCamadas(c.texto, { languagetool: lt.sugestoes, abreviacoes: lt.abreviacoes, modelo }, { tom: c.tom, dicionario: c.dicionario, nivel })) if (s.nivel > nivel) acima.push([c.nome, s.original, s.nivel]);
+    }
+    if (!acima.length) { ok++; linhas.push(`ok   corpus no nível ${nivel} só traz sugestões até ele`); }
+    else linhas.push(`FALHA corpus no nível ${nivel}: ${JSON.stringify(acima)}`);
+  }
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
 </script>

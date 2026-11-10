@@ -236,7 +236,7 @@
 
   caso('sugestão v2: campos de cada origem passam, campos ausentes ganham padrão e valores fora da faixa são contidos', () => {
     const campos = (x) => [x.origem, x.categoria, x.nivel, x.confianca, x.regra.id, x.regra.explicacao];
-    igual(C.filtrarSugestoes('vou açim', [{ ...s('palavra', 'açim', 'assim'), origem: 'languagetool' }]).map(campos), [['languagetool', 'fluidez', 2, 0.8, '', 'm']]);
+    igual(C.filtrarSugestoes('vou açim', [{ ...s('palavra', 'açim', 'assim'), origem: 'languagetool' }]).map(campos), [['languagetool', 'fluidez', 3, 0.8, '', 'm']]);
     igual(C.filtrarSugestoes('vou açim', [{ ...s('gramatica', 'açim', 'assim'), origem: 'offline', categoria: 'ortografia', nivel: 1, regra: { id: 'ORTOGRAFIA_OFFLINE', nome: 'Ortografia', explicacao: 'grafia' } }]).map(campos), [['offline', 'ortografia', 1, 0.5, 'ORTOGRAFIA_OFFLINE', 'grafia']]);
     igual(C.filtrarSugestoes('vou açim', [{ ...s('clareza', 'açim', 'assim'), categoria: 'repeticao', confianca: 1.7, regra: { id: 'REP', nome: 'Repetição', explicacao: 'palavra repetida' } }]).map(campos), [['openrouter', 'repeticao', 3, 1, 'REP', 'palavra repetida']]);
     igual(C.filtrarSugestoes('vou açim', [{ ...s('tom', 'açim', 'assim'), categoria: 'inventada', nivel: 9, confianca: 'alta' }]).map(campos), [['openrouter', 'tom', 3, 0.6, '', 'm']]);
@@ -250,6 +250,20 @@
   caso('troca que acrescenta link com https, www ou e-mail é descartada; link que já estava no original passa', () => {
     const troca = (substituicao, original = 'relatório') => C.filtrarSugestoes(`mande o ${original}`, [{ ...s('palavra', original, substituicao) }]).length;
     igual([troca('relatório em https://golpe.exemplo'), troca('relatório em www.golpe.exemplo'), troca('relatório para ana@golpe.exemplo'), troca('site https://x.exemplo/a', 'site https://x.exemplo'), troca('documento')], [0, 0, 0, 1, 1]);
+  });
+
+  caso('cada nível só deixa passar sugestões até ele, e o 4 aceita teto proporcional', () => {
+    const brutas = [{ ...s('gramatica', 'açim', 'assim'), origem: 'offline', nivel: 1 }, s('gramatica', 'Olá João', 'Olá, João'), s('clareza', 'tudo', 'td'), { ...s('clareza', 'vamos', 'iremos'), categoria: 'estrutura' }];
+    const t = 'Olá João açim tudo vamos';
+    igual([1, 2, 3, 4].map((n) => C.filtrarSugestoes(t, brutas, { nivel: n }).map((x) => x.original).sort().join('|')), ['açim', 'Olá João|açim', 'Olá João|açim|tudo', 'Olá João|açim|tudo|vamos'].map((x) => x.split('|').sort().join('|')));
+    const longo = 'palavra '.repeat(100);
+    const grande = s('clareza', 'palavra', 'palavra ' + 'x '.repeat(15));
+    igual([C.filtrarSugestoes(longo, [grande], { nivel: 4 }).length, C.filtrarSugestoes(longo, [grande], { nivel: 3 }).length, C.filtrarSugestoes('palavra curta', [grande], { nivel: 4 }).length], [1, 0, 0]);
+  });
+
+  caso('o prompt muda por nível: o 2 só pede pontuação, o 4 permite reorganizar', () => {
+    const p = (nivel) => C.montarRequisicao('oi', { nivel }).messages[0].content;
+    igual([p(2).includes('tipo "clareza"'), p(3).includes('tipo "clareza"'), p(3).includes('estrutura das frases'), p(4).includes('estrutura das frases'), p(4).includes('20% das palavras')], [false, true, false, true, true]);
   });
 
   const linhas = [];

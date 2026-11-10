@@ -3,7 +3,8 @@
   const ORIGENS = ['offline', 'languagetool', 'openrouter'];
   const CATEGORIAS = ['ortografia', 'gramatica', 'pontuacao', 'clareza', 'fluidez', 'estrutura', 'repeticao', 'legibilidade', 'tom'];
   const CATEGORIA_DO_TIPO = { gramatica: 'gramatica', clareza: 'clareza', palavra: 'fluidez', tom: 'tom' };
-  const NIVEL_DA_CATEGORIA = { ortografia: 1, gramatica: 1, pontuacao: 1, clareza: 2, fluidez: 2, repeticao: 3, legibilidade: 3, tom: 3, estrutura: 4 };
+  const NIVEL_DA_CATEGORIA = { ortografia: 1, gramatica: 2, pontuacao: 2, clareza: 3, fluidez: 3, repeticao: 3, legibilidade: 3, tom: 3, estrutura: 4 };
+  const NIVEL_PADRAO = 3;
   const CONFIANCA_DA_ORIGEM = { offline: 0.5, languagetool: 0.8, openrouter: 0.6 };
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
@@ -110,22 +111,28 @@
     return `<texto>\n${texto.replaceAll('</texto>', '</ texto>')}\n</texto>`;
   }
 
-  function instrucaoDoSistema(tom, dicionario, idioma, protecao) {
+  function instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel = NIVEL_PADRAO) {
     const palavras = dicionario.slice(0, PALAVRAS_DO_DICIONARIO_NO_PROMPT).join(', ') || '(nenhuma)';
+    const estilo = nivel >= 3;
     return [
-      `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de pontuação, de clareza, de escolha de palavra e de tom.`,
+      estilo
+        ? `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de pontuação, de clareza, de escolha de palavra e de tom.`
+        : `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de pontuação.`,
       'Regras:',
       REGRA_DE_DADO,
       '- Se o texto estiver correto e claro, devolva "sugestoes": [].',
       '- Cada sugestão troca só a palavra ou o trecho curto que ficou ruim; nunca reescreva a frase inteira nem o resto do texto.',
       '- "original" é uma cópia exata, caractere por caractere, de um trecho contíguo do texto recebido.',
-      `- "substituicao" acrescenta no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a "original"; prefira a troca mais curta que resolve.`,
+      nivel === 4
+        ? `- "substituicao" acrescenta no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras ou 20% das palavras do texto, o que for maior; prefira a troca mais curta que resolve.`
+        : `- "substituicao" acrescenta no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a "original"; prefira a troca mais curta que resolve.`,
       '- tipo "gramatica": só pontuação. Vírgula que falta ou sobra (vocativo, oração que vem antes da principal, antes de "mas" e "porém", entre itens de uma enumeração), sinal que falta no fim da frase, espaço antes de pontuação.',
       '- Na troca de pontuação, "original" leva a palavra antes do sinal e "substituicao" a mesma palavra com o sinal certo (ex.: "Olá João" vira "Olá, João").',
-      '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
-      '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
-      `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
-      GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro,
+      estilo && '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
+      estilo && '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
+      estilo && `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
+      estilo && (GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro),
+      nivel === 4 && '- Também pode reorganizar a ordem e a estrutura das frases de um trecho (tipo "clareza", categoria "estrutura"), sem mudar o sentido.',
       '- Não aponte ortografia, acentuação, concordância, regência nem crase: outra ferramenta já cuida disso.',
       '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
@@ -139,11 +146,11 @@
     ].filter(Boolean).join('\n');
   }
 
-  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao } = {}) {
+  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel } = {}) {
     return {
       models: MODELOS,
       messages: [
-        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao) },
+        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel) },
         { role: 'user', content: delimitar(texto) },
       ],
       temperature: 0,
@@ -236,8 +243,8 @@
     return preco ? registro.entrada * preco.entrada + registro.saida * preco.saida : null;
   }
 
-  function acrescentaDemais(original, reescrito) {
-    return contarPalavras(reescrito) - contarPalavras(original) > PALAVRAS_A_MAIS_NO_MAXIMO || (LINK_OU_EMAIL.test(reescrito) && !LINK_OU_EMAIL.test(original));
+  function acrescentaDemais(original, reescrito, teto = PALAVRAS_A_MAIS_NO_MAXIMO) {
+    return contarPalavras(reescrito) - contarPalavras(original) > teto || (LINK_OU_EMAIL.test(reescrito) && !LINK_OU_EMAIL.test(original));
   }
 
   function lerResposta(corpo) {
@@ -275,13 +282,14 @@
     return -1;
   }
 
-  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario }) {
+  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario, nivel }) {
     const casual = tom === 'casual';
     const protegidos = casual ? abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length })) : [];
-    return filtrarSugestoes(texto, [...offline, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos });
+    return filtrarSugestoes(texto, [...offline, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos, nivel });
   }
 
-  function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [] } = {}) {
+  function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [], nivel } = {}) {
+    const teto = nivel === 4 ? Math.max(PALAVRAS_A_MAIS_NO_MAXIMO, Math.ceil(contarPalavras(texto) * 0.2)) : PALAVRAS_A_MAIS_NO_MAXIMO;
     const aceitas = protegidos.map(({ inicio, fim }) => ({ inicio, fim, protegido: true }));
     const prioridade = (s) => -ORIGENS.indexOf(ORIGENS.includes(s?.origem) ? s.origem : 'openrouter');
     for (const s of [...brutas].sort((a, b) => prioridade(a) - prioridade(b))) {
@@ -289,8 +297,11 @@
       if (!TIPOS.includes(s.tipo)) continue;
       const { original, substituicao } = s;
       if (!original.trim() || original === substituicao) continue;
-      if (acrescentaDemais(original, substituicao)) continue;
+      if (acrescentaDemais(original, substituicao, teto)) continue;
       if (contemPalavraDoDicionario(original, dicionario)) continue;
+      const categoria = CATEGORIAS.includes(s.categoria) ? s.categoria : CATEGORIA_DO_TIPO[s.tipo];
+      const nivelDaSugestao = [1, 2, 3, 4].includes(s.nivel) ? s.nivel : NIVEL_DA_CATEGORIA[categoria];
+      if (nivelDaSugestao > nivel) continue;
       const sobrepoe = (p) => aceitas.some((a) => p < a.fim && p + original.length > a.inicio);
       let posicao;
       if (Number.isInteger(s.inicio) && texto.startsWith(original, s.inicio)) {
@@ -303,7 +314,6 @@
       }
       const origem = ORIGENS.includes(s.origem) ? s.origem : 'openrouter';
       const motivo = typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '';
-      const categoria = CATEGORIAS.includes(s.categoria) ? s.categoria : CATEGORIA_DO_TIPO[s.tipo];
       const textoDe = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
       aceitas.push({
         tipo: s.tipo,
@@ -313,7 +323,7 @@
         substituicao,
         motivo,
         categoria,
-        nivel: [1, 2, 3, 4].includes(s.nivel) ? s.nivel : NIVEL_DA_CATEGORIA[categoria],
+        nivel: nivelDaSugestao,
         confianca: Number.isFinite(s.confianca) ? Math.min(1, Math.max(0, s.confianca)) : CONFIANCA_DA_ORIGEM[origem],
         regra: { id: textoDe(s.regra?.id, 80), nome: textoDe(s.regra?.nome, 80), explicacao: textoDe(s.regra?.explicacao, 300) || motivo },
         inicio: posicao,
@@ -441,6 +451,7 @@
 
   raiz.RevisorCore = {
     CATEGORIAS,
+    NIVEL_PADRAO,
     TONS,
     ROTULOS_DE_TOM,
     MODELOS,

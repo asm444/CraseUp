@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, juntarCamadas, somarConsumo, precosPagos } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, juntarCamadas, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
@@ -154,15 +154,15 @@ async function executarCamada(executar) {
 
 async function revisar(texto, abaId, { pedido, modelo }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool'])), abaId };
-  const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [] };
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel'])), abaId };
+  const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO };
   const offline = await executarCamada(() => camadaOffline(texto));
   aoAvancar({ sugestoes: juntarCamadas(texto, { offline: offline.sugestoes }, opcoes) });
   const languagetool = await executarCamada(() => camadaLanguageTool(texto, offline.idioma, cfg.languagetool));
   const rapidas = { offline: offline.sugestoes, languagetool: languagetool.sugestoes, abreviacoes: languagetool.abreviacoes };
   aoAvancar({ sugestoes: juntarCamadas(texto, rapidas, opcoes) });
   const adiar = POLITICA.adiarModelo({ modelo, languagetool });
-  const openrouter = adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido));
+  const openrouter = opcoes.nivel < 2 ? { estado: 'ocioso' } : adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido));
   await registrarCamadas({ offline, languagetool, openrouter });
   return {
     sugestoes: juntarCamadas(texto, { ...rapidas, modelo: openrouter.sugestoes }, opcoes),
@@ -313,7 +313,7 @@ async function camadaModelo(texto, idioma, cfg) {
   const { texto: mascarado, itens } = mascarar(texto);
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao }), cfg, lerResposta);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
   return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, origem: 'openrouter', modelo: r.lida.modelo })) };

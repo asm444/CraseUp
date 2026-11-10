@@ -51,6 +51,11 @@
       confere('depois de salvar, a chave nova sai do campo e o status mostra só o fim dela', [comChave.armazem.chaveOpenrouter === NOVA, campo.value, comChave.doc.getElementById('statusChave').textContent], [true, '', 'Chave funcionando e salva, terminando em …7c3a. Já pode digitar em qualquer site.']);
 
       const semChave = await montar({});
+      const radioNivel = (n) => semChave.doc.querySelector(`input[name="nivel"][value="${n}"]`);
+      const marcadoAntes = radioNivel(3).checked;
+      radioNivel(1).click();
+      await espera(50);
+      confere('sem nível salvo marca o 3, e escolher outro nível grava a escolha', [marcadoAntes, semChave.armazem.nivel], [true, 1]);
       confere('sem chave salva, a página abre inteira: campo vazio, sem status, com as boas-vindas e o tom marcado', [semChave.doc.getElementById('chave').value, semChave.doc.getElementById('statusChave').textContent, semChave.doc.getElementById('boasVindas').hidden, semChave.doc.querySelector('input[name="tom"]:checked')?.value], ['', '', false, 'neutro']);
     } catch (erro) {
       total++;

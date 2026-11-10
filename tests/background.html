@@ -132,6 +132,11 @@
       confere('texto sem dado sensível vai igual e sem a instrução de marcadores', semDados.messages[0].content.includes('Mantenha cada marcador'), false);
       const sugerida = await revisar('escreve pra ana@x.com e bia@y.com amanha', true);
       confere('sugestão do modelo volta com o e-mail verdadeiro; a que inventa ou apaga um dado protegido é descartada', sugerida.sugestoes.filter((x) => x.origem === 'openrouter').map((x) => [x.original, x.substituicao]), [['pra ana@x.com', 'para ana@x.com']]);
+      const antesDoNivel1 = corposAoModelo.length;
+      armazem.local.nivel = 1;
+      const noNivel1 = await revisar('texto no nível um', true);
+      delete armazem.local.nivel;
+      confere('no nível 1 o modelo não é chamado, e a camada fica ociosa', [corposAoModelo.length - antesDoNivel1, armazem.local.camadas.openrouter.estado, Array.isArray(noNivel1.sugestoes)], [0, 'ocioso', true]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',
