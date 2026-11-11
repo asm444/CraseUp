@@ -16,12 +16,13 @@
   let aoMensagem = null;
   let aoConectar = null;
   let aoFecharAba = null;
+  const aoMudarStorage = [];
   const nada = { addListener() {} };
   globalThis.chrome = {
-    runtime: { onInstalled: nada, onStartup: nada, onConnect: { addListener(fn) { aoConectar = fn; } }, onMessage: { addListener(fn) { aoMensagem = fn; } }, getURL: (p) => p },
+    runtime: { onInstalled: nada, onStartup: nada, onConnect: { addListener(fn) { aoConectar = fn; } }, onMessage: { addListener(fn) { aoMensagem = fn; } }, getURL: (p) => p, getManifest: () => ({ version: '9.9.9' }) },
     contextMenus: { onClicked: nada, removeAll() {}, create() {} },
     tabs: { onRemoved: { addListener(fn) { aoFecharAba = fn; } }, create() {}, sendMessage: async () => {} },
-    storage: { local: area('local'), session: area('session'), onChanged: nada },
+    storage: { local: area('local'), session: area('session'), onChanged: { addListener(fn) { aoMudarStorage.push(fn); } } },
     action: { setBadgeBackgroundColor: async () => {}, setBadgeText: async () => {} },
     permissions: { contains: async () => true },
   };
@@ -186,6 +187,27 @@
       confere('com o LanguageTool fora, a etapa do modelo vai ao OpenRouter pedindo também ortografia e gramática, e a etapa rápida não chama', [
         naRapida, corposAoModelo.length - antesDoModelo, pedidoSemLt.includes('Aponte também ortografia') && !pedidoSemLt.includes('Não aponte ortografia'), semLt.provisorio,
       ], [0, 1, true, true]);
+      const chamadas = () => pedidosAoLanguageTool.length + corposAoModelo.length;
+      const antesDoCache = chamadas();
+      const primeira = await etapa('texto que volta igual', true, 34);
+      const depoisDaPrimeira = chamadas();
+      const segunda = await etapa('texto que volta igual', true, 34);
+      const depoisDaSegunda = chamadas();
+      confere('texto idêntico com a mesma configuração vem do cache, sem chamar servidor de novo', [depoisDaPrimeira > antesDoCache, depoisDaSegunda - depoisDaPrimeira, JSON.stringify(segunda.sugestoes) === JSON.stringify(primeira.sugestoes), segunda.provisorio], [true, 0, true, false]);
+      armazem.local.tom = 'formal';
+      aoMudarStorage.forEach((fn) => fn({ tom: { newValue: 'formal' } }, 'local'));
+      const cacheDepoisDaMudanca = armazem.local.cache;
+      await etapa('texto que volta igual', true, 34);
+      delete armazem.local.tom;
+      confere('mudar o tom apaga o cache e a revisão volta ao servidor', [cacheDepoisDaMudanca, chamadas() > depoisDaSegunda], [undefined, true]);
+      const antesDeOutro = chamadas();
+      await etapa('outro texto bem diferente', true, 34);
+      confere('texto diferente com a mesma configuração não reaproveita o cache de outro', chamadas() > antesDeOutro, true);
+      const entradasAntes = Object.keys(armazem.local.cache || {}).length;
+      await etapa('manda pra ana@x.com amanha', true, 35);
+      const entradasDepois = Object.keys(armazem.local.cache || {}).length;
+      const guardado = JSON.stringify(armazem.local.cache || {});
+      confere('parágrafo com dado sensível não entra no cache, e a chave é um hash e não o texto', [entradasDepois - entradasAntes, guardado.includes('ana@x.com'), guardado.includes('texto que volta igual'), Object.keys(armazem.local.cache || {}).every((k) => /^[0-9a-f]{64}$/.test(k))], [0, false, false, true]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

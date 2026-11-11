@@ -60,6 +60,7 @@ chrome.tabs.onRemoved.addListener(async (abaId) => {
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === 'local' && 'cota' in mudancas) atualizarSeloGlobal();
+  if (area === 'local' && ['tom', 'nivel', 'dicionario'].some((k) => k in mudancas)) chrome.storage.local.remove('cache');
 });
 
 async function abaPausada(abaId) {
@@ -157,6 +158,9 @@ async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
   const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel'])), abaId };
   const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO };
+  const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
+  const guardadas = chave && (await RevisorArmazem.ler(chrome.storage.local, 'cache', chave));
+  if (guardadas) return { sugestoes: guardadas, provisorio: false };
   const offline = await executarCamada(() => camadaOffline(texto));
   aoAvancar({ sugestoes: juntarCamadas(texto, { offline: offline.sugestoes }, opcoes) });
   const languagetool = await executarCamada(() => camadaLanguageTool(texto, offline.idioma, cfg.languagetool));
@@ -166,10 +170,12 @@ async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   const adiar = POLITICA.adiarModelo({ modelo, languagetool });
   const openrouter = opcoes.nivel < 2 ? { estado: 'ocioso' } : adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido, contexto));
   await registrarCamadas({ offline, languagetool, openrouter });
-  return {
+  const resultado = {
     sugestoes: juntarCamadas(texto, { ...rapidas, modelo: openrouter.sugestoes }, comLanguageTool),
     provisorio: adiar || [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
+  if (chave && modelo && ![languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado))) await RevisorArmazem.gravar(chrome.storage.local, 'cache', chave, resultado.sugestoes).catch(() => {});
+  return resultado;
 }
 
 function semResposta(origem) {
