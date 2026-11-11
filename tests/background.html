@@ -170,6 +170,22 @@
       await revisar('mais uma medição', false, 32);
       const cheio = armazem.local.historicoDasCamadas.offline;
       confere('o histórico de cada camada para em 100 medições e descarta a mais antiga', [cheio.length, cheio[0].em, cheio.at(-1).em > 100], [100, 1, true]);
+      const etapa = (texto, modelo, aba) => new Promise((pronto) => {
+        const porta = { name: 'revisar', sender: { tab: { id: aba } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
+        aoConectar(porta);
+        porta.receber({ texto, pedido: false, modelo });
+      });
+      armazem.local.languagetool = 'http://fora.exemplo:8010';
+      const antesDaRapida = corposAoModelo.length;
+      await etapa('texto com o servidor fora', false, 33);
+      const naRapida = corposAoModelo.length - antesDaRapida;
+      const antesDoModelo = corposAoModelo.length;
+      const semLt = await etapa('texto com o servidor fora', true, 33);
+      const pedidoSemLt = corposAoModelo[antesDoModelo]?.messages[0].content || '';
+      delete armazem.local.languagetool;
+      confere('com o LanguageTool fora, a etapa do modelo vai ao OpenRouter pedindo também ortografia e gramática, e a etapa rápida não chama', [
+        naRapida, corposAoModelo.length - antesDoModelo, pedidoSemLt.includes('Aponte também ortografia') && !pedidoSemLt.includes('Não aponte ortografia'), semLt.provisorio,
+      ], [0, 1, true, true]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

@@ -114,7 +114,7 @@
     return `<texto>\n${texto.replaceAll('</texto>', '</ texto>')}\n</texto>`;
   }
 
-  function instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel = NIVEL_PADRAO, repetidas = [], dificeis = []) {
+  function instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel = NIVEL_PADRAO, repetidas = [], dificeis = [], semLanguageTool) {
     const palavras = dicionario.slice(0, PALAVRAS_DO_DICIONARIO_NO_PROMPT).join(', ') || '(nenhuma)';
     const estilo = nivel >= 3;
     return [
@@ -139,7 +139,9 @@
       estilo && repetidas.length && `- Estas palavras se repetem perto demais: ${repetidas.join(', ')}. Para cada repetição, sugira uma alternativa (tipo "palavra", categoria "repeticao") na segunda ocorrência.`,
       estilo && dificeis.length && `- Estas frases estão difíceis de ler: ${dificeis.map((f) => `"${f.inicio}…" (${f.alertas.join(', ')})`).join('; ')}. Sugira dividir a frase longa, cortar o encadeamento de "que" ou passar para a voz ativa (tipo "clareza", categoria "legibilidade").`,
       nivel === 4 && '- Também pode reorganizar a ordem e a estrutura das frases de um trecho (tipo "clareza", categoria "estrutura"), sem mudar o sentido.',
-      '- Não aponte ortografia, acentuação, concordância, regência nem crase: outra ferramenta já cuida disso.',
+      semLanguageTool
+        ? '- Aponte também ortografia, acentuação, concordância, regência e crase, com tipo "gramatica": a ferramenta que cuida disso está fora do ar.'
+        : '- Não aponte ortografia, acentuação, concordância, regência nem crase: outra ferramenta já cuida disso.',
       '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
@@ -152,12 +154,12 @@
     ].filter(Boolean).join('\n');
   }
 
-  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel, contexto, repetidas, dificeis } = {}) {
+  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel, contexto, repetidas, dificeis, semLanguageTool } = {}) {
     const leitura = contexto ? `<contexto>\n${contexto.replaceAll('</contexto>', '</ contexto>')}\n</contexto>\n` : '';
     return {
       models: MODELOS,
       messages: [
-        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel, repetidas, dificeis) },
+        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel, repetidas, dificeis, semLanguageTool) },
         { role: 'user', content: leitura + delimitar(texto) },
       ],
       temperature: 0,

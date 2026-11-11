@@ -142,9 +142,9 @@ async function camadaOffline(texto) {
 }
 
 const MEDICOES_POR_CAMADA = 100;
-const ESTADOS_SEM_ERRO = new Set(['ativa', 'ocioso', 'bloqueado']);
+const ESTADOS_SEM_ERRO = new Set(['ativa', 'ocioso']);
 const POLITICA = {
-  adiarModelo: ({ modelo, languagetool }) => !modelo && languagetool.estado === 'ativa' && languagetool.acusou,
+  adiarModelo: ({ modelo, languagetool }) => !modelo && (languagetool.estado !== 'ativa' || languagetool.acusou),
 };
 
 async function executarCamada(executar) {
@@ -250,7 +250,7 @@ function frasesDificeis(texto, cfg) {
 }
 
 async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido, contexto) {
-  if (languagetool.estado !== 'ativa') return { estado: 'bloqueado' };
+  if (languagetool.estado !== 'ativa') return camadaModelo(texto, idioma, cfg, contexto, true);
   if (!languagetool.acusou && !pedido && !palavrasRepetidas(texto, cfg, idioma).length && !frasesDificeis(texto, cfg).length) return { estado: 'ocioso' };
   return camadaModelo(texto, idioma, cfg, contexto);
 }
@@ -324,13 +324,13 @@ function restaurarSugestao(s, itens) {
   return { ...s, original: original.texto, substituicao: substituicao.texto };
 }
 
-async function camadaModelo(texto, idioma, cfg, contexto) {
+async function camadaModelo(texto, idioma, cfg, contexto, semLanguageTool) {
   const { texto: mascarado, itens } = mascarar(texto);
   const contextoMascarado = mascarar(contexto).texto.replace(/\[[A-Z_]+_\d+\]/g, '[DADO]');
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
   const repetidas = palavrasRepetidas(texto, cfg, idioma);
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas, dificeis: frasesDificeis(texto, cfg) }), cfg, lerResposta);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas, dificeis: frasesDificeis(texto, cfg), semLanguageTool }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
   return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, ...(typeof s?.original === 'string' && repetidas.includes(s.original.toLowerCase()) && { categoria: 'repeticao' }), origem: 'openrouter', modelo: r.lida.modelo })) };

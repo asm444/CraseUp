@@ -106,4 +106,11 @@ globalThis.CORPUS = [
     modelo: [{ tipo: 'clareza', original: 'pagina', substituicao: 'página', motivo: 'acento' }],
     naoDeveSugerir: ['pagina'],
   },
+  {
+    nome: 'com o LanguageTool fora, a ortografia offline fica',
+    categoria: 'ortografia',
+    texto: 'Ficou açim mesmo.',
+    offline: [{ tipo: 'gramatica', origem: 'offline', categoria: 'ortografia', nivel: 1, original: 'açim', substituicao: 'assim', motivo: 'grafia', inicio: 6 }],
+    deveSugerir: [['açim', 'assim']],
+  },
 ];
