@@ -571,7 +571,7 @@
         motivos.append(elemento('li', 'motivo motivo-tom', aviso));
       }
       for (const m of marcas) {
-        if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}`, m.motivo.charAt(0).toLocaleUpperCase('pt-BR') + m.motivo.slice(1)));
+        if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}${m.incerta ? ' incerta' : ''}`, m.motivo.charAt(0).toLocaleUpperCase('pt-BR') + m.motivo.slice(1) + (m.incerta ? ' (incerta)' : '')));
       }
       origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
     }
@@ -677,10 +677,12 @@
       desenhar(estado);
       return;
     }
-    const novo = aplicarTrecho(trecho.paragrafo, cache.get(trecho.paragrafo) || trecho.relativo.sugestoes, trecho.relativo);
+    const lote = trecho.relativo.sugestoes.length > 1 ? trecho.relativo.sugestoes.filter((s) => !s.incerta) : trecho.relativo.sugestoes;
+    if (!lote.length) return;
+    const novo = aplicarTrecho(trecho.paragrafo, cache.get(trecho.paragrafo) || trecho.relativo.sugestoes, { ...trecho.relativo, sugestoes: lote });
     guardarNoCache(novo.texto, novo.sugestoes);
     Object.assign(alvoDoCartao, { fixo: true, avancar: true });
-    const edicoes = trecho.relativo.sugestoes.map((sug) => ({ inicio: trecho.base + sug.inicio, fim: trecho.base + sug.fim, texto: sug.substituicao }));
+    const edicoes = lote.map((sug) => ({ inicio: trecho.base + sug.inicio, fim: trecho.base + sug.fim, texto: sug.substituicao }));
     await aplicarNoCampo(estado.el, estado.tipo, edicoes);
     desenhar(estado);
   }

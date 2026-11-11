@@ -6,6 +6,9 @@
   const NIVEL_DA_CATEGORIA = { ortografia: 1, gramatica: 2, pontuacao: 2, clareza: 3, fluidez: 3, repeticao: 3, legibilidade: 3, tom: 3, estrutura: 4 };
   const NIVEL_PADRAO = 3;
   const CONFIANCA_DA_ORIGEM = { offline: 0.5, languagetool: 0.8, openrouter: 0.6 };
+  const CONFIANCA_DO_LT = { ortografia: 0.85, gramatica: 0.8, pontuacao: 0.7, repeticao: 0.6 };
+  const LIMIAR_DE_CONFIANCA = 0.5;
+  const AJUSTE_POR_CAMADA = 0.2;
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
     formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
@@ -291,6 +294,7 @@
   function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [], nivel } = {}) {
     const teto = nivel === 4 ? Math.max(PALAVRAS_A_MAIS_NO_MAXIMO, Math.ceil(contarPalavras(texto) * 0.2)) : PALAVRAS_A_MAIS_NO_MAXIMO;
     const aceitas = protegidos.map(({ inicio, fim }) => ({ inicio, fim, protegido: true }));
+    const outrasCamadas = (s) => brutas.filter((b) => b && b.original === s.original && (b.origem || 'openrouter') !== (s.origem || 'openrouter'));
     const prioridade = (s) => -ORIGENS.indexOf(ORIGENS.includes(s?.origem) ? s.origem : 'openrouter');
     for (const s of [...brutas].sort((a, b) => prioridade(a) - prioridade(b))) {
       if (!s || typeof s.original !== 'string' || typeof s.substituicao !== 'string') continue;
@@ -314,6 +318,10 @@
       }
       const origem = ORIGENS.includes(s.origem) ? s.origem : 'openrouter';
       const motivo = typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '';
+      const base = Number.isFinite(s.confianca) ? s.confianca : origem === 'languagetool' ? CONFIANCA_DO_LT[categoria] ?? CONFIANCA_DA_ORIGEM.languagetool : CONFIANCA_DA_ORIGEM[origem];
+      const outras = outrasCamadas(s);
+      const ajuste = outras.some((b) => b.substituicao === substituicao) ? AJUSTE_POR_CAMADA : outras.length ? -AJUSTE_POR_CAMADA : 0;
+      const confianca = Math.round(Math.min(1, Math.max(0, base + ajuste)) * 100) / 100;
       const textoDe = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
       aceitas.push({
         tipo: s.tipo,
@@ -324,7 +332,8 @@
         motivo,
         categoria,
         nivel: nivelDaSugestao,
-        confianca: Number.isFinite(s.confianca) ? Math.min(1, Math.max(0, s.confianca)) : CONFIANCA_DA_ORIGEM[origem],
+        confianca,
+        incerta: confianca < LIMIAR_DE_CONFIANCA,
         regra: { id: textoDe(s.regra?.id, 80), nome: textoDe(s.regra?.nome, 80), explicacao: textoDe(s.regra?.explicacao, 300) || motivo },
         inicio: posicao,
         fim: posicao + original.length,

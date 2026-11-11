@@ -15,8 +15,9 @@
     const pares = saida.map((s) => [s.original, s.substituicao]);
     const faltou = (c.deveSugerir || []).filter(([o, n]) => !pares.some(([a, b]) => a === o && b === n));
     const sobrou = (c.naoDeveSugerir || []).filter((o) => saida.some((s) => s.original === o));
-    if (!faltou.length && !sobrou.length) { ok++; linhas.push(`ok   [${c.categoria}] ${c.nome}`); }
-    else linhas.push(`FALHA [${c.categoria}] ${c.nome}: faltou ${JSON.stringify(faltou)}, sobrou ${JSON.stringify(sobrou)}, veio ${JSON.stringify(pares)}`);
+    const certa = (c.deveSairIncerta || []).filter((o) => !saida.some((s) => s.original === o && s.incerta));
+    if (!faltou.length && !sobrou.length && !certa.length) { ok++; linhas.push(`ok   [${c.categoria}] ${c.nome}`); }
+    else linhas.push(`FALHA [${c.categoria}] ${c.nome}: faltou ${JSON.stringify(faltou)}, sobrou ${JSON.stringify(sobrou)}, devia sair incerta ${JSON.stringify(certa)}, veio ${JSON.stringify(pares)}`);
   }
   for (const nivel of [1, 2, 3, 4]) {
     total++;

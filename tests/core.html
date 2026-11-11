@@ -266,6 +266,17 @@
     igual([p(2).includes('tipo "clareza"'), p(3).includes('tipo "clareza"'), p(3).includes('estrutura das frases'), p(4).includes('estrutura das frases'), p(4).includes('20% das palavras')], [false, true, false, true, true]);
   });
 
+  caso('confiança: camadas que concordam sobem, que discordam descem, modelo inseguro e LanguageTool por categoria', () => {
+    const v = (l) => C.filtrarSugestoes('Vou a praia açim', l).map((x) => [x.original, x.substituicao, x.confianca, x.incerta]);
+    const lt = (o, n, categoria) => ({ ...s('gramatica', o, n), origem: 'languagetool', categoria });
+    igual([
+      v([lt('Vou a', 'Vou à', 'gramatica'), s('gramatica', 'Vou a', 'Vou à')]),
+      v([lt('Vou a', 'Vou à', 'gramatica'), { ...s('gramatica', 'Vou a', 'Irei à'), confianca: 0.6 }]),
+      v([{ ...s('clareza', 'açim', 'assim'), confianca: 0.3 }]),
+      v([lt('açim', 'assim', 'ortografia')]),
+    ], [[['Vou a', 'Vou à', 0.8, false]], [['Vou a', 'Irei à', 0.4, true]], [['açim', 'assim', 0.3, true]], [['açim', 'assim', 0.85, false]]]);
+  });
+
   const linhas = [];
   let ok = 0;
   for (const [nome, fn] of casos) {

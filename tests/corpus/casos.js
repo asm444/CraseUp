@@ -61,4 +61,19 @@ globalThis.CORPUS = [
     deveSugerir: [['Vou a', 'Irei à']],
     naoDeveSugerir: [],
   },
+  {
+    nome: 'LanguageTool e modelo discordam no mesmo trecho',
+    categoria: 'gramatica',
+    texto: 'Vou a praia.',
+    lt: [{ offset: 0, length: 5, message: 'Crase.', replacements: [{ value: 'Vou à' }], rule: { id: 'CRASE_CONFUSION', issueType: 'grammar' } }],
+    modelo: [{ tipo: 'gramatica', original: 'Vou a', substituicao: 'Vamos à', motivo: 'troca', confianca: 0.6 }],
+    deveSairIncerta: ['Vou a'],
+  },
+  {
+    nome: 'modelo pouco seguro da troca',
+    categoria: 'clareza',
+    texto: 'O texto ficou meio estranho.',
+    modelo: [{ tipo: 'clareza', original: 'meio estranho', substituicao: 'confuso', motivo: 'vago', confianca: 0.3 }],
+    deveSairIncerta: ['meio estranho'],
+  },
 ];

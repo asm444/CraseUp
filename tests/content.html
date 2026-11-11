@@ -22,6 +22,7 @@
       { tipo: 'palavra', original: 'eu', substituicao: 'nós todos juntos e mais um grupo grande de pessoas felizes hoje', motivo: 'mais de 10 palavras a mais, deve sumir' },
     ],
     'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
+    'dois erros açim e tambem': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }, { tipo: 'gramatica', original: 'tambem', substituicao: 'também', motivo: 'acento', confianca: 0.2 }],
     'texto com tag açim': [{ tipo: 'gramatica', original: 'açim', substituicao: '<img src=x onerror="window.invadiu=1">', motivo: '<b>negrito</b>' }],
     'manda pra ana@x.com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
@@ -235,6 +236,16 @@
       passarMouse(sombra().querySelector('.marca-gramatica').getBoundingClientRect());
       await espera(100);
       confere('o cartão diz quantos dados protegidos não saíram do navegador, e só quando há algum', [sombra().querySelector('.cartao .protegidos')?.textContent, semProtegidos], ['1 dado protegido não saiu do navegador', null]);
+      await apertarReal('Escape');
+
+      await digitar(area, 'dois erros açim e tambem');
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca-gramatica').getBoundingClientRect());
+      await espera(300);
+      const motivoIncerto = [...sombra().querySelectorAll('.cartao .motivo')].map((m) => [m.textContent, m.classList.contains('incerta')]);
+      await clicar(sombra().querySelector('.cartao .aplicar'));
+      await espera(100);
+      confere('sugestão incerta aparece marcada no cartão e fica fora do Substituir em lote', [motivoIncerto, area.value], [[['Grafia', false], ['Acento (incerta)', true]], 'dois erros assim e tambem']);
       await apertarReal('Escape');
 
       await digitar(area, 'texto com tag açim');
