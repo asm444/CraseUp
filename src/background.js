@@ -240,9 +240,14 @@ function palavrasRepetidas(texto, cfg, idioma) {
   return [...new Set(RevisorAnalise.repeticoes(mascarar(texto).texto, { idioma, ignorar: cfg.dicionario || [] }).map((r) => r.palavra.toLowerCase()))];
 }
 
+function frasesDificeis(texto, cfg) {
+  if ((cfg.nivel || NIVEL_PADRAO) < 3) return [];
+  return RevisorAnalise.legibilidade(mascarar(texto).texto).frases.filter((f) => f.alertas.length).map((f) => ({ inicio: f.texto.split(/\s+/).slice(0, 8).join(' '), alertas: f.alertas }));
+}
+
 async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido, contexto) {
   if (languagetool.estado !== 'ativa') return { estado: 'bloqueado' };
-  if (!languagetool.acusou && !pedido && !palavrasRepetidas(texto, cfg, idioma).length) return { estado: 'ocioso' };
+  if (!languagetool.acusou && !pedido && !palavrasRepetidas(texto, cfg, idioma).length && !frasesDificeis(texto, cfg).length) return { estado: 'ocioso' };
   return camadaModelo(texto, idioma, cfg, contexto);
 }
 
@@ -321,7 +326,7 @@ async function camadaModelo(texto, idioma, cfg, contexto) {
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
   const repetidas = palavrasRepetidas(texto, cfg, idioma);
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas }), cfg, lerResposta);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas, dificeis: frasesDificeis(texto, cfg) }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
   return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, ...(typeof s?.original === 'string' && repetidas.includes(s.original.toLowerCase()) && { categoria: 'repeticao' }), origem: 'openrouter', modelo: r.lida.modelo })) };

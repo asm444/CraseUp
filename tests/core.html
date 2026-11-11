@@ -277,6 +277,11 @@
     ], [[['Vou a', 'Vou à', 0.8, false]], [['Vou a', 'Irei à', 0.4, true]], [['açim', 'assim', 0.3, true]], [['açim', 'assim', 0.85, false]]]);
   });
 
+  caso('frases difíceis vão ao prompt a partir do nível 3', () => {
+    const p = (nivel) => C.montarRequisicao('oi', { nivel, dificeis: [{ inicio: 'O projeto foi aprovado', alertas: ['passiva'] }] }).messages[0].content;
+    igual([p(3).includes('"O projeto foi aprovado…" (passiva)'), p(2).includes('difíceis de ler')], [true, false]);
+  });
+
   const linhas = [];
   let ok = 0;
   for (const [nome, fn] of casos) {

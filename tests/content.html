@@ -117,6 +117,7 @@
   };
 </script>
 <script src="../src/protecao.js"></script>
+<script src="../src/analise.js"></script>
 <script src="../src/camada-estilo.js"></script>
 <script src="../src/content.js"></script>
 <script>
@@ -401,6 +402,7 @@
       }
       confere('a prévia da verificação mostra só as palavras que mudam', [...verificacao().querySelectorAll('.de')].map((e) => e.textContent).concat([...verificacao().querySelectorAll('.para')].map((e) => e.textContent)), ['eu', 'amanha', 'Eu', 'ao ', 'amanhã.']);
       confere('na verificação, a origem e a opção de manter o tom começam com maiúscula', [verificacao().querySelector('.origem')?.textContent, verificacao().querySelector('.escolha-tom option')?.textContent], ['Via OpenRouter (m)', 'Manter']);
+      confere('a verificação traz o resumo de leitura do campo', /^Leitura (muito fácil|fácil|difícil|muito difícil) \(índice \d+\)$/.test(verificacao().querySelector('.leitura')?.textContent || ''), true);
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
       const verificacaoAntesDoTom = verificacao();
       const topoDaVerificacao = verificacao().style.top;

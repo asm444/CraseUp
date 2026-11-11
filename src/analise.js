@@ -90,5 +90,24 @@
     return achadas;
   }
 
-  raiz.RevisorAnalise = { frases, palavras, ehStopword, radical, contagemPorFrase, distancias, repeticoes };
+  const LIMITE_DE_PALAVRAS = 30;
+  const LIMITE_DE_QUE = 3;
+  const PASSIVA = /(?<![\p{L}])(?:foi|foram|é|são|será|serão|era|eram|seja|sejam|sido|sendo)\s+\p{L}+(?:ad|id)[oa]s?(?![\p{L}])/iu;
+  const QUE = /(?<![\p{L}])que(?![\p{L}])/giu;
+
+  function silabas(palavra) {
+    return (palavra.toLowerCase().match(/[aeiouáéíóúâêôãõàüy]+/g) || []).length || 1;
+  }
+
+  function legibilidade(texto) {
+    const lista = contagemPorFrase(texto).map((f) => ({
+      ...f,
+      alertas: [f.palavras > LIMITE_DE_PALAVRAS && 'longa', (f.texto.match(QUE) || []).length >= LIMITE_DE_QUE && 'muitos-que', PASSIVA.test(f.texto) && 'passiva'].filter(Boolean),
+    }));
+    const todas = palavras(texto);
+    const indice = todas.length ? Math.round(Math.min(100, Math.max(0, 248.835 - 1.015 * (todas.length / lista.length) - 84.6 * (todas.reduce((t, p) => t + silabas(p.palavra), 0) / todas.length)))) : null;
+    return { frases: lista, indice };
+  }
+
+  raiz.RevisorAnalise = { frases, palavras, ehStopword, radical, contagemPorFrase, distancias, repeticoes, legibilidade };
 })(globalThis);

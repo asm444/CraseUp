@@ -76,6 +76,7 @@ globalThis.RevisorEstiloDaCamada = `:host {
 }
 .cartao .origem { margin: 0 0 8px; font-size: 11px; color: var(--texto-suave); }
 .cartao .motivo.incerta { opacity: 0.75; font-style: italic; }
+.cartao .leitura { margin: -4px 0 8px; font-size: 11px; color: var(--texto-suave); }
 .cartao .protegidos { margin: -4px 0 8px; font-size: 11px; color: var(--clareza); }
 .cartao-clareza { --cor: var(--clareza); }
 .cartao-palavra { --cor: var(--palavra); }

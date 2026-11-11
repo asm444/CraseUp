@@ -33,6 +33,15 @@
     rep('O endpoint chama o endpoint de novo.', { ignorar: ['endpoint'] }), rep('SEFAZ multou. SEFAZ cobrou de novo.'), rep('Falei com Marina e depois a Marina saiu.'), rep('Ela fez e ela fez.'),
   ], [[], [], [], []]);
 
+  const leg = (t) => A.legibilidade(t).frases.map((f) => f.alertas);
+  const comPalavras = (n) => Array.from({ length: n }, (_, i) => `palavra${i}`).join(' ') + '.';
+  confere('frase longa: 30 palavras passa, 31 alerta', [leg(comPalavras(30)), leg(comPalavras(31))], [[[]], [['longa']]]);
+  confere('encadeamento de "que": 2 passa, 3 alerta', [leg('Disse que sabe que vem.'), leg('Disse que sabe que o que vem.')], [[[]], [['muitos-que']]]);
+  confere('voz passiva com particípio regular alerta, voz ativa não', [leg('O projeto foi aprovado ontem.'), leg('Ana aprovou o projeto.')], [[['passiva']], [[]]]);
+  const facil = A.legibilidade('O gato bebe leite. A casa é azul.').indice;
+  const dificil = A.legibilidade('A operacionalização institucionalizada da regulamentação constitucional pressupõe interpretações jurisprudenciais extraordinariamente sofisticadas.').indice;
+  confere('o índice de leitura fica entre 0 e 100 e separa texto fácil de difícil', [facil, dificil, A.legibilidade('').indice], [100, 0, null]);
+
   const repetido = 'casa '.repeat(40000);
   const t0 = performance.now();
   const muitas = A.distancias(repetido).get('cas').length;

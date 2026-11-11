@@ -595,6 +595,18 @@
     montarCartao(`cartao cartao-${marcas[0].tipo}`, [cabecalho, previa, motivos, elemento('p', 'origem', `Via ${origens.join(' · ')}`), ...avisoDeProtegidos(trecho.paragrafo), tons, acoes]);
   }
 
+  const NOMES_DE_ALERTA = { longa: 'longa', 'muitos-que': 'com muitos "que"', passiva: 'na voz passiva' };
+
+  function resumoDeLeitura(texto) {
+    const { frases, indice } = RevisorAnalise.legibilidade(texto);
+    if (indice === null) return [];
+    const faixa = indice >= 75 ? 'muito fácil' : indice >= 50 ? 'fácil' : indice >= 25 ? 'difícil' : 'muito difícil';
+    const contagem = {};
+    for (const f of frases) for (const a of f.alertas) contagem[a] = (contagem[a] || 0) + 1;
+    const alertas = Object.entries(contagem).map(([a, n]) => `${n} frase${n > 1 ? 's' : ''} ${NOMES_DE_ALERTA[a]}`);
+    return [elemento('p', 'leitura', [`Leitura ${faixa} (índice ${indice})`, ...alertas].join(' · '))];
+  }
+
   function avisoDeProtegidos(texto) {
     const n = RevisorProtecao.mascarar(texto).itens.length;
     if (!n) return [];
@@ -824,7 +836,7 @@
     }
     const partes = [cabecalho, previa, motivos];
     if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `Via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
-    partes.push(...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, 'Manter', pedirVerificacao), acoes);
+    partes.push(...resumoDeLeitura(v.texto), ...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, 'Manter', pedirVerificacao), acoes);
     montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
 

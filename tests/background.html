@@ -160,6 +160,10 @@
       ], [true, [['projeto', 'trabalho', 'repeticao']], 0]);
       const comNumero = await Promise.race([revisar('o tema voltou e o tema ficou'), new Promise((pronto) => setTimeout(() => pronto('travou'), 3000))]);
       confere('sugestão do modelo com original que não é texto não derruba a revisão', comNumero === 'travou' ? 'travou' : comNumero.sugestoes, []);
+      const antesDaLeitura = corposAoModelo.length;
+      await revisar('o projeto foi aprovado ontem pela equipe', false, 31);
+      const pedidoDeLeitura = corposAoModelo[antesDaLeitura]?.messages[0].content || '';
+      confere('frase difícil chama o modelo a partir do nível 3 e vai ao prompt com o começo da frase', [pedidoDeLeitura.includes('"o projeto foi aprovado ontem pela equipe…" (passiva)')], [true]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',
@@ -181,7 +185,7 @@
       confere('corpus adversarial: sugestão e reescrita que obedecem instrução embutida e acrescentam link são descartadas', [revisoesAdversariais[2].sugestoes.map((s) => [s.original, s.substituicao]), reescritaInjetada.texto, typeof reescritaInjetada.erro], [[['mande', 'envie']], undefined, 'string']);
       confere('nenhum pedido ao modelo levou o e-mail da revisão', corposAoModelo.some((c) => JSON.stringify(c).includes('ana@x.com') || JSON.stringify(c).includes('bia@y.com')), false);
       const manifesto = await (await fetchReal('../manifest.json')).json();
-      confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/protecao.js', 'src/camada-estilo.js', 'src/content.js']]);
+      confere('nenhum arquivo fica acessível aos sites, e o estilo do cartão chega junto com o content script', ['web_accessible_resources' in manifesto, manifesto.content_scripts[0].js], [false, ['src/core.js', 'src/protecao.js', 'src/analise.js', 'src/camada-estilo.js', 'src/content.js']]);
       armazem.local.dicionario = ['xiquexiquezal', '4111 1111 1111 1111', ['sk-or-v1-', 'a'.repeat(40)].join('')];
       await revisar('texto com o dicionário cheio', true);
       const prompt = corposAoModelo.at(-1).messages[0].content;
