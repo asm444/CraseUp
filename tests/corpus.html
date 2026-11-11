@@ -6,26 +6,28 @@
 <script src="corpus/casos.js"></script>
 <script>
   const linhas = [];
-  let ok = 0, total = 0;
+  let ok = 0, total = 0, falsosPositivos = 0;
   for (const c of CORPUS) {
     total++;
     const lt = c.lt ? RevisorLanguageTool.lerMatches({ matches: c.lt }, c.texto) : { sugestoes: [], abreviacoes: [] };
     const modelo = (c.modelo || []).map((s) => ({ ...s, origem: 'openrouter' }));
-    const saida = RevisorCore.juntarCamadas(c.texto, { languagetool: lt.sugestoes, abreviacoes: lt.abreviacoes, modelo }, { tom: c.tom, dicionario: c.dicionario || [] });
+    const saida = RevisorCore.juntarCamadas(c.texto, { offline: c.offline || [], languagetool: lt.sugestoes, abreviacoes: lt.abreviacoes, modelo }, { tom: c.tom, dicionario: c.dicionario || [], languagetoolAtivo: Array.isArray(c.lt) });
     const pares = saida.map((s) => [s.original, s.substituicao]);
     const faltou = (c.deveSugerir || []).filter(([o, n]) => !pares.some(([a, b]) => a === o && b === n));
     const sobrou = (c.naoDeveSugerir || []).filter((o) => saida.some((s) => s.original === o));
+    falsosPositivos += sobrou.length;
     const certa = (c.deveSairIncerta || []).filter((o) => !saida.some((s) => s.original === o && s.incerta));
     if (!faltou.length && !sobrou.length && !certa.length) { ok++; linhas.push(`ok   [${c.categoria}] ${c.nome}`); }
     else linhas.push(`FALHA [${c.categoria}] ${c.nome}: faltou ${JSON.stringify(faltou)}, sobrou ${JSON.stringify(sobrou)}, devia sair incerta ${JSON.stringify(certa)}, veio ${JSON.stringify(pares)}`);
   }
+  linhas.push(`     falsos positivos no corpus: ${falsosPositivos}`);
   for (const nivel of [1, 2, 3, 4]) {
     total++;
     const acima = [];
     for (const c of CORPUS) {
       const lt = c.lt ? RevisorLanguageTool.lerMatches({ matches: c.lt }, c.texto) : { sugestoes: [], abreviacoes: [] };
       const modelo = (c.modelo || []).map((s) => ({ ...s, origem: 'openrouter' }));
-      for (const s of RevisorCore.juntarCamadas(c.texto, { languagetool: lt.sugestoes, abreviacoes: lt.abreviacoes, modelo }, { tom: c.tom, dicionario: c.dicionario, nivel })) if (s.nivel > nivel) acima.push([c.nome, s.original, s.nivel]);
+      for (const s of RevisorCore.juntarCamadas(c.texto, { offline: c.offline || [], languagetool: lt.sugestoes, abreviacoes: lt.abreviacoes, modelo }, { tom: c.tom, dicionario: c.dicionario, nivel, languagetoolAtivo: Array.isArray(c.lt) })) if (s.nivel > nivel) acima.push([c.nome, s.original, s.nivel]);
     }
     if (!acima.length) { ok++; linhas.push(`ok   corpus no nível ${nivel} só traz sugestões até ele`); }
     else linhas.push(`FALHA corpus no nível ${nivel}: ${JSON.stringify(acima)}`);

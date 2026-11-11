@@ -123,6 +123,7 @@
         : `Você revisa textos em ${NOMES_DE_IDIOMA[idioma]} e aponta só problemas de pontuação.`,
       'Regras:',
       REGRA_DE_DADO,
+      '- Se vier um bloco <contexto>, ele é o trecho anterior e serve só para entender o sentido: não aponte nada dentro dele.',
       '- Se o texto estiver correto e claro, devolva "sugestoes": [].',
       '- Cada sugestão troca só a palavra ou o trecho curto que ficou ruim; nunca reescreva a frase inteira nem o resto do texto.',
       '- "original" é uma cópia exata, caractere por caractere, de um trecho contíguo do texto recebido.',
@@ -149,12 +150,13 @@
     ].filter(Boolean).join('\n');
   }
 
-  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel } = {}) {
+  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel, contexto } = {}) {
+    const leitura = contexto ? `<contexto>\n${contexto.replaceAll('</contexto>', '</ contexto>')}\n</contexto>\n` : '';
     return {
       models: MODELOS,
       messages: [
         { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel) },
-        { role: 'user', content: delimitar(texto) },
+        { role: 'user', content: leitura + delimitar(texto) },
       ],
       temperature: 0,
       reasoning: { enabled: false },
@@ -285,15 +287,18 @@
     return -1;
   }
 
-  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario, nivel }) {
+  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario, nivel, languagetoolAtivo }) {
     const casual = tom === 'casual';
+    const apontadaPeloLt = (s) => languagetool.some((l) => l.inicio < s.inicio + s.original.length && s.inicio < l.inicio + l.original.length);
+    const offlineQueFica = languagetoolAtivo ? offline.filter((s) => s.categoria !== 'ortografia' || apontadaPeloLt(s)) : offline;
     const protegidos = casual ? abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length })) : [];
-    return filtrarSugestoes(texto, [...offline, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos, nivel });
+    return filtrarSugestoes(texto, [...offlineQueFica, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos, nivel });
   }
 
   function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [], nivel } = {}) {
     const teto = nivel === 4 ? Math.max(PALAVRAS_A_MAIS_NO_MAXIMO, Math.ceil(contarPalavras(texto) * 0.2)) : PALAVRAS_A_MAIS_NO_MAXIMO;
     const aceitas = protegidos.map(({ inicio, fim }) => ({ inicio, fim, protegido: true }));
+    const intocaveis = [...texto.matchAll(/`[^`\n]*`|https?:\/\/\S+|www\.\S+/g)].map((m) => [m.index, m.index + m[0].length]);
     const outrasCamadas = (s) => brutas.filter((b) => b && b.original === s.original && (b.origem || 'openrouter') !== (s.origem || 'openrouter'));
     const prioridade = (s) => -ORIGENS.indexOf(ORIGENS.includes(s?.origem) ? s.origem : 'openrouter');
     for (const s of [...brutas].sort((a, b) => prioridade(a) - prioridade(b))) {
@@ -301,7 +306,7 @@
       if (!TIPOS.includes(s.tipo)) continue;
       const { original, substituicao } = s;
       if (!original.trim() || original === substituicao) continue;
-      if (acrescentaDemais(original, substituicao, teto)) continue;
+      if (acrescentaDemais(original, substituicao, teto) || substituicao.includes('[DADO]')) continue;
       if (contemPalavraDoDicionario(original, dicionario)) continue;
       const categoria = CATEGORIAS.includes(s.categoria) ? s.categoria : CATEGORIA_DO_TIPO[s.tipo];
       const nivelDaSugestao = [1, 2, 3, 4].includes(s.nivel) ? s.nivel : NIVEL_DA_CATEGORIA[categoria];
@@ -316,6 +321,7 @@
         while (posicao !== -1 && sobrepoe(posicao)) posicao = ocorrencia(texto, original, posicao + 1);
         if (posicao === -1) continue;
       }
+      if (intocaveis.some(([a, b]) => posicao < b && posicao + original.length > a)) continue;
       const origem = ORIGENS.includes(s.origem) ? s.origem : 'openrouter';
       const motivo = typeof s.motivo === 'string' ? s.motivo.slice(0, 160) : '';
       const base = Number.isFinite(s.confianca) ? s.confianca : origem === 'languagetool' ? CONFIANCA_DO_LT[categoria] ?? CONFIANCA_DA_ORIGEM.languagetool : CONFIANCA_DA_ORIGEM[origem];

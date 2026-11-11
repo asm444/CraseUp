@@ -64,6 +64,7 @@
     return raiz;
   };
   const enviados = [];
+  const contextos = [];
   const pedidos = [];
   const etapas = [];
   const reescritas = [];
@@ -90,6 +91,7 @@
           disconnect() {},
           postMessage(msg) {
             enviados.push(msg.texto);
+            contextos.push([msg.texto, msg.contexto]);
             etapas.push([msg.texto, msg.modelo]);
             if (msg.pedido) pedidos.push(msg.texto);
             const sugestoes = RevisorCore.filtrarSugestoes(msg.texto, RESPOSTAS[msg.texto] || []);
@@ -265,6 +267,10 @@
         ['Crase: Usa-se à quando a preposição "a" encontra o artigo feminino "a": vou a + a praia = vou à praia.', 'Crase: Usa-se à quando a preposição "a" encontra o artigo feminino "a": vou a + a praia = vou à praia.'],
         ['Grafia: troca de ç por ss', 'Grafia: troca de ç por ss'],
       ]);
+
+      await digitar(area, 'primeiro parágrafo aqui\nsegundo parágrafo depois');
+      await espera(1500);
+      confere('cada parágrafo vai com o parágrafo anterior como contexto', contextos.filter(([t]) => t === 'segundo parágrafo depois').map(([, c]) => c).slice(0, 1), ['primeiro parágrafo aqui']);
 
       await digitar(area, 'texto com tag açim');
       await espera(1500);

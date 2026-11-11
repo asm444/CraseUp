@@ -247,9 +247,9 @@
     igual([itens.required, itens.properties.categoria.enum], [['tipo', 'original', 'substituicao', 'motivo', 'categoria', 'confianca', 'regra'], C.CATEGORIAS]);
   });
 
-  caso('troca que acrescenta link com https, www ou e-mail é descartada; link que já estava no original passa', () => {
+  caso('troca que acrescenta link com https, www ou e-mail é descartada, e troca que mexe num link escrito também', () => {
     const troca = (substituicao, original = 'relatório') => C.filtrarSugestoes(`mande o ${original}`, [{ ...s('palavra', original, substituicao) }]).length;
-    igual([troca('relatório em https://golpe.exemplo'), troca('relatório em www.golpe.exemplo'), troca('relatório para ana@golpe.exemplo'), troca('site https://x.exemplo/a', 'site https://x.exemplo'), troca('documento')], [0, 0, 0, 1, 1]);
+    igual([troca('relatório em https://golpe.exemplo'), troca('relatório em www.golpe.exemplo'), troca('relatório para ana@golpe.exemplo'), troca('site https://x.exemplo/a', 'site https://x.exemplo'), troca('documento')], [0, 0, 0, 0, 1]);
   });
 
   caso('cada nível só deixa passar sugestões até ele, e o 4 aceita teto proporcional', () => {

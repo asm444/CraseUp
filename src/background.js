@@ -152,7 +152,7 @@ async function executarCamada(executar) {
   return { ...resultado, latenciaMs: Math.round(performance.now() - inicio) };
 }
 
-async function revisar(texto, abaId, { pedido, modelo }, aoAvancar) {
+async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
   const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel'])), abaId };
   const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO };
@@ -160,12 +160,13 @@ async function revisar(texto, abaId, { pedido, modelo }, aoAvancar) {
   aoAvancar({ sugestoes: juntarCamadas(texto, { offline: offline.sugestoes }, opcoes) });
   const languagetool = await executarCamada(() => camadaLanguageTool(texto, offline.idioma, cfg.languagetool));
   const rapidas = { offline: offline.sugestoes, languagetool: languagetool.sugestoes, abreviacoes: languagetool.abreviacoes };
-  aoAvancar({ sugestoes: juntarCamadas(texto, rapidas, opcoes) });
+  const comLanguageTool = { ...opcoes, languagetoolAtivo: languagetool.estado === 'ativa' };
+  aoAvancar({ sugestoes: juntarCamadas(texto, rapidas, comLanguageTool) });
   const adiar = POLITICA.adiarModelo({ modelo, languagetool });
-  const openrouter = opcoes.nivel < 2 ? { estado: 'ocioso' } : adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido));
+  const openrouter = opcoes.nivel < 2 ? { estado: 'ocioso' } : adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido, contexto));
   await registrarCamadas({ offline, languagetool, openrouter });
   return {
-    sugestoes: juntarCamadas(texto, { ...rapidas, modelo: openrouter.sugestoes }, opcoes),
+    sugestoes: juntarCamadas(texto, { ...rapidas, modelo: openrouter.sugestoes }, comLanguageTool),
     provisorio: adiar || [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
 }
@@ -234,10 +235,10 @@ async function camadaLanguageTool(texto, idioma, base = ENDERECO_LOCAL) {
   return consultarLanguageTool(base, texto, idioma);
 }
 
-async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido) {
+async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido, contexto) {
   if (languagetool.estado !== 'ativa') return { estado: 'bloqueado' };
   if (!languagetool.acusou && !pedido) return { estado: 'ocioso' };
-  return camadaModelo(texto, idioma, cfg);
+  return camadaModelo(texto, idioma, cfg, contexto);
 }
 
 function momentoDeVolta(resposta) {
@@ -309,11 +310,12 @@ function restaurarSugestao(s, itens) {
   return { ...s, original: original.texto, substituicao: substituicao.texto };
 }
 
-async function camadaModelo(texto, idioma, cfg) {
+async function camadaModelo(texto, idioma, cfg, contexto) {
   const { texto: mascarado, itens } = mascarar(texto);
+  const contextoMascarado = mascarar(contexto).texto.replace(/\[[A-Z_]+_\d+\]/g, '[DADO]');
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel }), cfg, lerResposta);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
   return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, origem: 'openrouter', modelo: r.lida.modelo })) };
@@ -368,7 +370,7 @@ chrome.runtime.onConnect.addListener((porta) => {
   };
   porta.onMessage.addListener(async (msg) => {
     if (typeof msg?.texto !== 'string') return;
-    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false };
+    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false, contexto: typeof msg.contexto === 'string' ? msg.contexto.slice(-300) : '' };
     enviar({ final: await revisar(msg.texto, porta.sender?.tab?.id, opcoes, (parcial) => enviar({ parcial })) });
   });
 });

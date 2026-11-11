@@ -342,7 +342,8 @@
     if (!pedido && !(Date.now() - estado.interagiuEm < INTERACAO_VALE_MS)) return;
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
-    const candidatos = dividirParagrafos(texto)
+    const paragrafos = dividirParagrafos(texto);
+    const candidatos = paragrafos
       .filter((p) => revisavel(p.texto) && (pedido || !cache.has(p.texto) || (!rapida && provisorios.has(p.texto) && !(Date.now() < reenvios.get(p.texto)?.em))));
     if (!rapida && candidatos.some((p) => emVoo.has(p.texto))) {
       clearTimeout(estado.timerModelo);
@@ -353,10 +354,12 @@
       .sort((a, b) => Math.abs(a.inicio - cursor) - Math.abs(b.inicio - cursor))
       .slice(0, pedido ? PARAGRAFOS_POR_PEDIDO : PARAGRAFOS_POR_PAUSA);
     await Promise.all(
-      pendentes.map(async ({ texto: paragrafo }) => {
+      pendentes.map(async (p) => {
+        const paragrafo = p.texto;
+        const contexto = paragrafos[paragrafos.indexOf(p) - 1]?.texto;
         emVoo.add(paragrafo);
         try {
-          const resposta = await pedirRevisao({ texto: paragrafo, pedido, modelo: !rapida }, (parcial) => {
+          const resposta = await pedirRevisao({ texto: paragrafo, contexto, pedido, modelo: !rapida }, (parcial) => {
             if (parcial.sugestoes.length < (cache.get(paragrafo)?.length ?? 0)) return;
             guardarNoCache(paragrafo, parcial.sugestoes, true);
             if (ativo && campos.get(estado.el) === estado) desenhar(estado);
