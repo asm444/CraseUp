@@ -387,12 +387,26 @@
     return trechos;
   }
 
+  const REGRAS_PT = [
+    { padrao: /CRASE/, nome: 'Crase', explicacao: 'Usa-se à quando a preposição "a" encontra o artigo feminino "a": vou a + a praia = vou à praia.' },
+    { padrao: /REGENCIA|REGÊNCIA/, nome: 'Regência', explicacao: 'Alguns verbos e nomes pedem preposição certa: quem assiste a um filme assiste ao filme.' },
+    { padrao: /VOCATIVO/, nome: 'Vírgula do vocativo', explicacao: 'O nome de quem se chama fica separado por vírgula: Olá, João.' },
+    { padrao: /CONCORD|AGREEMENT/, nome: 'Concordância', explicacao: 'Artigo, substantivo, adjetivo e verbo concordam em número e gênero: as meninas foram.' },
+    { padrao: /MORFOLOGIK|SPELL|ORTOGRAFIA/, nome: 'Ortografia', explicacao: 'A palavra não está no dicionário; a troca é a grafia mais próxima.' },
+  ];
+
+  function explicarRegra(s) {
+    const catalogada = REGRAS_PT.find((r) => r.padrao.test(s.regra?.id));
+    if (catalogada) return { nome: catalogada.nome, explicacao: catalogada.explicacao };
+    return { nome: s.regra?.nome || '', explicacao: s.regra?.explicacao || '' };
+  }
+
   function partesDoTrecho(texto, trecho) {
     const partes = [];
     let cursor = trecho.inicio;
     for (const s of trecho.sugestoes) {
       if (s.inicio > cursor) partes.push({ igual: texto.slice(cursor, s.inicio) });
-      partes.push({ de: s.original, para: s.substituicao, tipo: s.tipo });
+      partes.push({ de: s.original, para: s.substituicao, tipo: s.tipo, regra: explicarRegra(s) });
       cursor = s.fim;
     }
     if (cursor < trecho.fim) partes.push({ igual: texto.slice(cursor, trecho.fim) });

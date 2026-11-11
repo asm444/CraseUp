@@ -477,8 +477,13 @@
         continue;
       }
       const tipo = parte.tipo || 'gramatica';
-      if (parte.de) previa.append(elemento('span', `de de-${tipo}`, parte.de));
-      if (parte.para) previa.append(elemento('span', `para para-${tipo}`, parte.para));
+      const explicacao = parte.regra?.explicacao ? [parte.regra.nome, parte.regra.explicacao].filter(Boolean).join(': ') : '';
+      for (const [lado, texto] of [['de', parte.de], ['para', parte.para]]) {
+        if (!texto) continue;
+        const span = elemento('span', `${lado} ${lado}-${tipo}`, texto);
+        if (explicacao) span.title = explicacao;
+        previa.append(span);
+      }
     }
   }
 

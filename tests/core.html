@@ -38,7 +38,7 @@
   caso('a prévia do trecho alterna texto igual e troca', () => {
     const t = 'eu vou mercado hoje';
     const [trecho] = C.trechosDoParagrafo(t, [sug('vou mercado', 'vou ao mercado', 3)]);
-    igual(C.partesDoTrecho(t, trecho), [{ igual: 'eu ' }, { de: 'vou mercado', para: 'vou ao mercado', tipo: 'gramatica' }, { igual: ' hoje' }]);
+    igual(C.partesDoTrecho(t, trecho), [{ igual: 'eu ' }, { de: 'vou mercado', para: 'vou ao mercado', tipo: 'gramatica', regra: { nome: '', explicacao: '' } }, { igual: ' hoje' }]);
   });
 
   caso('divide em parágrafos com o deslocamento de cada um', () => {

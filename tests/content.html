@@ -23,6 +23,8 @@
     ],
     'isso é açim mesmo': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'dois erros açim e tambem': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }, { tipo: 'gramatica', original: 'tambem', substituicao: 'também', motivo: 'acento', confianca: 0.2 }],
+    'regra de crase açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia', regra: { id: 'CRASE_CONFUSION', nome: '', explicacao: '' } }],
+    'regra sem catálogo açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia', regra: { id: 'REGRA_X', nome: 'Grafia', explicacao: 'troca de ç por ss' } }],
     'texto com tag açim': [{ tipo: 'gramatica', original: 'açim', substituicao: '<img src=x onerror="window.invadiu=1">', motivo: '<b>negrito</b>' }],
     'manda pra ana@x.com açim': [{ tipo: 'gramatica', original: 'açim', substituicao: 'assim', motivo: 'grafia' }],
     'texto bom demais': [{ tipo: 'clareza', original: 'demais', substituicao: '', motivo: 'redundante' }],
@@ -247,6 +249,22 @@
       await espera(100);
       confere('sugestão incerta aparece marcada no cartão e fica fora do Substituir em lote', [motivoIncerto, area.value], [[['Grafia', false], ['Acento (incerta)', true]], 'dois erros assim e tambem']);
       await apertarReal('Escape');
+
+      const tituloDaTroca = async (texto) => {
+        await digitar(area, texto);
+        await espera(1500);
+        passarMouse(sombra().querySelector('.marca-gramatica').getBoundingClientRect());
+        await espera(300);
+        const titulos = ['de', 'para'].map((lado) => sombra().querySelector(`.cartao .previa .${lado}`)?.title);
+        await apertarReal('Escape');
+        return titulos;
+      };
+      confere('a troca no cartão explica a regra pelo catálogo quando o id é conhecido, e usa a explicação da sugestão quando não é', [
+        await tituloDaTroca('regra de crase açim'), await tituloDaTroca('regra sem catálogo açim'),
+      ], [
+        ['Crase: Usa-se à quando a preposição "a" encontra o artigo feminino "a": vou a + a praia = vou à praia.', 'Crase: Usa-se à quando a preposição "a" encontra o artigo feminino "a": vou a + a praia = vou à praia.'],
+        ['Grafia: troca de ç por ss', 'Grafia: troca de ç por ss'],
+      ]);
 
       await digitar(area, 'texto com tag açim');
       await espera(1500);
