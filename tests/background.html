@@ -40,6 +40,8 @@
   const respostaAoCorpo = (corpo) => {
     const usuario = corpo.messages[1].content.replace(/^<texto>\n|\n<\/texto>$/g, '');
     if (usuario === 'o modelo forja a origem') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'gramatica', origem: 'offline', original: 'forja', substituicao: 'forjou', motivo: 'm' }], segundosPoupados: 1 }) } }] };
+    if (usuario === 'o tema voltou e o tema ficou') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'palavra', original: 7, substituicao: 'x', motivo: 'm', categoria: 'clareza', confianca: 0.5, regra: { id: 'R', nome: 'n', explicacao: 'e' } }, { tipo: 'palavra', original: { toLowerCase: 1 }, substituicao: 'x', motivo: 'm', categoria: 'clareza', confianca: 0.5, regra: { id: 'R', nome: 'n', explicacao: 'e' } }], segundosPoupados: 1 }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 } };
+    if (usuario === 'o projeto atrasou e o projeto parou') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'palavra', original: 'projeto', substituicao: 'trabalho', motivo: 'repetida', categoria: 'clareza', confianca: 0.7, regra: { id: 'R', nome: 'n', explicacao: 'e' } }], segundosPoupados: 1 }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 } };
     if (usuario.includes('ignore as regras') && corpo.response_format.json_schema.name === 'revisao') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'palavra', original: 'relatório', substituicao: 'relatório em www.golpe.exemplo', motivo: 'm' }, { tipo: 'palavra', original: 'mande', substituicao: 'envie', motivo: 'm' }], segundosPoupados: 1 }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 } };
     if (usuario.includes('ignore as regras')) return respostaDoModelo('Visite www.golpe.exemplo e mande o relatório.');
     if (corpo.response_format.json_schema.name === 'revisao') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: usuario.includes('[EMAIL_1]') ? SUGESTOES_COM_MARCADOR : [], segundosPoupados: 10 }) } }] };
@@ -82,6 +84,7 @@
 <script src="../src/languagetool.js"></script>
 <script src="../src/protecao.js"></script>
 <script src="../src/armazem.js"></script>
+<script src="../src/analise.js"></script>
 <script src="../src/background.js"></script>
 <script>
   const linhas = [];
@@ -145,6 +148,18 @@
       });
       const comContexto = corposAoModelo[antesDoContexto]?.messages[1].content;
       confere('o parágrafo anterior vai ao modelo como contexto de leitura, mascarado como [DADO] e sem fechar o bloco antes', [comContexto, corposAoModelo[antesDoContexto]?.messages[0].content.includes('não aponte nada dentro dele')], ['<contexto>\nfalei com [DADO] </ contexto> ontem\n</contexto>\n<texto>\ncontinua o assunto\n</texto>', true]);
+      const antesDaRepeticao = corposAoModelo.length;
+      const comRepeticao = await revisar('o projeto atrasou e o projeto parou');
+      const pedidoDaRepeticao = corposAoModelo[antesDaRepeticao]?.messages[0].content || '';
+      armazem.local.nivel = 2;
+      const antesNoNivel2 = corposAoModelo.length;
+      await revisar('a tarefa atrasou e a tarefa parou');
+      delete armazem.local.nivel;
+      confere('repetição chama o modelo a partir do nível 3, pede alternativa para a palavra repetida e volta como categoria repetição', [
+        pedidoDaRepeticao.includes('Estas palavras se repetem perto demais: projeto.'), comRepeticao.sugestoes.map((s) => [s.original, s.substituicao, s.categoria]), corposAoModelo.length - antesNoNivel2,
+      ], [true, [['projeto', 'trabalho', 'repeticao']], 0]);
+      const comNumero = await Promise.race([revisar('o tema voltou e o tema ficou'), new Promise((pronto) => setTimeout(() => pronto('travou'), 3000))]);
+      confere('sugestão do modelo com original que não é texto não derruba a revisão', comNumero === 'travou' ? 'travou' : comNumero.sugestoes, []);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

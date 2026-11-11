@@ -26,6 +26,13 @@
   confere('contagem de palavras por frase', A.contagemPorFrase('Eu vou ao mercado. Depois volto.').map((f) => f.palavras), [4, 2]);
   confere('distância entre ocorrências do mesmo radical, sem stopwords', Object.fromEntries(A.distancias('O projeto atrasou. Projetos atrasam quando o projeto muda.')), { projet: [2, 2], atras: [2] });
 
+  const rep = (t, o) => A.repeticoes(t, o).map((x) => x.palavra);
+  confere('repetição dentro da janela é achada, fora dela não', [rep('O projeto atrasou e o projeto parou.'), rep('O projeto alfa beta gama delta épsilon zeta projeto.', { janela: 5 })], [['projeto'], []]);
+  confere('repetição pelo radical junta singular e plural', rep('Os projetos atrasaram e o projeto parou.'), ['projeto']);
+  confere('termo técnico do dicionário, sigla, nome próprio e palavra curta repetidos não contam', [
+    rep('O endpoint chama o endpoint de novo.', { ignorar: ['endpoint'] }), rep('SEFAZ multou. SEFAZ cobrou de novo.'), rep('Falei com Marina e depois a Marina saiu.'), rep('Ela fez e ela fez.'),
+  ], [[], [], [], []]);
+
   const repetido = 'casa '.repeat(40000);
   const t0 = performance.now();
   const muitas = A.distancias(repetido).get('cas').length;

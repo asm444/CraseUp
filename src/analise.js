@@ -73,5 +73,22 @@
     return resultado;
   }
 
-  raiz.RevisorAnalise = { frases, palavras, ehStopword, radical, contagemPorFrase, distancias };
+  function nomeProprio(texto, p) {
+    return /^\p{Lu}/u.test(p.palavra) && /[^.!?…:]$/.test(texto.slice(0, p.inicio).trimEnd());
+  }
+
+  function repeticoes(texto, { janela = 10, idioma, ignorar = [] } = {}) {
+    const fora = new Set(ignorar.map((t) => t.toLowerCase()));
+    const ultima = new Map();
+    const achadas = [];
+    palavras(texto).forEach((p, posicao) => {
+      if (p.palavra.length < 4 || ehStopword(p.palavra, idioma) || fora.has(p.palavra.toLowerCase()) || /^\p{Lu}{2,}$/u.test(p.palavra) || nomeProprio(texto, p)) return;
+      const r = radical(p.palavra, idioma);
+      if (posicao - ultima.get(r) <= janela) achadas.push({ palavra: p.palavra });
+      ultima.set(r, posicao);
+    });
+    return achadas;
+  }
+
+  raiz.RevisorAnalise = { frases, palavras, ehStopword, radical, contagemPorFrase, distancias, repeticoes };
 })(globalThis);

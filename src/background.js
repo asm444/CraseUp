@@ -1,4 +1,4 @@
-importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'vendor/hunspell.js');
+importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'analise.js', 'vendor/hunspell.js');
 
 const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, juntarCamadas, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
@@ -235,9 +235,14 @@ async function camadaLanguageTool(texto, idioma, base = ENDERECO_LOCAL) {
   return consultarLanguageTool(base, texto, idioma);
 }
 
+function palavrasRepetidas(texto, cfg, idioma) {
+  if ((cfg.nivel || NIVEL_PADRAO) < 3) return [];
+  return [...new Set(RevisorAnalise.repeticoes(mascarar(texto).texto, { idioma, ignorar: cfg.dicionario || [] }).map((r) => r.palavra.toLowerCase()))];
+}
+
 async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido, contexto) {
   if (languagetool.estado !== 'ativa') return { estado: 'bloqueado' };
-  if (!languagetool.acusou && !pedido) return { estado: 'ocioso' };
+  if (!languagetool.acusou && !pedido && !palavrasRepetidas(texto, cfg, idioma).length) return { estado: 'ocioso' };
   return camadaModelo(texto, idioma, cfg, contexto);
 }
 
@@ -315,10 +320,11 @@ async function camadaModelo(texto, idioma, cfg, contexto) {
   const contextoMascarado = mascarar(contexto).texto.replace(/\[[A-Z_]+_\d+\]/g, '[DADO]');
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado }), cfg, lerResposta);
+  const repetidas = palavrasRepetidas(texto, cfg, idioma);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
-  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, origem: 'openrouter', modelo: r.lida.modelo })) };
+  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, ...(typeof s?.original === 'string' && repetidas.includes(s.original.toLowerCase()) && { categoria: 'repeticao' }), origem: 'openrouter', modelo: r.lida.modelo })) };
 }
 
 const MOTIVOS_SEM_REESCRITA = {
