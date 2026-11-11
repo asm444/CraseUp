@@ -141,6 +141,7 @@ async function camadaOffline(texto) {
   }
 }
 
+const MEDICOES_POR_CAMADA = 100;
 const ESTADOS_SEM_ERRO = new Set(['ativa', 'ocioso', 'bloqueado']);
 const POLITICA = {
   adiarModelo: ({ modelo, languagetool }) => !modelo && languagetool.estado === 'ativa' && languagetool.acusou,
@@ -178,12 +179,15 @@ function semResposta(origem) {
 let filaDeCamadas = Promise.resolve();
 function registrarCamadas(novas) {
   filaDeCamadas = filaDeCamadas.catch(() => {}).then(async () => {
-    const { camadas: anteriores } = await chrome.storage.local.get('camadas');
+    const { camadas: anteriores, historicoDasCamadas: historico = {} } = await chrome.storage.local.get(['camadas', 'historicoDasCamadas']);
     const resumo = { ...anteriores };
     for (const [nome, { estado, mensagem, latenciaMs }] of Object.entries(novas)) {
-      if (estado !== 'adiado') resumo[nome] = { estado, mensagem, latenciaMs, erro: ESTADOS_SEM_ERRO.has(estado) ? null : estado, em: Date.now() };
+      if (estado === 'adiado') continue;
+      const erro = ESTADOS_SEM_ERRO.has(estado) ? null : estado;
+      resumo[nome] = { estado, mensagem, latenciaMs, erro, em: Date.now() };
+      historico[nome] = [...(historico[nome] || []), { ms: latenciaMs, erro, em: Date.now() }].slice(-MEDICOES_POR_CAMADA);
     }
-    await chrome.storage.local.set({ camadas: resumo });
+    await chrome.storage.local.set({ camadas: resumo, historicoDasCamadas: historico });
   });
   return filaDeCamadas;
 }

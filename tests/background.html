@@ -115,6 +115,8 @@
       await revisar('outro texto para revisar');
       confere('com servidor salvo, o LanguageTool salvo é usado; sem servidor, o desta máquina', pedidosAoLanguageTool, ['http://lt.exemplo:8010/v2/check', 'http://localhost:8010/v2/check']);
       const metricas = armazem.local.camadas;
+      const historico = armazem.local.historicoDasCamadas || {};
+      confere('o histórico das camadas guarda só tempo, erro e momento, até 100 por camada', [['offline', 'languagetool', 'openrouter'].map((n) => (historico[n] || []).every((h) => Object.keys(h).sort().join(',') === 'em,erro,ms')), Object.values(historico).every((l) => l.length > 0 && l.length <= 100), JSON.stringify(historico).includes('para revisar')], [[true, true, true], true, false]);
       confere('cada camada grava estado, tipo de erro e latência, e nenhum texto revisado', [
         ['offline', 'languagetool', 'openrouter'].map((n) => [Object.keys(metricas[n]).sort().join(','), Number.isInteger(metricas[n].latenciaMs) && metricas[n].latenciaMs >= 0]),
         metricas.offline.erro, metricas.languagetool.erro, JSON.stringify(metricas).includes('para revisar'),
@@ -164,6 +166,10 @@
       await revisar('o projeto foi aprovado ontem pela equipe', false, 31);
       const pedidoDeLeitura = corposAoModelo[antesDaLeitura]?.messages[0].content || '';
       confere('frase difícil chama o modelo a partir do nível 3 e vai ao prompt com o começo da frase', [pedidoDeLeitura.includes('"o projeto foi aprovado ontem pela equipe…" (passiva)')], [true]);
+      armazem.local.historicoDasCamadas = { offline: Array.from({ length: 100 }, (_, i) => ({ ms: 1, erro: null, em: i })) };
+      await revisar('mais uma medição', false, 32);
+      const cheio = armazem.local.historicoDasCamadas.offline;
+      confere('o histórico de cada camada para em 100 medições e descarta a mais antiga', [cheio.length, cheio[0].em, cheio.at(-1).em > 100], [100, 1, true]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

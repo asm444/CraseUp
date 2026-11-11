@@ -167,11 +167,30 @@ function painelDeConsumo() {
   carregar();
 }
 
+const NOMES_DE_CAMADA = { offline: 'Dicionário offline', languagetool: 'LanguageTool', openrouter: 'OpenRouter' };
+const NOMES_DE_ERRO = { sem_conexao: 'sem conexão', limite_por_minuto: 'limite por minuto', limite_da_aba: 'limite da aba', cota: 'cota esgotada', sem_chave: 'sem chave', sem_permissao: 'sem permissão' };
+
+async function mostrarDiagnostico() {
+  const { historicoDasCamadas } = await chrome.storage.local.get('historicoDasCamadas');
+  const metricas = RevisorCore.agregarMetricas(historicoDasCamadas);
+  const celula = (texto) => Object.assign(document.createElement('td'), { textContent: texto });
+  const ms = (v) => (v === null ? '—' : `${v} ms`);
+  const linhas = Object.entries(metricas).map(([nome, m]) => {
+    const tr = document.createElement('tr');
+    const erros = m.ultimosErros.map((e) => `${NOMES_DE_ERRO[e.erro] || e.erro} (${new Date(e.em).toLocaleString('pt-BR')})`).join(', ') || 'nenhum';
+    tr.append(celula(NOMES_DE_CAMADA[nome]), celula(ms(m.mediana)), celula(ms(m.p95)), celula(`${m.disponibilidade}%`), celula(erros));
+    return tr;
+  });
+  $('linhasDiagnostico').replaceChildren(...linhas);
+  $('semDiagnostico').hidden = linhas.length > 0;
+}
+
 async function iniciar() {
   const bemVindo = new URLSearchParams(location.search).has('bemvindo');
   const { chaveOpenrouter: chave, tom = 'neutro', nivel = RevisorCore.NIVEL_PADRAO } = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'nivel']);
   $('boasVindas').hidden = !(bemVindo || !chave);
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
+  mostrarDiagnostico();
   if (chave) $('statusChave').textContent = `Chave configurada, terminando em …${chave.slice(-4)}. Cole outra para trocar.`;
 
   $('salvarChave').addEventListener('click', async () => {

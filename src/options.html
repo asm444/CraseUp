@@ -70,6 +70,8 @@
     details.tabela summary { cursor: pointer; color: var(--texto-suave); }
     details.tabela table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
     details.tabela th, details.tabela td { padding: 6px 8px; border-bottom: 1px solid var(--borda); text-align: right; }
+    table.diagnostico { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.diagnostico th, table.diagnostico td { padding: 6px 8px; border-bottom: 1px solid var(--borda); text-align: left; }
     details.tabela th:first-child, details.tabela td:first-child { text-align: left; }
     @media (max-width: 860px) {
       body { grid-template-columns: 1fr; }
@@ -95,6 +97,7 @@
       <a href="#sublinhados">Sublinhados</a>
       <a href="#dicionario-pessoal">Dicionário pessoal</a>
       <a href="#sites-sem-revisao">Sites sem revisão</a>
+      <a href="#diagnostico">Diagnóstico</a>
     </nav>
     <div class="fim">
       <button type="button" class="alternar-tema" id="alternarTema" title="Alternar entre modo claro e escuro" aria-label="Alternar entre modo claro e escuro">
@@ -232,6 +235,13 @@
           <button type="submit">Adicionar</button>
         </form>
         <div class="chips" id="sites"></div>
+      </section>
+
+      <section class="bloco largo" id="diagnostico">
+        <h2>Diagnóstico</h2>
+        <p class="suave" style="margin:0 0 12px">Tempo de resposta e disponibilidade de cada camada nas últimas chamadas. Nenhum texto fica guardado aqui.</p>
+        <table class="diagnostico"><thead><tr><th>Camada</th><th>Mediana</th><th>p95</th><th>Disponível</th><th>Últimos erros</th></tr></thead><tbody id="linhasDiagnostico"></tbody></table>
+        <p class="suave" id="semDiagnostico" hidden>Ainda não há chamadas medidas.</p>
       </section>
     </div>
   </main>

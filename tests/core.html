@@ -282,6 +282,14 @@
     igual([p(3).includes('"O projeto foi aprovado…" (passiva)'), p(2).includes('difíceis de ler')], [true, false]);
   });
 
+  caso('métricas por camada: mediana, p95, disponibilidade e últimos erros', () => {
+    const lt = Array.from({ length: 20 }, (_, i) => ({ ms: (i + 1) * 10, erro: i === 4 || i === 17 ? 'falha' : null, em: i }));
+    const m = C.agregarMetricas({ languagetool: lt, offline: [], openrouter: [{ ms: 300, erro: 'cota', em: 1 }] });
+    igual([m.languagetool, m.offline, m.openrouter.disponibilidade, Object.keys(m).sort()], [
+      { medicoes: 20, mediana: 100, p95: 190, disponibilidade: 90, ultimosErros: [{ erro: 'falha', em: 17 }, { erro: 'falha', em: 4 }] }, undefined, 0, ['languagetool', 'openrouter'],
+    ]);
+  });
+
   const linhas = [];
   let ok = 0;
   for (const [nome, fn] of casos) {

@@ -409,6 +409,23 @@
     return { nome: s.regra?.nome || '', explicacao: s.regra?.explicacao || '' };
   }
 
+  function agregarMetricas(historico = {}) {
+    const resultado = {};
+    for (const [nome, medicoes] of Object.entries(historico)) {
+      if (!medicoes.length) continue;
+      const tempos = medicoes.map((m) => m.ms).filter(Number.isFinite).sort((a, b) => a - b);
+      const quantil = (q) => (tempos.length ? tempos[Math.ceil(q * tempos.length) - 1] : null);
+      resultado[nome] = {
+        medicoes: medicoes.length,
+        mediana: quantil(0.5),
+        p95: quantil(0.95),
+        disponibilidade: Math.round((medicoes.filter((m) => !m.erro).length / medicoes.length) * 100),
+        ultimosErros: medicoes.filter((m) => m.erro).slice(-3).reverse().map(({ erro, em }) => ({ erro, em })),
+      };
+    }
+    return resultado;
+  }
+
   function partesDoTrecho(texto, trecho) {
     const partes = [];
     let cursor = trecho.inicio;
@@ -482,6 +499,7 @@
 
   raiz.RevisorCore = {
     CATEGORIAS,
+    agregarMetricas,
     NIVEL_PADRAO,
     TONS,
     ROTULOS_DE_TOM,

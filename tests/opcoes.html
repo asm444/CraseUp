@@ -56,6 +56,11 @@
       radioNivel(1).click();
       await espera(50);
       confere('sem nível salvo marca o 3, e escolher outro nível grava a escolha', [marcadoAntes, semChave.armazem.nivel], [true, 1]);
+      const comHistorico = await montar({ historicoDasCamadas: { languagetool: [{ ms: 40, erro: null, em: 1 }, { ms: 60, erro: 'falha', em: 2 }], openrouter: [{ ms: 900, erro: null, em: 3 }, { ms: 1000, erro: 'limite_por_minuto', em: 4 }] } });
+      const linhasDoPainel = [...comHistorico.doc.querySelectorAll('#linhasDiagnostico tr')].map((tr) => [...tr.children].slice(0, 4).map((td) => td.textContent));
+      confere('o diagnóstico mostra mediana, p95 e disponibilidade por camada, e avisa quando não há medição', [linhasDoPainel, comHistorico.doc.getElementById('semDiagnostico').hidden, semChave.doc.getElementById('semDiagnostico').hidden, comHistorico.doc.querySelector('#linhasDiagnostico tr:last-child td:last-child').textContent.startsWith('limite por minuto (')], [
+        [['LanguageTool', '40 ms', '60 ms', '50%'], ['OpenRouter', '900 ms', '1000 ms', '50%']], true, false, true,
+      ]);
       confere('sem chave salva, a página abre inteira: campo vazio, sem status, com as boas-vindas e o tom marcado', [semChave.doc.getElementById('chave').value, semChave.doc.getElementById('statusChave').textContent, semChave.doc.getElementById('boasVindas').hidden, semChave.doc.querySelector('input[name="tom"]:checked')?.value], ['', '', false, 'neutro']);
     } catch (erro) {
       total++;
