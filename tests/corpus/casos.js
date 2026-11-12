@@ -113,4 +113,19 @@ globalThis.CORPUS = [
     offline: [{ tipo: 'gramatica', origem: 'offline', categoria: 'ortografia', nivel: 1, original: 'açim', substituicao: 'assim', motivo: 'grafia', inicio: 6 }],
     deveSugerir: [['açim', 'assim']],
   },
+  {
+    nome: 'abreviação em tom formal é apontada',
+    categoria: 'tom',
+    texto: 'vc vem amanhã?',
+    tom: 'formal',
+    lt: [{ offset: 0, length: 2, message: 'Abreviação.', replacements: [{ value: 'você' }], rule: { id: 'INTERNET_ABBREVIATIONS', issueType: 'style' } }],
+    deveSugerir: [['vc', 'você']],
+  },
+  {
+    nome: 'palavra repetida perto demais recebe alternativa',
+    categoria: 'repeticao',
+    texto: 'O projeto atrasou e o projeto parou.',
+    modelo: [{ tipo: 'palavra', original: 'projeto', substituicao: 'trabalho', motivo: 'repetida', categoria: 'repeticao' }],
+    deveSugerir: [['projeto', 'trabalho']],
+  },
 ];

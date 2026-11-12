@@ -32,5 +32,19 @@
     if (!acima.length) { ok++; linhas.push(`ok   corpus no nível ${nivel} só traz sugestões até ele`); }
     else linhas.push(`FALHA corpus no nível ${nivel}: ${JSON.stringify(acima)}`);
   }
+  const porPerfil = {};
+  for (const perfil of [undefined, ...Object.keys(RevisorCore.PERFIS)]) {
+    porPerfil[perfil || 'nenhum'] = CORPUS.flatMap((c) => {
+      const lt = c.lt ? RevisorLanguageTool.lerMatches({ matches: c.lt }, c.texto) : { sugestoes: [], abreviacoes: [] };
+      const modelo = (c.modelo || []).map((s) => ({ ...s, origem: 'openrouter' }));
+      return RevisorCore.juntarCamadas(c.texto, { offline: c.offline || [], languagetool: lt.sugestoes, abreviacoes: lt.abreviacoes, modelo }, { tom: c.tom, dicionario: c.dicionario || [], languagetoolAtivo: Array.isArray(c.lt), nivel: 4, perfil }).map((s) => `${c.nome}|${s.original}|${s.categoria}`);
+    });
+  }
+  const tem = (perfil, trecho) => porPerfil[perfil].some((x) => x.includes(trecho));
+  const abreviacao = 'abreviação em tom formal é apontada|vc|tom';
+  const diferencas = [tem('nenhum', abreviacao), tem('informal', abreviacao), tem('tecnico', abreviacao), tem('nenhum', '|projeto|repeticao'), tem('tecnico', '|projeto|repeticao'), tem('profissional', '|projeto|repeticao'), porPerfil.informal.some((x) => x.endsWith('|tom'))];
+  total++;
+  if (JSON.stringify(diferencas) === JSON.stringify([true, false, false, true, false, true, false])) { ok++; linhas.push('ok   o corpus por perfil mostra a diferença esperada: abreviação tolerada, repetição suprimida no técnico, tom suprimido no informal'); }
+  else linhas.push(`FALHA corpus por perfil: ${JSON.stringify(diferencas)}`);
   document.getElementById('resultado').textContent = `${ok === total ? 'PASSED' : 'FAILED'} ${ok}/${total}\n${linhas.join('\n')}`;
 </script>

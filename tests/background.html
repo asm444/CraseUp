@@ -208,6 +208,24 @@
       const entradasDepois = Object.keys(armazem.local.cache || {}).length;
       const guardado = JSON.stringify(armazem.local.cache || {});
       confere('parágrafo com dado sensível não entra no cache, e a chave é um hash e não o texto', [entradasDepois - entradasAntes, guardado.includes('ana@x.com'), guardado.includes('texto que volta igual'), Object.keys(armazem.local.cache || {}).every((k) => /^[0-9a-f]{64}$/.test(k))], [0, false, false, true]);
+      const longa = 'abacate bicicleta cadeira dente escola faca gato harpa ilha janela kiwi lua mesa navio olho pato queijo rato sapo tatu uva vaca xale zebra anel barco cesto dado envelope farol gelo';
+      const antesDoAcademico = corposAoModelo.length;
+      armazem.local.perfil = 'academico';
+      await revisar(longa, false, 36);
+      const comAcademico = corposAoModelo.length - antesDoAcademico;
+      delete armazem.local.perfil;
+      const antesSemPerfil = corposAoModelo.length;
+      await revisar(longa, false, 37);
+      confere('o perfil acadêmico tolera frase longa e não chama o modelo por ela; sem perfil, chama', [comAcademico, corposAoModelo.length - antesSemPerfil], [0, 1]);
+      await etapa('texto do perfil', true, 38);
+      const comCache = chamadas();
+      armazem.local.perfil = 'tecnico';
+      await etapa('texto do perfil', true, 38);
+      const trocouPerfil = chamadas() - comCache;
+      const antesDaLimpeza = Object.keys(armazem.local.cache || {}).length;
+      aoMudarStorage.forEach((fn) => fn({ perfil: { newValue: 'tecnico' } }, 'local'));
+      delete armazem.local.perfil;
+      confere('o perfil entra na chave do cache, e trocar de perfil apaga o cache', [trocouPerfil > 0, antesDaLimpeza > 0, armazem.local.cache], [true, true, undefined]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

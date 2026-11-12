@@ -56,6 +56,9 @@
       radioNivel(1).click();
       await espera(50);
       confere('sem nível salvo marca o 3, e escolher outro nível grava a escolha', [marcadoAntes, semChave.armazem.nivel], [true, 1]);
+      semChave.doc.querySelector('input[name="perfil"][value="tecnico"]').click();
+      await espera(50);
+      confere('escolher um perfil grava o perfil, o tom e o nível dele e marca os dois seletores', [semChave.armazem.perfil, semChave.armazem.tom, semChave.armazem.nivel, semChave.doc.querySelector('input[name="tom"]:checked')?.value, semChave.doc.querySelector('input[name="nivel"]:checked')?.value], ['tecnico', 'neutro', 3, 'neutro', '3']);
       const comHistorico = await montar({ historicoDasCamadas: { languagetool: [{ ms: 40, erro: null, em: 1 }, { ms: 60, erro: 'falha', em: 2 }], openrouter: [{ ms: 900, erro: null, em: 3 }, { ms: 1000, erro: 'limite_por_minuto', em: 4 }] } });
       const linhasDoPainel = [...comHistorico.doc.querySelectorAll('#linhasDiagnostico tr')].map((tr) => [...tr.children].slice(0, 4).map((td) => td.textContent));
       confere('o diagnóstico mostra mediana, p95 e disponibilidade por camada, e avisa quando não há medição', [linhasDoPainel, comHistorico.doc.getElementById('semDiagnostico').hidden, semChave.doc.getElementById('semDiagnostico').hidden, comHistorico.doc.querySelector('#linhasDiagnostico tr:last-child td:last-child').textContent.startsWith('limite por minuto (')], [

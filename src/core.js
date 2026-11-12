@@ -5,6 +5,14 @@
   const CATEGORIA_DO_TIPO = { gramatica: 'gramatica', clareza: 'clareza', palavra: 'fluidez', tom: 'tom' };
   const NIVEL_DA_CATEGORIA = { ortografia: 1, gramatica: 2, pontuacao: 2, clareza: 3, fluidez: 3, repeticao: 3, legibilidade: 3, tom: 3, estrutura: 4 };
   const NIVEL_PADRAO = 3;
+  const PERFIS = {
+    casual: { nome: 'Casual', tom: 'casual', nivel: 2, tolera: ['giria', 'abreviacao', 'frase-longa', 'jargao'], suprime: ['legibilidade'] },
+    profissional: { nome: 'Profissional', tom: 'profissional', nivel: 3, tolera: ['jargao'], suprime: [] },
+    academico: { nome: 'Acadêmico', tom: 'formal', nivel: 4, tolera: ['frase-longa', 'jargao'], suprime: [] },
+    tecnico: { nome: 'Técnico', tom: 'neutro', nivel: 3, tolera: ['abreviacao', 'jargao'], suprime: ['repeticao'] },
+    informal: { nome: 'Informal', tom: 'amigavel', nivel: 2, tolera: ['giria', 'abreviacao'], suprime: ['tom'] },
+  };
+  const perfilDe = (id) => (Object.hasOwn(PERFIS, id) ? PERFIS[id] : null);
   const CONFIANCA_DA_ORIGEM = { offline: 0.5, languagetool: 0.8, openrouter: 0.6 };
   const CONFIANCA_DO_LT = { ortografia: 0.85, gramatica: 0.8, pontuacao: 0.7, repeticao: 0.6 };
   const LIMIAR_DE_CONFIANCA = 0.5;
@@ -114,7 +122,7 @@
     return `<texto>\n${texto.replaceAll('</texto>', '</ texto>')}\n</texto>`;
   }
 
-  function instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel = NIVEL_PADRAO, repetidas = [], dificeis = [], semLanguageTool) {
+  function instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel = NIVEL_PADRAO, repetidas = [], dificeis = [], semLanguageTool, perfil) {
     const palavras = dicionario.slice(0, PALAVRAS_DO_DICIONARIO_NO_PROMPT).join(', ') || '(nenhuma)';
     const estilo = nivel >= 3;
     return [
@@ -135,7 +143,7 @@
       estilo && '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
       estilo && '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
       estilo && `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
-      estilo && (GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro),
+      estilo && (perfilDe(perfil)?.tolera.includes('giria') ? GIRIA_POR_TOM.casual : GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro),
       estilo && repetidas.length && `- Estas palavras se repetem perto demais: ${repetidas.join(', ')}. Para cada repetição, sugira uma alternativa (tipo "palavra", categoria "repeticao") na segunda ocorrência.`,
       estilo && dificeis.length && `- Estas frases estão difíceis de ler: ${dificeis.map((f) => `"${f.inicio}…" (${f.alertas.join(', ')})`).join('; ')}. Sugira dividir a frase longa, cortar o encadeamento de "que" ou passar para a voz ativa (tipo "clareza", categoria "legibilidade").`,
       nivel === 4 && '- Também pode reorganizar a ordem e a estrutura das frases de um trecho (tipo "clareza", categoria "estrutura"), sem mudar o sentido.',
@@ -143,6 +151,7 @@
         ? '- Aponte também ortografia, acentuação, concordância, regência e crase, com tipo "gramatica": a ferramenta que cuida disso está fora do ar.'
         : '- Não aponte ortografia, acentuação, concordância, regência nem crase: outra ferramenta já cuida disso.',
       '- Não marque nomes próprios, marcas, siglas, termos técnicos nem trechos em outro idioma.',
+      perfil && !perfilDe(perfil)?.tolera.includes('jargao') && '- Jargão que um leitor comum não entenderia pode ser trocado por termo simples (tipo "clareza").',
       `- Não marque estas palavras do dicionário do usuário: ${palavras}.`,
       '- "motivo" explica a troca em português, em até 10 palavras.',
       `- "categoria" é uma destas: ${CATEGORIAS.join(', ')}.`,
@@ -154,12 +163,12 @@
     ].filter(Boolean).join('\n');
   }
 
-  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel, contexto, repetidas, dificeis, semLanguageTool } = {}) {
+  function montarRequisicao(texto, { tom, dicionario = [], idioma = 'pt-BR', protecao, nivel, contexto, repetidas, dificeis, semLanguageTool, perfil } = {}) {
     const leitura = contexto ? `<contexto>\n${contexto.replaceAll('</contexto>', '</ contexto>')}\n</contexto>\n` : '';
     return {
       models: MODELOS,
       messages: [
-        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel, repetidas, dificeis, semLanguageTool) },
+        { role: 'system', content: instrucaoDoSistema(tom, dicionario, idioma, protecao, nivel, repetidas, dificeis, semLanguageTool, perfil) },
         { role: 'user', content: leitura + delimitar(texto) },
       ],
       temperature: 0,
@@ -291,12 +300,13 @@
     return -1;
   }
 
-  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario, nivel, languagetoolAtivo }) {
-    const casual = tom === 'casual';
+  function juntarCamadas(texto, { offline = [], languagetool = [], abreviacoes = [], modelo = [] }, { tom, dicionario, nivel, languagetoolAtivo, perfil }) {
+    const doPerfil = perfilDe(perfil);
+    const casual = tom === 'casual' || doPerfil?.tolera.includes('abreviacao');
     const apontadaPeloLt = (s) => languagetool.some((l) => l.inicio < s.inicio + s.original.length && s.inicio < l.inicio + l.original.length);
     const offlineQueFica = languagetoolAtivo ? offline.filter((s) => s.categoria !== 'ortografia' || apontadaPeloLt(s)) : offline;
     const protegidos = casual ? abreviacoes.map((s) => ({ inicio: s.inicio, fim: s.inicio + s.original.length })) : [];
-    return filtrarSugestoes(texto, [...offlineQueFica, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos, nivel });
+    return filtrarSugestoes(texto, [...offlineQueFica, ...languagetool, ...(casual ? [] : abreviacoes), ...modelo], { dicionario, protegidos, nivel }).filter((s) => !doPerfil?.suprime.includes(s.categoria));
   }
 
   function filtrarSugestoes(texto, brutas, { dicionario = [], protegidos = [], nivel } = {}) {
@@ -501,6 +511,7 @@
 
   raiz.RevisorCore = {
     CATEGORIAS,
+    PERFIS,
     agregarMetricas,
     NIVEL_PADRAO,
     TONS,

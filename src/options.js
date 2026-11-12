@@ -187,7 +187,7 @@ async function mostrarDiagnostico() {
 
 async function iniciar() {
   const bemVindo = new URLSearchParams(location.search).has('bemvindo');
-  const { chaveOpenrouter: chave, tom = 'neutro', nivel = RevisorCore.NIVEL_PADRAO } = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'nivel']);
+  const { chaveOpenrouter: chave, tom = 'neutro', nivel = RevisorCore.NIVEL_PADRAO, perfil = '' } = await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'nivel', 'perfil']);
   $('boasVindas').hidden = !(bemVindo || !chave);
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
   mostrarDiagnostico();
@@ -258,6 +258,22 @@ async function iniciar() {
   for (const radio of document.querySelectorAll('input[name="tom"]')) {
     radio.checked = radio.value === tom;
     radio.addEventListener('change', () => chrome.storage.local.set({ tom: radio.value }));
+  }
+
+  for (const [id, p] of Object.entries(RevisorCore.PERFIS)) {
+    const rotulo = document.createElement('label');
+    rotulo.append(Object.assign(document.createElement('input'), { type: 'radio', name: 'perfil', value: id }), Object.assign(document.createElement('span'), { textContent: p.nome }));
+    $('perfis').append(rotulo);
+  }
+  for (const radio of document.querySelectorAll('input[name="perfil"]')) {
+    radio.checked = radio.value === perfil;
+    radio.addEventListener('change', () => {
+      const escolhido = RevisorCore.PERFIS[radio.value];
+      chrome.storage.local.set(escolhido ? { perfil: radio.value, tom: escolhido.tom, nivel: escolhido.nivel } : { perfil: '' });
+      if (!escolhido) return;
+      document.querySelectorAll('input[name="tom"]').forEach((r) => (r.checked = r.value === escolhido.tom));
+      document.querySelectorAll('input[name="nivel"]').forEach((r) => (r.checked = Number(r.value) === escolhido.nivel));
+    });
   }
 
   for (const radio of document.querySelectorAll('input[name="nivel"]')) {

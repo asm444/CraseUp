@@ -290,6 +290,22 @@
     ]);
   });
 
+  caso('perfil: técnico suprime repetição, perfil que tolera abreviação a protege, e jargão só entra no prompt de quem não o tolera', () => {
+    const rep = [{ ...s('palavra', 'projeto', 'trabalho'), categoria: 'repeticao' }];
+    const abrev = [{ tipo: 'tom', origem: 'languagetool', original: 'vc', substituicao: 'você', motivo: 'm', inicio: 0 }];
+    const prompt = (perfil) => C.montarRequisicao('oi', { perfil }).messages[0].content.includes('Jargão que um leitor comum');
+    igual([
+      C.juntarCamadas('o projeto', { modelo: rep }, { perfil: 'tecnico' }).length, C.juntarCamadas('o projeto', { modelo: rep }, { perfil: 'profissional' }).length,
+      C.juntarCamadas('vc vem', { abreviacoes: abrev }, { tom: 'formal', perfil: 'informal' }).length, C.juntarCamadas('vc vem', { abreviacoes: abrev }, { tom: 'formal' }).length,
+      prompt('informal'), prompt('profissional'), prompt(undefined), C.juntarCamadas('o projeto', { modelo: rep }, { perfil: '__proto__' }).length,
+    ], [0, 1, 0, 1, true, false, false, 1]);
+  });
+
+  caso('perfil que tolera gíria não a marca, mesmo com outro tom escolhido', () => {
+    const sistema = (perfil) => C.montarRequisicao('oi', { tom: 'formal', perfil }).messages[0].content;
+    igual([sistema('informal').includes('combinam com o tom casual: não marque'), sistema('profissional').includes('destoam do tom'), sistema(undefined).includes('destoam do tom')], [true, true, true]);
+  });
+
   const linhas = [];
   let ok = 0;
   for (const [nome, fn] of casos) {

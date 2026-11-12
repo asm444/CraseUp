@@ -60,7 +60,7 @@ chrome.tabs.onRemoved.addListener(async (abaId) => {
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === 'local' && 'cota' in mudancas) atualizarSeloGlobal();
-  if (area === 'local' && ['tom', 'nivel', 'dicionario'].some((k) => k in mudancas)) chrome.storage.local.remove('cache');
+  if (area === 'local' && ['tom', 'nivel', 'dicionario', 'perfil'].some((k) => k in mudancas)) chrome.storage.local.remove('cache');
 });
 
 async function abaPausada(abaId) {
@@ -156,9 +156,9 @@ async function executarCamada(executar) {
 
 async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel'])), abaId };
-  const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO };
-  const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil'])), abaId };
+  const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO, perfil: cfg.perfil };
+  const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, opcoes.perfil, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
   const guardadas = chave && (await RevisorArmazem.ler(chrome.storage.local, 'cache', chave));
   if (guardadas) return { sugestoes: guardadas, provisorio: false };
   const offline = await executarCamada(() => camadaOffline(texto));
@@ -252,7 +252,8 @@ function palavrasRepetidas(texto, cfg, idioma) {
 
 function frasesDificeis(texto, cfg) {
   if ((cfg.nivel || NIVEL_PADRAO) < 3) return [];
-  return RevisorAnalise.legibilidade(mascarar(texto).texto).frases.filter((f) => f.alertas.length).map((f) => ({ inicio: f.texto.split(/\s+/).slice(0, 8).join(' '), alertas: f.alertas }));
+  const tolerada = RevisorCore.PERFIS[cfg.perfil]?.tolera.includes('frase-longa') ? 'longa' : '';
+  return RevisorAnalise.legibilidade(mascarar(texto).texto).frases.map((f) => ({ inicio: f.texto.split(/\s+/).slice(0, 8).join(' '), alertas: f.alertas.filter((a) => a !== tolerada) })).filter((f) => f.alertas.length);
 }
 
 async function camadaModeloCondicionada(texto, idioma, cfg, languagetool, pedido, contexto) {
@@ -336,7 +337,7 @@ async function camadaModelo(texto, idioma, cfg, contexto, semLanguageTool) {
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
   const repetidas = palavrasRepetidas(texto, cfg, idioma);
-  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas, dificeis: frasesDificeis(texto, cfg), semLanguageTool }), cfg, lerResposta);
+  const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas, dificeis: frasesDificeis(texto, cfg), semLanguageTool, perfil: cfg.perfil }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
   return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, ...(typeof s?.original === 'string' && repetidas.includes(s.original.toLowerCase()) && { categoria: 'repeticao' }), origem: 'openrouter', modelo: r.lida.modelo })) };
