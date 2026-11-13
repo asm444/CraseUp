@@ -306,6 +306,13 @@
     igual([sistema('informal').includes('combinam com o tom casual: não marque'), sistema('profissional').includes('destoam do tom'), sistema(undefined).includes('destoam do tom')], [true, true, true]);
   });
 
+  caso('aprendizado: 3 rejeições suprimem a troca, 2 não, e palavra de ortografia rejeitada vira proposta para o dicionário', () => {
+    const entrada = (regra, original, substituicao, categoria, rejeitadas) => [JSON.stringify([regra, original, substituicao]), { valor: { regra, categoria, original, substituicao, aceitas: 0, rejeitadas }, em: 1 }];
+    const aprendizado = Object.fromEntries([entrada('R', 'demais', '', 'clareza', 3), entrada('R', 'tipo', 'como', 'fluidez', 2), entrada('MORFOLOGIK', 'Jusgrok', 'Jugo', 'ortografia', 4)]);
+    const sugs = [{ regra: { id: 'R' }, original: 'demais', substituicao: '' }, { regra: { id: 'R' }, original: 'tipo', substituicao: 'como' }, { regra: { id: 'MORFOLOGIK' }, original: 'Jusgrok', substituicao: 'Jugo' }];
+    igual([C.aplicarAprendizado(sugs, aprendizado).map((s) => s.original), C.palavrasParaDicionario(aprendizado), C.aplicarAprendizado(sugs, undefined).length], [['tipo'], ['Jusgrok'], 3]);
+  });
+
   const linhas = [];
   let ok = 0;
   for (const [nome, fn] of casos) {

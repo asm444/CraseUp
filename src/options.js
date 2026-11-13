@@ -170,6 +170,31 @@ function painelDeConsumo() {
 const NOMES_DE_CAMADA = { offline: 'Dicionário offline', languagetool: 'LanguageTool', openrouter: 'OpenRouter' };
 const NOMES_DE_ERRO = { sem_conexao: 'sem conexão', limite_por_minuto: 'limite por minuto', limite_da_aba: 'limite da aba', cota: 'cota esgotada', sem_chave: 'sem chave', sem_permissao: 'sem permissão' };
 
+async function mostrarAprendizado() {
+  const { aprendizado, dicionario = [] } = await chrome.storage.local.get(['aprendizado', 'dicionario']);
+  const item = (texto, rotulo, acao) => {
+    const li = Object.assign(document.createElement('li'), { textContent: texto + ' ' });
+    const botao = Object.assign(document.createElement('button'), { textContent: rotulo });
+    botao.addEventListener('click', acao);
+    li.append(botao);
+    return li;
+  };
+  const suprimidas = RevisorCore.aprendidos(aprendizado);
+  $('trocasSuprimidas').replaceChildren(...suprimidas.map((v) => item(`${v.original} → ${v.substituicao || '(remover)'}`, 'Desfazer', async () => {
+    const { aprendizado: atual } = await chrome.storage.local.get('aprendizado');
+    delete atual[v.chave];
+    await chrome.storage.local.set({ aprendizado: atual });
+    mostrarAprendizado();
+  })));
+  $('semAprendizado').hidden = suprimidas.length > 0;
+  $('palavrasPropostas').replaceChildren(...RevisorCore.palavrasParaDicionario(aprendizado).filter((p) => !dicionario.includes(p)).map((p) => item(p, 'Adicionar ao dicionário', () => {
+    chrome.storage.local.get(['aprendizado', 'dicionario']).then(({ aprendizado: atual, dicionario: agora = [] }) => {
+      for (const c of suprimidas.filter((v) => v.original === p && v.categoria === 'ortografia').map((v) => v.chave)) delete atual[c];
+      return chrome.storage.local.set({ aprendizado: atual, dicionario: [...agora, p] });
+    }).then(mostrarAprendizado);
+  })));
+}
+
 async function mostrarDiagnostico() {
   const { historicoDasCamadas } = await chrome.storage.local.get('historicoDasCamadas');
   const metricas = RevisorCore.agregarMetricas(historicoDasCamadas);
@@ -191,6 +216,7 @@ async function iniciar() {
   $('boasVindas').hidden = !(bemVindo || !chave);
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
   mostrarDiagnostico();
+  mostrarAprendizado();
   if (chave) $('statusChave').textContent = `Chave configurada, terminando em …${chave.slice(-4)}. Cole outra para trocar.`;
 
   $('salvarChave').addEventListener('click', async () => {

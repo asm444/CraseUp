@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'analise.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, juntarCamadas, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, juntarCamadas, aplicarAprendizado, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
@@ -167,17 +167,18 @@ function registrarDecisao({ decisao, regra, categoria, original, substituicao })
 
 async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil'])), abaId };
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil', 'aprendizado'])), abaId };
+  const semRejeitadas = (sugestoes) => aplicarAprendizado(sugestoes, cfg.aprendizado);
   const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO, perfil: cfg.perfil };
   const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, opcoes.perfil, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
   const guardadas = chave && (await RevisorArmazem.ler(chrome.storage.local, 'cache', chave));
-  if (guardadas) return { sugestoes: guardadas, provisorio: false };
+  if (guardadas) return { sugestoes: semRejeitadas(guardadas), provisorio: false };
   const offline = await executarCamada(() => camadaOffline(texto));
-  aoAvancar({ sugestoes: juntarCamadas(texto, { offline: offline.sugestoes }, opcoes) });
+  aoAvancar({ sugestoes: semRejeitadas(juntarCamadas(texto, { offline: offline.sugestoes }, opcoes)) });
   const languagetool = await executarCamada(() => camadaLanguageTool(texto, offline.idioma, cfg.languagetool));
   const rapidas = { offline: offline.sugestoes, languagetool: languagetool.sugestoes, abreviacoes: languagetool.abreviacoes };
   const comLanguageTool = { ...opcoes, languagetoolAtivo: languagetool.estado === 'ativa' };
-  aoAvancar({ sugestoes: juntarCamadas(texto, rapidas, comLanguageTool) });
+  aoAvancar({ sugestoes: semRejeitadas(juntarCamadas(texto, rapidas, comLanguageTool)) });
   const adiar = POLITICA.adiarModelo({ modelo, languagetool });
   const openrouter = opcoes.nivel < 2 ? { estado: 'ocioso' } : adiar ? { estado: 'adiado' } : await executarCamada(() => camadaModeloCondicionada(texto, offline.idioma, cfg, languagetool, pedido, contexto));
   await registrarCamadas({ offline, languagetool, openrouter });
@@ -186,7 +187,7 @@ async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
     provisorio: adiar || [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
   if (chave && modelo && ![languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado))) await RevisorArmazem.gravar(chrome.storage.local, 'cache', chave, resultado.sugestoes).catch(() => {});
-  return resultado;
+  return { ...resultado, sugestoes: semRejeitadas(resultado.sugestoes) };
 }
 
 function semResposta(origem) {

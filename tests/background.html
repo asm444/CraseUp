@@ -233,6 +233,18 @@
       await decidir({ decisao: 'rejeitada', original: 'ana@x.com', substituicao: 'ela' });
       const aprendido = Object.values(armazem.local.aprendizado || {}).map((e) => e.valor);
       confere('cada decisão soma no par regra/original/troca, e par com dado sensível não é gravado', [aprendido.map((v) => [v.original, v.aceitas, v.rejeitadas]), JSON.stringify(armazem.local.aprendizado).includes('ana@x.com')], [[['demais', 1, 2]], false]);
+      const forjada1 = await revisar('o modelo forja a origem', true, 40);
+      for (let i = 0; i < 3; i++) await decidir({ decisao: 'rejeitada', regra: '', categoria: 'gramatica', original: 'forja', substituicao: 'forjou' });
+      const depoisDeRejeitar = await revisar('o modelo forja a origem', true, 41);
+      const chaveForja = JSON.stringify(['', 'forja', 'forjou']);
+      delete armazem.local.aprendizado[chaveForja];
+      const depoisDeDesfazer = await revisar('o modelo forja a origem', true, 42);
+      confere('3 rejeições da mesma troca a tiram da revisão, e desfazer o aprendizado a traz de volta', [forjada1.sugestoes.length, depoisDeRejeitar.sugestoes.length, depoisDeDesfazer.sugestoes.length], [1, 0, 1]);
+      const doModelo = await etapa('o projeto atrasou e o projeto parou', true, 43);
+      for (let i = 0; i < 3; i++) await decidir({ decisao: 'rejeitada', regra: 'R', categoria: 'repeticao', original: 'projeto', substituicao: 'trabalho' });
+      const antesDoCacheAprendido = chamadas();
+      const doCache = await etapa('o projeto atrasou e o projeto parou', true, 43);
+      confere('o resultado que vem do cache também deixa de fora a troca rejeitada 3 vezes', [doModelo.sugestoes.map((s) => s.original), chamadas() - antesDoCacheAprendido, doCache.sugestoes.map((s) => s.original)], [['projeto'], 0, []]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

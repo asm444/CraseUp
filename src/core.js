@@ -421,6 +421,21 @@
     return { nome: s.regra?.nome || '', explicacao: s.regra?.explicacao || '' };
   }
 
+  const REJEICOES_PARA_SUPRIMIR = 3;
+
+  function aprendidos(aprendizado = {}) {
+    return Object.entries(aprendizado).map(([chave, e]) => ({ chave, ...e.valor })).filter((v) => v.rejeitadas >= REJEICOES_PARA_SUPRIMIR);
+  }
+
+  function aplicarAprendizado(sugestoes, aprendizado) {
+    const fora = new Set(aprendidos(aprendizado).map((v) => v.chave));
+    return sugestoes.filter((s) => !fora.has(JSON.stringify([s.regra.id, s.original, s.substituicao])));
+  }
+
+  function palavrasParaDicionario(aprendizado) {
+    return [...new Set(aprendidos(aprendizado).filter((v) => v.categoria === 'ortografia').map((v) => v.original))];
+  }
+
   function agregarMetricas(historico = {}) {
     const resultado = {};
     for (const [nome, medicoes] of Object.entries(historico)) {
@@ -511,6 +526,9 @@
 
   raiz.RevisorCore = {
     CATEGORIAS,
+    aprendidos,
+    aplicarAprendizado,
+    palavrasParaDicionario,
     PERFIS,
     agregarMetricas,
     NIVEL_PADRAO,
