@@ -226,6 +226,13 @@
       aoMudarStorage.forEach((fn) => fn({ perfil: { newValue: 'tecnico' } }, 'local'));
       delete armazem.local.perfil;
       confere('o perfil entra na chave do cache, e trocar de perfil apaga o cache', [trocouPerfil > 0, antesDaLimpeza > 0, armazem.local.cache], [true, true, undefined]);
+      const decidir = (msg) => new Promise((pronto) => aoMensagem({ tipo: 'decisao', regra: 'R1', categoria: 'clareza', ...msg }, { tab: { id: 39 } }, pronto));
+      await decidir({ decisao: 'rejeitada', original: 'demais', substituicao: '' });
+      await decidir({ decisao: 'rejeitada', original: 'demais', substituicao: '' });
+      await decidir({ decisao: 'aceita', original: 'demais', substituicao: '' });
+      await decidir({ decisao: 'rejeitada', original: 'ana@x.com', substituicao: 'ela' });
+      const aprendido = Object.values(armazem.local.aprendizado || {}).map((e) => e.valor);
+      confere('cada decisão soma no par regra/original/troca, e par com dado sensível não é gravado', [aprendido.map((v) => [v.original, v.aceitas, v.rejeitadas]), JSON.stringify(armazem.local.aprendizado).includes('ana@x.com')], [[['demais', 1, 2]], false]);
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

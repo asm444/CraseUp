@@ -154,6 +154,17 @@ async function executarCamada(executar) {
   return { ...resultado, latenciaMs: Math.round(performance.now() - inicio) };
 }
 
+let filaDeDecisoes = Promise.resolve();
+function registrarDecisao({ decisao, regra, categoria, original, substituicao }) {
+  if (mascarar(`${original} ${substituicao}`).itens.length) return Promise.resolve();
+  filaDeDecisoes = filaDeDecisoes.catch(() => {}).then(async () => {
+    const chave = JSON.stringify([regra, original, substituicao]);
+    const atual = (await RevisorArmazem.ler(chrome.storage.local, 'aprendizado', chave)) || { regra, categoria, original, substituicao, aceitas: 0, rejeitadas: 0 };
+    await RevisorArmazem.gravar(chrome.storage.local, 'aprendizado', chave, { ...atual, [decisao === 'aceita' ? 'aceitas' : 'rejeitadas']: atual[decisao === 'aceita' ? 'aceitas' : 'rejeitadas'] + 1 });
+  });
+  return filaDeDecisoes;
+}
+
 async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
   const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil'])), abaId };
@@ -399,6 +410,10 @@ chrome.runtime.onConnect.addListener((porta) => {
 
 chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   const abaId = remetente.tab?.id;
+  if (msg?.tipo === 'decisao') {
+    registrarDecisao(msg).then(() => responder({ ok: true }));
+    return true;
+  }
   if (msg?.tipo === 'estadoAba') {
     abaPausada(abaId).then((pausado) => responder({ pausado }));
     return true;

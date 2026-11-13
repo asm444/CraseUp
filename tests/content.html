@@ -64,6 +64,7 @@
     return raiz;
   };
   const enviados = [];
+  const decisoes = [];
   const contextos = [];
   const pedidos = [];
   const etapas = [];
@@ -74,6 +75,7 @@
   globalThis.chrome = {
     runtime: {
       async sendMessage(msg) {
+        if (msg.tipo === 'decisao') { decisoes.push(msg); return { ok: true }; }
         if (msg.tipo === 'estadoAba') return { pausado: false };
         if (msg.tipo === 'reescrever') {
           reescritas.push([msg.texto, msg.tom]);
@@ -294,6 +296,24 @@
       await digitar(area, 'texto bom demais');
       await espera(100);
       confere('ignorar vale para o texto do campo e não volta ao redesenhar', sombra().querySelectorAll('.marca').length, 0);
+      confere('Substituir grava aceita e Ignorar grava rejeitada, só com regra, categoria e o par, sem a frase', [
+        decisoes.filter((d) => d.decisao === 'rejeitada' && d.original === 'demais').map((d) => [d.substituicao, d.categoria]).slice(0, 1),
+        decisoes.filter((d) => d.decisao === 'aceita' && d.original === 'açim' && d.substituicao === 'assim').length > 0,
+        decisoes.some((d) => d.decisao === 'aceita' && d.original === 'tambem'),
+        decisoes.every((d) => Object.keys(d).sort().join(',') === 'categoria,decisao,original,regra,substituicao,tipo'),
+        decisoes.some((d) => Object.values(d).some((v) => v === 'dois erros açim e tambem' || v === 'texto bom demais')),
+      ], [[['', 'clareza']], true, false, true, false]);
+      const enviarDeVerdade = chrome.runtime.sendMessage;
+      chrome.runtime.sendMessage = (msg) => { if (msg.tipo === 'decisao') throw new Error('Extension context invalidated.'); return enviarDeVerdade(msg); };
+      await digitar(area, 'eu vou mercado');
+      await espera(1500);
+      passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(100);
+      await clicar(sombra().querySelector('.cartao .aplicar'));
+      chrome.runtime.sendMessage = enviarDeVerdade;
+      confere('com a extensão recarregada, o Substituir aplica a troca mesmo sem conseguir registrar a decisão', area.value, 'eu vou ao mercado');
+      await digitar(area, 'texto bom demais');
+      await espera(100);
 
       confere('sem pedido, nenhum parágrafo vai marcado como pedido', pedidos.length, 0);
       ouvinte({ tipo: 'revisarPedido' });

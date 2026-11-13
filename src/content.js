@@ -704,6 +704,7 @@
     Object.assign(alvoDoCartao, { fixo: true, avancar: true });
     const edicoes = lote.map((sug) => ({ inicio: trecho.base + sug.inicio, fim: trecho.base + sug.fim, texto: sug.substituicao }));
     await aplicarNoCampo(estado.el, estado.tipo, edicoes);
+    registrarDecisao(lote, 'aceita');
     desenhar(estado);
   }
 
@@ -888,10 +889,15 @@
     esconderCartao();
   }
 
+  function registrarDecisao(sugestoes, decisao) {
+    for (const s of sugestoes) chrome.runtime.sendMessage({ tipo: 'decisao', decisao, regra: s.regra.id, categoria: s.categoria, original: s.original, substituicao: s.substituicao }).catch(() => {});
+  }
+
   function ignorar(estado, marcas) {
     for (const m of marcas) estado.ignoradas.add(chaveIgnorada(m));
     if (alvoDoCartao) Object.assign(alvoDoCartao, { fixo: true, avancar: true });
     desenhar(estado);
+    registrarDecisao(marcas, 'rejeitada');
   }
 
   async function adicionarAoDicionario(marca) {
