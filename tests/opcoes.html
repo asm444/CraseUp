@@ -10,7 +10,7 @@
       local: {
         get: async () => ({ ...armazem }),
         set: async (itens) => Object.assign(armazem, itens),
-        remove: async () => {},
+        remove: async (chaves) => { for (const k of [].concat(chaves)) delete armazem[k]; },
       },
       onChanged: { addListener() {} },
     },
@@ -90,6 +90,18 @@
       confere('atalhos: cadastra o válido, recusa gatilho sem ;, gatilho que começa igual a outro e texto vazio, remove e grava o nome', [
         erros.map((e) => e !== ''), gravado, listaAntes, Object.keys(comAtalhos.armazem.atalhos), comAtalhos.armazem.nome,
       ], [[false, true, true, true, true], { gatilho: ';ass', texto: 'Atenciosamente, {nome}' }, 1, [], 'Ana']);
+      const comFrases = await montar({ historicoLigado: true, historico: {
+        'Fico à disposição para qualquer dúvida.': { valor: { frase: 'Fico à disposição para qualquer dúvida.', vezes: 3 }, em: Date.now() },
+        'Frase dita uma vez só aqui.': { valor: { frase: 'Frase dita uma vez só aqui.', vezes: 1 }, em: Date.now() },
+      } });
+      const h = comFrases.doc;
+      const sugeridas = [...h.querySelectorAll('#frasesRepetidas li')].map((li) => li.firstChild.textContent.trim());
+      h.querySelector('#frasesRepetidas button').click();
+      const preenchido = h.getElementById('novoTextoDoAtalho').value;
+      const marcada = h.getElementById('historicoLigado').checked;
+      h.getElementById('historicoLigado').click();
+      await espera(100);
+      confere('o histórico sugere a frase repetida 3 vezes, preenche o atalho e, desligado, é apagado', [marcada, sugeridas, preenchido, comFrases.armazem.historicoLigado, comFrases.armazem.historico], [true, ['Fico à disposição para qualquer dúvida. (3 vezes)'], 'Fico à disposição para qualquer dúvida.', false, undefined]);
       const comHistorico = await montar({ historicoDasCamadas: { languagetool: [{ ms: 40, erro: null, em: 1 }, { ms: 60, erro: 'falha', em: 2 }], openrouter: [{ ms: 900, erro: null, em: 3 }, { ms: 1000, erro: 'limite_por_minuto', em: 4 }] } });
       const linhasDoPainel = [...comHistorico.doc.querySelectorAll('#linhasDiagnostico tr')].map((tr) => [...tr.children].slice(0, 4).map((td) => td.textContent));
       confere('o diagnóstico mostra mediana, p95 e disponibilidade por camada, e avisa quando não há medição', [linhasDoPainel, comHistorico.doc.getElementById('semDiagnostico').hidden, semChave.doc.getElementById('semDiagnostico').hidden, comHistorico.doc.querySelector('#linhasDiagnostico tr:last-child td:last-child').textContent.startsWith('limite por minuto (')], [

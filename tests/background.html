@@ -245,6 +245,14 @@
       const antesDoCacheAprendido = chamadas();
       const doCache = await etapa('o projeto atrasou e o projeto parou', true, 43);
       confere('o resultado que vem do cache também deixa de fora a troca rejeitada 3 vezes', [doModelo.sugestoes.map((s) => s.original), chamadas() - antesDoCacheAprendido, doCache.sugestoes.map((s) => s.original)], [['projeto'], 0, []]);
+      armazem.local.historicoLigado = true;
+      for (const [i, inicio] of ['Bom dia, Ana.', 'Olá, equipe.', 'Oi, Bruno.'].entries()) await etapa(`${inicio} Fico à disposição para qualquer dúvida. Meu e-mail é ana@x.com sempre.`, true, 50 + i);
+      const contadas = Object.values(armazem.local.historico || {}).map((e) => [e.valor.frase, e.valor.vezes]);
+      armazem.local.historicoLigado = false;
+      const antesDeDesligar = JSON.stringify(armazem.local.historico);
+      await etapa('Outra frase bem diferente de todas as outras.', true, 53);
+      confere('com o histórico ligado, a frase repetida em parágrafos diferentes conta, a frase com e-mail não entra, e desligado nada conta', [contadas.find(([f]) => f.startsWith('Fico'))?.[1], JSON.stringify(armazem.local.historico).includes('ana@x.com'), JSON.stringify(armazem.local.historico) === antesDeDesligar], [3, false, true]);
+      delete armazem.local.historicoLigado;
       const ADVERSARIAL = [
         `minha senha é ${'Tr0ub' + '4dor&3'} e o token ${'ghp_' + 'x9'.repeat(18)}`,
         'o cpf 529.982.247-25 vai no <img src=x onerror="alert(1)"> campo',

@@ -185,6 +185,23 @@ async function mostrarAtalhos() {
   }));
 }
 
+const VEZES_PARA_SUGERIR_ATALHO = 3;
+
+async function mostrarFrasesRepetidas() {
+  const { historico = {}, historicoLigado } = await chrome.storage.local.get(['historico', 'historicoLigado']);
+  $('historicoLigado').checked = historicoLigado;
+  $('frasesRepetidas').replaceChildren(...Object.values(historico).map((e) => e.valor).filter((v) => v.vezes >= VEZES_PARA_SUGERIR_ATALHO).map((v) => {
+    const li = Object.assign(document.createElement('li'), { textContent: `${v.frase} (${v.vezes} vezes) ` });
+    const criar = Object.assign(document.createElement('button'), { textContent: 'Criar atalho' });
+    criar.addEventListener('click', () => {
+      $('novoTextoDoAtalho').value = v.frase;
+      $('novoGatilho').focus();
+    });
+    li.append(criar);
+    return li;
+  }));
+}
+
 async function mostrarAprendizado() {
   const { aprendizado, dicionario = [] } = await chrome.storage.local.get(['aprendizado', 'dicionario']);
   const item = (texto, rotulo, acao) => {
@@ -232,6 +249,12 @@ async function iniciar() {
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
   mostrarDiagnostico();
   mostrarAtalhos();
+  mostrarFrasesRepetidas();
+  $('historicoLigado').addEventListener('change', async () => {
+    await chrome.storage.local.set({ historicoLigado: $('historicoLigado').checked });
+    if (!$('historicoLigado').checked) await chrome.storage.local.remove('historico');
+    mostrarFrasesRepetidas();
+  });
   $('nomeDoUsuario').value = (await chrome.storage.local.get('nome')).nome || '';
   $('nomeDoUsuario').addEventListener('change', () => chrome.storage.local.set({ nome: $('nomeDoUsuario').value.trim() }));
   $('formAtalho').addEventListener('submit', async (evento) => {

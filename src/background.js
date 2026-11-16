@@ -154,6 +154,16 @@ async function executarCamada(executar) {
   return { ...resultado, latenciaMs: Math.round(performance.now() - inicio) };
 }
 
+const PALAVRAS_POR_FRASE_NO_HISTORICO = 4;
+
+async function contarFrases(texto) {
+  for (const { texto: frase } of RevisorAnalise.frases(texto)) {
+    if (RevisorAnalise.palavras(frase).length < PALAVRAS_POR_FRASE_NO_HISTORICO || mascarar(frase).itens.length) continue;
+    const anterior = await RevisorArmazem.ler(chrome.storage.local, 'historico', frase);
+    await RevisorArmazem.gravar(chrome.storage.local, 'historico', frase, { frase, vezes: (anterior?.vezes || 0) + 1 }, { optIn: true }).catch(() => {});
+  }
+}
+
 let filaDeDecisoes = Promise.resolve();
 function registrarDecisao({ decisao, regra, categoria, original, substituicao }) {
   if (mascarar(`${original} ${substituicao}`).itens.length) return Promise.resolve();
@@ -167,11 +177,12 @@ function registrarDecisao({ decisao, regra, categoria, original, substituicao })
 
 async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil', 'aprendizado'])), abaId };
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil', 'aprendizado', 'historicoLigado'])), abaId };
   const semRejeitadas = (sugestoes) => aplicarAprendizado(sugestoes, cfg.aprendizado);
   const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO, perfil: cfg.perfil };
   const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, opcoes.perfil, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
   const guardadas = chave && (await RevisorArmazem.ler(chrome.storage.local, 'cache', chave));
+  if (cfg.historicoLigado && modelo && !pedido && !guardadas) await contarFrases(texto);
   if (guardadas) return { sugestoes: semRejeitadas(guardadas), provisorio: false };
   const offline = await executarCamada(() => camadaOffline(texto));
   aoAvancar({ sugestoes: semRejeitadas(juntarCamadas(texto, { offline: offline.sugestoes }, opcoes)) });
