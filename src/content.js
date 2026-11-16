@@ -44,8 +44,9 @@
 
   async function avaliarAtivo() {
     try {
-      const { sitesExcluidos = [], tema: salvo } = await chrome.storage.local.get(['sitesExcluidos', 'tema']);
+      const { sitesExcluidos = [], tema: salvo, atalhos: salvos, nome } = await chrome.storage.local.get(['sitesExcluidos', 'tema', 'atalhos', 'nome']);
       aplicarTema(salvo);
+      carregarAtalhos(salvos, nome);
       const { pausado } = await chrome.runtime.sendMessage({ tipo: 'estadoAba' });
       definirAtivo(!hostExcluido(location.hostname, sitesExcluidos) && !pausado);
     } catch {
@@ -385,10 +386,32 @@
     return estadoDe(origem instanceof HTMLElement && origem.isContentEditable ? raizEditavel(origem) : origem);
   }
 
+  let atalhos, nomeDoUsuario;
+
+  function carregarAtalhos(salvos = {}, nome) {
+    atalhos = new Map(Object.values(salvos).map((e) => e.valor).filter((v) => typeof v?.gatilho === 'string' && typeof v.texto === 'string').map((v) => [v.gatilho, v.texto]));
+    nomeDoUsuario = typeof nome === 'string' ? nome : '';
+  }
+
+  async function expandirAtalho(estado) {
+    if (estado.expandindo) return;
+    const texto = lerCampo(estado);
+    const cursor = posicaoDoCursor(estado, texto);
+    const gatilho = texto.slice(0, cursor).match(/(?:^|\s)(;[\p{L}\p{N}_-]+)$/u)?.[1];
+    if (!atalhos.has(gatilho)) return;
+    const agora = new Date();
+    estado.expandindo = true;
+    try {
+      await aplicarNoCampo(estado.el, estado.tipo, [{ inicio: cursor - gatilho.length, fim: cursor, texto: atalhos.get(gatilho).replaceAll('{data}', agora.toLocaleDateString('pt-BR')).replaceAll('{hora}', agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })).replaceAll('{nome}', nomeDoUsuario) }]);
+    } finally {
+      estado.expandindo = false;
+    }
+  }
+
   function aoDigitar(evento) {
     if (!ativo || !evento.isTrusted) return;
     const estado = campoDoEvento(evento);
-    if (estado) agendarRevisao(estado);
+    if (estado) expandirAtalho(estado), agendarRevisao(estado);
   }
 
   function marcarInteracao(evento) {
@@ -401,7 +424,7 @@
     if (!ativo) return;
     const estado = campoDoEvento(evento);
     if (estado?.tipo !== 'editavel' || estado.mutacoes) return;
-    estado.mutacoes = new MutationObserver(() => Date.now() - estado.interagiuEm < MUTACAO_SEGUE_TECLA_MS && agendarRevisao(estado));
+    estado.mutacoes = new MutationObserver(() => Date.now() - estado.interagiuEm < MUTACAO_SEGUE_TECLA_MS && (expandirAtalho(estado), agendarRevisao(estado)));
     estado.mutacoes.observe(estado.el, { characterData: true, childList: true, subtree: true });
   }
 
@@ -972,6 +995,7 @@
     if (area !== 'local') return;
     if (mudancas.sitesExcluidos) avaliarAtivo();
     if (mudancas.tema) aplicarTema(mudancas.tema.newValue);
+    if (mudancas.atalhos || mudancas.nome) chrome.storage.local.get(['atalhos', 'nome']).then(({ atalhos: salvos, nome }) => carregarAtalhos(salvos, nome));
     if (mudancas.tom || mudancas.chaveOpenrouter) limparCache();
     if (mudancas.dicionario) filtrarCachePeloDicionario(mudancas.dicionario.newValue || []);
   });

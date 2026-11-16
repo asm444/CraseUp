@@ -71,6 +71,7 @@
   const reescritas = [];
   let ouvinte = null;
   const ouvintesDoStorage = [];
+  const salvoNoTeste = {};
   const gravados = [];
   globalThis.chrome = {
     runtime: {
@@ -115,7 +116,7 @@
       getURL: (p) => `../${p}`,
       onMessage: { addListener(fn) { ouvinte = fn; } },
     },
-    storage: { local: { get: async () => ({}), set: async (itens) => { gravados.push(itens); } }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
+    storage: { local: { get: async (chaves) => Object.fromEntries([].concat(chaves).filter((k) => k in salvoNoTeste).map((k) => [k, salvoNoTeste[k]])), set: async (itens) => { gravados.push(itens); } }, onChanged: { addListener(fn) { ouvintesDoStorage.push(fn); } } },
   };
 </script>
 <script src="../src/protecao.js"></script>
@@ -582,6 +583,28 @@
       await espera(100);
       await clicar(sombra().querySelector('.cartao .aplicar'));
       confere('remoção pelo Substituir também chega ao editor pelo beforeinput', [modeloRico, rico.textContent], ['rico bom', 'rico bom']);
+
+      salvoNoTeste.atalhos = {
+        ';ass': { valor: { gatilho: ';ass', texto: 'Atenciosamente, {nome}' }, em: 1 },
+        ';hoje': { valor: { gatilho: ';hoje', texto: 'em {data} às {hora}' }, em: 1 },
+      };
+      salvoNoTeste.nome = 'Ana';
+      ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: salvoNoTeste.atalhos } }, 'local'));
+      await espera(100);
+      await digitar(area, 'oi ;ass');
+      await espera(200);
+      await digitar(editavel, 'até ;hoje');
+      await espera(200);
+      modeloRico = 'nota ;as';
+      await digitar(rico, 'nota ;ass');
+      await espera(200);
+      const comAtalho = [area.value, editavel.textContent, rico.textContent];
+      await digitar(area, 'sem ;nada');
+      await espera(200);
+      confere('o atalho digitado expande no textarea, no contenteditable e no editor rico, com nome e data, e gatilho desconhecido fica', [...comAtalho, area.value], ['oi Atenciosamente, Ana', `até em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 'nota Atenciosamente, Ana', 'sem ;nada']);
+      delete salvoNoTeste.atalhos;
+      ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: undefined } }, 'local'));
+      await espera(100);
 
       await digitar(area, 'isso é açim mesmo\nsombra com açim');
       await espera(1500);
