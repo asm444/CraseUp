@@ -402,7 +402,7 @@
     const agora = new Date();
     estado.expandindo = true;
     try {
-      await aplicarNoCampo(estado.el, estado.tipo, [{ inicio: cursor - gatilho.length, fim: cursor, texto: atalhos.get(gatilho).replaceAll('{data}', agora.toLocaleDateString('pt-BR')).replaceAll('{hora}', agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })).replaceAll('{nome}', nomeDoUsuario) }]);
+      await aplicarNoCampo(estado.el, estado.tipo, [{ inicio: cursor - gatilho.length, fim: cursor, texto: atalhos.get(gatilho).replaceAll('{data}', agora.toLocaleDateString('pt-BR')).replaceAll('{hora}', agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })).replaceAll('{nome}', () => nomeDoUsuario) }]);
     } finally {
       estado.expandindo = false;
     }

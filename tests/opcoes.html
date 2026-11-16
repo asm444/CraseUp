@@ -70,6 +70,26 @@
       comAprendizado.doc.querySelector('#palavrasPropostas button').click();
       await espera(100);
       confere('o aprendizado lista as trocas suprimidas, desfaz item a item e manda palavra proposta para o dicionário', [antesDeDesfazer, depoisDeDesfazer, comAprendizado.armazem.dicionario, Object.keys(comAprendizado.armazem.aprendizado).length], [['demais → (remover)', 'Jusgrok → Jugo'], ['Jusgrok → Jugo'], ['digitada depois', 'Jusgrok'], 0]);
+      const comAtalhos = await montar({});
+      const d = comAtalhos.doc;
+      const cadastrar = async (gatilho, texto) => {
+        d.getElementById('novoGatilho').value = gatilho;
+        d.getElementById('novoTextoDoAtalho').value = texto;
+        d.getElementById('formAtalho').requestSubmit();
+        await espera(100);
+        return d.getElementById('erroAtalho').hidden ? '' : d.getElementById('erroAtalho').textContent;
+      };
+      const erros = [await cadastrar(';ass', 'Atenciosamente, {nome}'), await cadastrar('ass', 'x'), await cadastrar(';as', 'y'), await cadastrar(';assinatura', 'z'), await cadastrar(';oi', '')];
+      const gravado = comAtalhos.armazem.atalhos?.[';ass']?.valor;
+      const listaAntes = [...d.querySelectorAll('#listaDeAtalhos li')].length;
+      d.querySelector('#listaDeAtalhos button').click();
+      await espera(100);
+      d.getElementById('nomeDoUsuario').value = ' Ana ';
+      d.getElementById('nomeDoUsuario').dispatchEvent(new Event('change'));
+      await espera(50);
+      confere('atalhos: cadastra o válido, recusa gatilho sem ;, gatilho que começa igual a outro e texto vazio, remove e grava o nome', [
+        erros.map((e) => e !== ''), gravado, listaAntes, Object.keys(comAtalhos.armazem.atalhos), comAtalhos.armazem.nome,
+      ], [[false, true, true, true, true], { gatilho: ';ass', texto: 'Atenciosamente, {nome}' }, 1, [], 'Ana']);
       const comHistorico = await montar({ historicoDasCamadas: { languagetool: [{ ms: 40, erro: null, em: 1 }, { ms: 60, erro: 'falha', em: 2 }], openrouter: [{ ms: 900, erro: null, em: 3 }, { ms: 1000, erro: 'limite_por_minuto', em: 4 }] } });
       const linhasDoPainel = [...comHistorico.doc.querySelectorAll('#linhasDiagnostico tr')].map((tr) => [...tr.children].slice(0, 4).map((td) => td.textContent));
       confere('o diagnóstico mostra mediana, p95 e disponibilidade por camada, e avisa quando não há medição', [linhasDoPainel, comHistorico.doc.getElementById('semDiagnostico').hidden, semChave.doc.getElementById('semDiagnostico').hidden, comHistorico.doc.querySelector('#linhasDiagnostico tr:last-child td:last-child').textContent.startsWith('limite por minuto (')], [

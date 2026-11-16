@@ -70,6 +70,7 @@
     details.tabela summary { cursor: pointer; color: var(--texto-suave); }
     details.tabela table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
     details.tabela th, details.tabela td { padding: 6px 8px; border-bottom: 1px solid var(--borda); text-align: right; }
+    #novoGatilho { flex: 0 0 9rem; }
     table.diagnostico { width: 100%; border-collapse: collapse; font-size: 13px; }
     table.diagnostico th, table.diagnostico td { padding: 6px 8px; border-bottom: 1px solid var(--borda); text-align: left; }
     details.tabela th:first-child, details.tabela td:first-child { text-align: left; }
@@ -98,6 +99,7 @@
       <a href="#sublinhados">Sublinhados</a>
       <a href="#dicionario-pessoal">Dicionário pessoal</a>
       <a href="#sites-sem-revisao">Sites sem revisão</a>
+      <a href="#atalhos">Atalhos</a>
       <a href="#aprendizado">Aprendizado</a>
       <a href="#diagnostico">Diagnóstico</a>
     </nav>
@@ -247,6 +249,20 @@
         <div class="chips" id="sites"></div>
       </section>
 
+      <section class="bloco largo" id="atalhos">
+        <h2>Atalhos</h2>
+        <p class="suave" style="margin:0 0 12px">Digite o gatilho em qualquer campo e ele vira o texto. Use {data}, {hora} e {nome}. Os atalhos ficam só neste navegador.</p>
+        <label class="suave" for="nomeDoUsuario">Seu nome, para {nome}</label>
+        <input type="text" id="nomeDoUsuario" autocomplete="off">
+        <form class="adicionar" id="formAtalho">
+          <input type="text" id="novoGatilho" placeholder=";ass" autocomplete="off" spellcheck="false">
+          <textarea id="novoTextoDoAtalho" placeholder="Atenciosamente, {nome}"></textarea>
+          <button>Adicionar</button>
+        </form>
+        <p class="erro" id="erroAtalho" hidden></p>
+        <ul id="listaDeAtalhos"></ul>
+      </section>
+
       <section class="bloco largo" id="aprendizado">
         <h2>Aprendizado</h2>
         <p class="suave" style="margin:0 0 12px">Trocas que você ignorou 3 vezes deixam de aparecer. Desfaça para voltar a vê-las.</p>
@@ -266,6 +282,7 @@
   </main>
   <script src="tema.js"></script>
   <script src="core.js"></script>
+  <script src="armazem.js"></script>
   <script src="graficos.js"></script>
   <script src="config.js"></script>
   <script src="languagetool.js"></script>

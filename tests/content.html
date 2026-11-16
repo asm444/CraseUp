@@ -588,7 +588,7 @@
         ';ass': { valor: { gatilho: ';ass', texto: 'Atenciosamente, {nome}' }, em: 1 },
         ';hoje': { valor: { gatilho: ';hoje', texto: 'em {data} às {hora}' }, em: 1 },
       };
-      salvoNoTeste.nome = 'Ana';
+      salvoNoTeste.nome = 'Ana $& $$';
       ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: salvoNoTeste.atalhos } }, 'local'));
       await espera(100);
       await digitar(area, 'oi ;ass');
@@ -601,7 +601,7 @@
       const comAtalho = [area.value, editavel.textContent, rico.textContent];
       await digitar(area, 'sem ;nada');
       await espera(200);
-      confere('o atalho digitado expande no textarea, no contenteditable e no editor rico, com nome e data, e gatilho desconhecido fica', [...comAtalho, area.value], ['oi Atenciosamente, Ana', `até em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 'nota Atenciosamente, Ana', 'sem ;nada']);
+      confere('o atalho digitado expande no textarea, no contenteditable e no editor rico, com nome e data, e gatilho desconhecido fica', [...comAtalho, area.value], ['oi Atenciosamente, Ana $& $$', `até em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 'nota Atenciosamente, Ana $& $$', 'sem ;nada']);
       delete salvoNoTeste.atalhos;
       ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: undefined } }, 'local'));
       await espera(100);

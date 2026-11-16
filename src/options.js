@@ -170,6 +170,21 @@ function painelDeConsumo() {
 const NOMES_DE_CAMADA = { offline: 'Dicionário offline', languagetool: 'LanguageTool', openrouter: 'OpenRouter' };
 const NOMES_DE_ERRO = { sem_conexao: 'sem conexão', limite_por_minuto: 'limite por minuto', limite_da_aba: 'limite da aba', cota: 'cota esgotada', sem_chave: 'sem chave', sem_permissao: 'sem permissão' };
 
+async function mostrarAtalhos() {
+  $('listaDeAtalhos').replaceChildren(...Object.values((await chrome.storage.local.get('atalhos')).atalhos ?? {}).map(({ valor }) => {
+    const li = Object.assign(document.createElement('li'), { textContent: `${valor.gatilho} → ${valor.texto} ` });
+    const remover = Object.assign(document.createElement('button'), { textContent: 'Remover' });
+    remover.addEventListener('click', async () => {
+      const { atalhos } = await chrome.storage.local.get('atalhos');
+      delete atalhos[valor.gatilho];
+      await chrome.storage.local.set({ atalhos });
+      mostrarAtalhos();
+    });
+    li.append(remover);
+    return li;
+  }));
+}
+
 async function mostrarAprendizado() {
   const { aprendizado, dicionario = [] } = await chrome.storage.local.get(['aprendizado', 'dicionario']);
   const item = (texto, rotulo, acao) => {
@@ -216,6 +231,21 @@ async function iniciar() {
   $('boasVindas').hidden = !(bemVindo || !chave);
   $('linkChaves').href = RevisorConfig.CHAVES_URL;
   mostrarDiagnostico();
+  mostrarAtalhos();
+  $('nomeDoUsuario').value = (await chrome.storage.local.get('nome')).nome || '';
+  $('nomeDoUsuario').addEventListener('change', () => chrome.storage.local.set({ nome: $('nomeDoUsuario').value.trim() }));
+  $('formAtalho').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    const gatilho = $('novoGatilho').value.trim();
+    const texto = $('novoTextoDoAtalho').value;
+    const conflito = Object.keys((await chrome.storage.local.get('atalhos')).atalhos ?? {}).find((g) => g !== gatilho && (g.startsWith(gatilho) || gatilho.startsWith(g)));
+    const motivo = !texto.trim() ? 'Escreva o texto do atalho.' : !/^;[\p{L}\p{N}_-]+$/u.test(gatilho) ? 'O gatilho começa com ; e tem só letras, números, _ ou -.' : conflito ? `O gatilho ${gatilho} começa igual a ${conflito}; um deles dispararia antes do outro.` : '';
+    Object.assign($('erroAtalho'), { textContent: motivo, hidden: !motivo });
+    if (motivo) return;
+    await RevisorArmazem.gravar(chrome.storage.local, 'atalhos', gatilho, { gatilho, texto }, { optIn: true });
+    evento.target.reset();
+    mostrarAtalhos();
+  });
   mostrarAprendizado();
   if (chave) $('statusChave').textContent = `Chave configurada, terminando em …${chave.slice(-4)}. Cole outra para trocar.`;
 
