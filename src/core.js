@@ -210,6 +210,34 @@
     };
   }
 
+  function montarPedidoDeTom(texto, { idioma, protecao }) {
+    const instrucao = [
+      `Diga qual tom melhor serve à mensagem recebida, em ${NOMES_DE_IDIOMA[idioma]}, pelo assunto e por quem a lê. Não reescreva nada.`,
+      REGRA_DE_DADO,
+      `- "tom" é um destes: ${Object.entries(TONS).map(([id, descricao]) => `${id} = ${descricao}`).join('; ')}.`,
+      protecao,
+      '- Responda só com o objeto JSON {"tom": "neutro"}, sem texto fora dele.',
+    ].filter(Boolean).join('\n');
+    return {
+      models: MODELOS,
+      messages: [
+        { role: 'system', content: instrucao },
+        { role: 'user', content: delimitar(texto) },
+      ],
+      temperature: 0,
+      reasoning: { enabled: false },
+      response_format: { type: 'json_schema', json_schema: { name: 'tom', strict: true, schema: { type: 'object', properties: { tom: { type: 'string', enum: Object.keys(TONS) } }, required: ['tom'], additionalProperties: false } } },
+      provider: { require_parameters: true },
+      usage: { include: true },
+    };
+  }
+
+  function lerTom(corpo) {
+    const dados = JSON.parse(corpo?.choices?.[0]?.message?.content);
+    if (!Object.hasOwn(TONS, dados?.tom)) throw new Error('resposta sem tom conhecido');
+    return { tom: dados.tom, modelo: typeof corpo.model === 'string' ? corpo.model : '', uso: lerUso(corpo, dados) };
+  }
+
   function lerReescrita(corpo) {
     const conteudo = corpo?.choices?.[0]?.message?.content;
     if (typeof conteudo !== 'string') throw new Error('resposta sem conteúdo');
@@ -538,6 +566,8 @@
     TONS,
     ROTULOS_DE_TOM,
     EMOJIS_DE_TOM,
+    montarPedidoDeTom,
+    lerTom,
     MODELOS,
     ENDPOINT,
     dividirParagrafos,

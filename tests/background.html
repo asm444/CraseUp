@@ -40,6 +40,7 @@
   ];
   const respostaAoCorpo = (corpo) => {
     const usuario = corpo.messages[1].content.replace(/^<texto>\n|\n<\/texto>$/g, '');
+    if (corpo.response_format.json_schema.name === 'tom') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ tom: usuario.includes('[EMAIL_1]') ? 'empatico' : 'inventado' }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 } };
     if (usuario === 'o relatório saiu e o relatório chegou') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [], segundosPoupados: 0, tom: 'formal' }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 } };
     if (usuario === 'o modelo forja a origem') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'gramatica', origem: 'offline', original: 'forja', substituicao: 'forjou', motivo: 'm' }], segundosPoupados: 1 }) } }] };
     if (usuario === 'a meta subiu e a meta caiu') return { model: 'modelo-x:free', choices: [{ message: { content: JSON.stringify({ sugestoes: [{ tipo: 'palavra', original: 'meta', substituicao: 'objetivo', motivo: 'repetida', categoria: 'repeticao', confianca: 0.7, regra: { id: 'R2', nome: 'n', explicacao: 'e' } }], segundosPoupados: 1 }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 } };
@@ -128,6 +129,10 @@
       confere('o LanguageTool recebe o marcador no lugar do e-mail', [textosAoLanguageTool.at(-1), textosAoLanguageTool.some((t) => t.includes('joana@x.com.br'))], ['oi [EMAIL_1] amanha', false]);
       confere('a correção do LanguageTool volta na posição do texto original, e a que cai no marcador ou o atravessa é descartada', comEmail.sugestoes.filter((x) => x.origem === 'languagetool').map((x) => [x.original, x.substituicao, x.inicio]), [['amanha', 'amanhã', 18]]);
 
+      const tomPedido = await new Promise((pronto) => aoMensagem({ tipo: 'sugerirTom', texto: 'sinto muito, escreve pro joao@empresa.com' }, { tab: { id: 70 } }, pronto));
+      const corpoDoTom = JSON.stringify(corposAoModelo.at(-1));
+      const tomInventado = await new Promise((pronto) => aoMensagem({ tipo: 'sugerirTom', texto: 'um texto qualquer aqui' }, { tab: { id: 70 } }, pronto));
+      confere('o pedido de tom sai mascarado, só aceita tom conhecido e não vira reescrita', [tomPedido, corpoDoTom.includes('joao@empresa.com'), corposAoModelo.at(-2).response_format.json_schema.name, tomInventado], [{ tom: 'empatico' }, false, 'tom', {}]);
       const comDados = await enviar({ tipo: 'reescrever', texto: 'manda pro joao@empresa.com até 07/11/2026', tom: '' });
       const corpoComDados = JSON.stringify(corposAoModelo.at(-1));
       confere('o e-mail e a data não saem para o modelo, que recebe marcadores e a instrução de mantê-los', [corpoComDados.includes('joao@empresa.com'), corpoComDados.includes('07/11/2026'), corposAoModelo.at(-1).messages[1].content, corposAoModelo.at(-1).messages[0].content.includes('Mantenha cada marcador')], [false, false, '<texto>\nmanda pro [EMAIL_1] até [DATA_1]\n</texto>', true]);

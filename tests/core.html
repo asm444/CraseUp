@@ -225,6 +225,7 @@
       { sugestoes: [{ tipo: 'tom' }], tom: '', modelo: 'google/gemma-4-31b-it:free', uso: { entrada: 0, saida: 0, custo: 0, segundos: 0 } });
     igual(['amigavel', '__proto__', 'grosseiro'].map((tom) => C.lerResposta({ choices: [{ message: { content: JSON.stringify({ sugestoes: [], tom }) } }] }).tom), ['amigavel', '', '']);
     igual(C.montarRequisicao('oi tudo bem').response_format.json_schema.schema.required, ['sugestoes', 'segundosPoupados', 'tom']);
+    igual(['casual', 'constructor', 'zangado'].map((tom) => { try { return C.lerTom({ choices: [{ message: { content: JSON.stringify({ tom }) } }] }).tom; } catch { return 'recusado'; } }), ['casual', 'recusado', 'recusado']);
     let falhas = 0;
     for (const corpo of [{ choices: [] }, { choices: [{ message: { content: 'não é json' } }] }, { choices: [{ message: { content: '{"outra":1}' } }] }]) {
       try { C.lerResposta(corpo); } catch { falhas++; }

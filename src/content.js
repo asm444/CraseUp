@@ -368,7 +368,7 @@
             if (ativo && campos.get(estado.el) === estado) desenhar(estado);
           });
           if (resposta?.sugestoes) guardarNoCache(paragrafo, resposta.sugestoes, Boolean(resposta.provisorio));
-          if (resposta?.tom) tonsSugeridos.set(paragrafo, resposta.tom);
+          if (resposta?.tom) lembrarTom(paragrafo, resposta.tom);
           if (!rapida && resposta?.provisorio) {
             const tentativas = (reenvios.get(paragrafo)?.tentativas ?? 0) + 1;
             reenvios.set(paragrafo, { tentativas, em: Date.now() + Math.min(REENVIO_INICIAL_MS * 2 ** (tentativas - 1), REENVIO_MAXIMO_MS) });
@@ -518,12 +518,33 @@
 
   const ORDEM_DOS_TONS = ['', 'advogado', 'formal', 'profissional', 'linkedin', 'confiante', 'persuasivo', 'neutro', 'empatico', 'amigavel', 'casual'];
 
-  function seletorDeTom(valor, aoMudar, sugerido) {
+  const ESPERA_DA_TECLA_DE_TOM_MS = 700;
+  const tonsPedidos = new Set();
+  let seletorAberto;
+
+  function lembrarTom(texto, tom) {
+    tonsSugeridos.delete(texto);
+    tonsSugeridos.set(texto, tom);
+    if (tonsSugeridos.size > ENTRADAS_NO_CACHE) tonsSugeridos.delete(tonsSugeridos.keys().next().value);
+  }
+
+  async function pedirTom(texto) {
+    if (tonsPedidos.has(texto) || !revisavel(texto)) return;
+    if (tonsPedidos.size > ENTRADAS_NO_CACHE) tonsPedidos.clear();
+    tonsPedidos.add(texto);
+    const resposta = await chrome.runtime.sendMessage({ tipo: 'sugerirTom', texto }).catch(() => null);
+    if (!resposta?.tom) return;
+    lembrarTom(texto, resposta.tom);
+    if (seletorAberto?.texto === texto) seletorAberto.marcar(resposta.tom);
+  }
+
+  function seletorDeTom(valor, aoMudar, texto, sugerido) {
     const nome = (v) => (v ? ROTULOS_DE_TOM[v] : 'Original');
     const emoji = (v) => (v ? EMOJIS_DE_TOM[v] : '\u{270D}\u{FE0F}');
     const tons = elemento('div', 'tons');
+    const rotulo = elemento('span', 'rotulo-tom');
     const regua = elemento('div', 'regua-tom');
-    regua.append(...ORDEM_DOS_TONS.map((v) => Object.assign(elemento('span', v === sugerido ? 'emoji-tom sugerido' : 'emoji-tom', emoji(v)), { title: nome(v) })));
+    regua.append(...ORDEM_DOS_TONS.map((v) => Object.assign(elemento('span', 'emoji-tom', emoji(v)), { title: nome(v) })));
     const escolha = Object.assign(document.createElement('input'), { type: 'range', className: 'escolha-tom', min: 0, max: ORDEM_DOS_TONS.length - 1, step: 1 });
     escolha.value = ORDEM_DOS_TONS.indexOf(valor);
     escolha.setAttribute('aria-label', 'Tom');
@@ -535,11 +556,29 @@
       balao.style.left = `calc(9px + (100% - 18px) * ${escolha.value / (ORDEM_DOS_TONS.length - 1)})`;
       balao.replaceChildren(elemento('span', 'emoji-do-balao', emoji(v)), elemento('span', 'nome-do-balao', v === sugerido ? `${nome(v)} · sugerido` : nome(v)));
     };
-    descrever();
+    const marcar = (tom) => {
+      sugerido = tom;
+      [...regua.children].forEach((e, i) => e.classList.toggle('sugerido', ORDEM_DOS_TONS[i] === tom));
+      rotulo.textContent = tom ? `Tom · sugerido ${EMOJIS_DE_TOM[tom]} ${ROTULOS_DE_TOM[tom]}` : 'Tom';
+      descrever();
+    };
+    marcar(sugerido);
+    let pelaTecla = false;
+    let timerDaTecla;
+    const aplicar = () => {
+      balao.hidden = true;
+      aoMudar(ORDEM_DOS_TONS[escolha.value]);
+    };
     escolha.addEventListener('pointerdown', (e) => {
       if (!e.isTrusted) return;
+      pelaTecla = false;
       alvoDoCartao.fixo = true;
       balao.hidden = false;
+    });
+    escolha.addEventListener('keydown', (e) => {
+      if (!e.isTrusted) return;
+      pelaTecla = true;
+      alvoDoCartao.fixo = true;
     });
     escolha.addEventListener('input', (e) => {
       if (!e.isTrusted) return;
@@ -548,14 +587,17 @@
     });
     escolha.addEventListener('change', (e) => {
       if (!e.isTrusted) return;
-      balao.hidden = true;
-      aoMudar(ORDEM_DOS_TONS[escolha.value]);
+      clearTimeout(timerDaTecla);
+      if (pelaTecla) timerDaTecla = setTimeout(aplicar, ESPERA_DA_TECLA_DE_TOM_MS);
+      else aplicar();
     });
     escolha.addEventListener('pointerup', () => (balao.hidden = true));
-    escolha.addEventListener('blur', () => (balao.hidden = true));
+    escolha.addEventListener('blur', () => pelaTecla || (balao.hidden = true));
     const linha = elemento('div', 'linha-tom');
     linha.append(regua, escolha, balao);
-    tons.append(elemento('span', 'rotulo-tom', sugerido ? `Tom · sugerido ${EMOJIS_DE_TOM[sugerido]} ${ROTULOS_DE_TOM[sugerido]}` : 'Tom'), linha);
+    tons.append(rotulo, linha);
+    seletorAberto = { texto, marcar };
+    if (!sugerido) pedirTom(texto);
     return tons;
   }
 
@@ -641,7 +683,7 @@
       origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
     }
 
-    const tons = seletorDeTom(reescrita?.tom, reescrever, tonsSugeridos.get(trecho.paragrafo));
+    const tons = seletorDeTom(reescrita?.tom, reescrever, trecho.paragrafo, tonsSugeridos.get(trecho.paragrafo));
 
     const acoes = elemento('div', 'acoes');
     acoes.append(
@@ -894,7 +936,7 @@
     }
     const partes = [cabecalho, previa, motivos];
     if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `Via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
-    partes.push(...resumoDeLeitura(v.texto), ...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, pedirVerificacao, dividirParagrafos(v.texto).map((p) => tonsSugeridos.get(p.texto)).find(Boolean)), acoes);
+    partes.push(...resumoDeLeitura(v.texto), ...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, pedirVerificacao, v.texto, tonsSugeridos.get(v.texto) || dividirParagrafos(v.texto).map((p) => tonsSugeridos.get(p.texto)).find(Boolean)), acoes);
     montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
 

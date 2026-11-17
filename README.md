@@ -74,7 +74,8 @@ Passe o mouse num sublinhado: o cartão abre colado ao campo, com todas as corre
 - **Substituir** troca o trecho de uma vez. Com mais de um trecho no campo, o cartão mostra `1 de N` e, depois de substituir, passa para o seguinte.
 - Parágrafo de até 280 caracteres é um trecho só; parágrafo maior se divide em frases.
 - O slider **Tom** é uma régua de emojis que vai do original ao mais solto: advogado, formal, profissional, LinkedIn, confiante, persuasivo, neutro, empático, amigável e casual. Segure e arraste: um balão acima do cursor mostra o tom, e o trecho é reescrito nele quando você solta. O texto muda dentro do mesmo cartão, sem ele piscar nem trocar de lugar.
-- Quando o OpenRouter revisa o parágrafo, ele também diz qual tom combina melhor com a mensagem, e esse emoji vem destacado na régua. A sugestão sai da mesma chamada da revisão, sem gastar outra.
+- O emoji do tom que combina melhor com a mensagem vem destacado na régua. Quando o OpenRouter revisa o parágrafo, a sugestão sai dessa mesma chamada; quando ele não revisou, o cartão pede só o tom ao abrir, uma vez por parágrafo.
+- Pelas setas do teclado, o tom espera você parar por 0,7 s e reescreve uma vez, no último escolhido.
   - **LinkedIn** troca verbos vagos (fiz, ajudei, mexi) por verbos de ação e resultado (entreguei, implementei, liderei) e foca no impacto.
   - **Advogado** afirma só o que dá para provar, põe ressalva no lugar de afirmação absoluta e não admite culpa, obrigação nem prazo.
 - Quando o trecho tem dado sensível, o cartão diz quantos dados protegidos não saíram do navegador (veja **Privacidade**).

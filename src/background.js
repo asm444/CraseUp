@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'analise.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, acrescentaDemais, juntarCamadas, aplicarAprendizado, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, montarPedidoDeTom, lerTom, acrescentaDemais, juntarCamadas, aplicarAprendizado, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
@@ -397,6 +397,14 @@ async function reescrever(texto, tom, abaId) {
   return { ...r.lida, texto: volta.texto };
 }
 
+async function sugerirTom(texto, abaId) {
+  if (await abaPausada(abaId)) return {};
+  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte'])), abaId };
+  const { texto: mascarado, itens } = mascarar(texto);
+  const r = await lerDoModelo(montarPedidoDeTom(mascarado, { idioma: (await camadaOffline(texto)).idioma, protecao: itens.length ? INSTRUCAO_DE_PROTECAO : '' }), cfg, lerTom);
+  return r.estado === 'ativa' ? { tom: r.lida.tom } : {};
+}
+
 async function testarChave(chave) {
   try {
     const resposta = await fetch(`${ENDPOINT}key`, {
@@ -448,6 +456,10 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
   }
   if (msg?.tipo === 'reescrever' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto) && (msg.tom === '' || Object.hasOwn(TONS, msg.tom))) {
     reescrever(msg.texto, msg.tom, abaId).then(responder);
+    return true;
+  }
+  if (msg?.tipo === 'sugerirTom' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto)) {
+    sugerirTom(msg.texto, abaId).then(responder);
     return true;
   }
   if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && paginaDaExtensao(remetente)) {

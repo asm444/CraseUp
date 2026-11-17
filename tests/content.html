@@ -69,6 +69,7 @@
   const pedidos = [];
   const etapas = [];
   const reescritas = [];
+  const pedidosDeTom = [];
   let ouvinte = null;
   const ouvintesDoStorage = [];
   const salvoNoTeste = {};
@@ -78,6 +79,11 @@
       async sendMessage(msg) {
         if (msg.tipo === 'decisao') { decisoes.push(msg); return { ok: true }; }
         if (msg.tipo === 'estadoAba') return { pausado: false };
+        if (msg.tipo === 'sugerirTom') {
+          pedidosDeTom.push(msg.texto);
+          await new Promise((pronto) => setTimeout(pronto, 40));
+          return { tom: 'amigavel' };
+        }
         if (msg.tipo === 'reescrever') {
           reescritas.push([msg.texto, msg.tom]);
           if (msg.tom === '') return { texto: MELHORIAS[msg.texto] ?? msg.texto, modelo: 'm' };
@@ -445,6 +451,15 @@
       await espera(120);
       confere('trocar o tom na verificação refaz o pedido com o tom', [reescritas.at(-1), textoNovo(verificacao().querySelector('.previa'))], [['eu vou mercado amanha', 'formal'], 'Eu irei ao mercado.']);
       confere('na verificação, o tom troca o texto no mesmo cartão e no mesmo lugar', [verificacao() === verificacaoAntesDoTom, verificacao().style.top === topoDaVerificacao], [true, true]);
+      confere('sem tom da revisão, o cartão pede o tom ao abrir, uma vez só, e destaca o que vier', [pedidosDeTom.filter((t) => t === 'eu vou mercado amanha').length, verificacao().querySelector('.emoji-tom.sugerido')?.title, pedidosDeTom.includes('eu vou mercado')], [1, 'Amigável', false]);
+      const reescritasAntesDaTecla = reescritas.length;
+      verificacao().querySelector('.escolha-tom').focus();
+      await apertarReal('ArrowRight');
+      await apertarReal('ArrowRight');
+      await espera(200);
+      const reescritasDuranteAsTeclas = reescritas.length - reescritasAntesDaTecla;
+      await espera(900);
+      confere('pelas setas, o tom espera a pessoa parar e reescreve uma vez no último', [reescritasDuranteAsTeclas, reescritas.slice(reescritasAntesDaTecla)], [0, [['eu vou mercado amanha', 'linkedin']]]);
       await clicar(verificacao().querySelector('.aplicar'));
       confere('Substituir da verificação troca o campo inteiro', [area.value, verificacao()], ['Eu irei ao mercado.', null]);
 
