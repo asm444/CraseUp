@@ -42,6 +42,7 @@
     linkedin: 'LinkedIn',
     advogado: 'Advogado',
   };
+  const EMOJIS_DE_TOM = { advogado: '\u{2696}\u{FE0F}', formal: '\u{1F3A9}', profissional: '\u{1F4BC}', linkedin: '\u{1F517}', confiante: '\u{1F3AF}', persuasivo: '\u{1F4E3}', neutro: '\u{1F610}', empatico: '\u{1F917}', amigavel: '\u{1F60A}', casual: '\u{1F60E}' };
   const GIRIA_POR_TOM = {
     neutro: '- Gíria, abreviação de internet (vc, pq, blz, tô) e expressão coloquial destoam do tom: marque como "tom" e troque pela forma por extenso ou neutra.',
     casual: '- Gíria e abreviação de internet combinam com o tom casual: não marque.',
@@ -85,8 +86,9 @@
         },
       },
       segundosPoupados: { type: 'integer' },
+      tom: { type: 'string', enum: Object.keys(TONS) },
     },
-    required: ['sugestoes', 'segundosPoupados'],
+    required: ['sugestoes', 'segundosPoupados', 'tom'],
     additionalProperties: false,
   };
 
@@ -158,8 +160,9 @@
       '- "confianca" vai de 0 a 1: quanto você tem certeza de que a troca melhora o texto.',
       '- "regra" nomeia a regra aplicada: "id" curto em maiúsculas, "nome" em poucas palavras e "explicacao" em uma frase.',
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para achar e fazer sozinha estas trocas; 0 se não há sugestão.',
+      `- "tom" é o tom que melhor serve a esta mensagem, pelo assunto e por quem a lê; um destes: ${Object.keys(TONS).join(', ')}.`,
       protecao,
-      '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0}, sem texto fora dele.',
+      '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0, "tom": "neutro"}, sem texto fora dele.',
     ].filter(Boolean).join('\n');
   }
 
@@ -270,7 +273,7 @@
     if (typeof conteudo !== 'string') throw new Error('resposta sem conteúdo');
     const dados = JSON.parse(conteudo);
     if (!Array.isArray(dados?.sugestoes)) throw new Error('resposta sem lista de sugestões');
-    return { sugestoes: dados.sugestoes, modelo: typeof corpo.model === 'string' ? corpo.model : '', uso: lerUso(corpo, dados) };
+    return { sugestoes: dados.sugestoes, tom: Object.hasOwn(TONS, dados.tom) ? dados.tom : '', modelo: typeof corpo.model === 'string' ? corpo.model : '', uso: lerUso(corpo, dados) };
   }
 
   function escaparRegex(texto) {
@@ -534,6 +537,7 @@
     NIVEL_PADRAO,
     TONS,
     ROTULOS_DE_TOM,
+    EMOJIS_DE_TOM,
     MODELOS,
     ENDPOINT,
     dividirParagrafos,

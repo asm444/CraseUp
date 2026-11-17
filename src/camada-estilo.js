@@ -162,22 +162,58 @@ globalThis.RevisorEstiloDaCamada = `:host {
 }
 
 .tons {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   margin-bottom: 8px;
   color: var(--texto-suave);
   font-size: 12px;
 }
+.rotulo-tom { display: block; margin-bottom: 4px; }
+.linha-tom { position: relative; padding-top: 2px; }
+.regua-tom {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1px;
+  font-size: 15px;
+  line-height: 1;
+  user-select: none;
+}
+.emoji-tom { width: 18px; text-align: center; opacity: 0.75; }
+.emoji-tom.sugerido { opacity: 1; border-radius: 50%; box-shadow: 0 0 0 2px var(--tom); }
 .escolha-tom {
-  font: inherit;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 8px;
+  display: block;
+  width: 100%;
+  margin: 4px 0 0;
+  accent-color: var(--tom);
+  cursor: grab;
+}
+.escolha-tom:active { cursor: grabbing; }
+.balao-tom {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 10px;
   border: 1px solid var(--borda);
   background: var(--fundo-elevado);
   color: var(--texto);
-  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: left 120ms ease-out;
+}
+.balao-tom[hidden] { display: none; }
+.emoji-do-balao { font-size: 26px; line-height: 1; animation: pulo-do-tom 220ms ease-out; }
+.nome-do-balao { font-size: 12px; font-weight: 600; }
+@keyframes pulo-do-tom {
+  from { transform: scale(0.5) translateY(6px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .balao-tom { transition: none; }
+  .emoji-do-balao { animation: none; }
 }
 .escolha-tom:focus-visible { outline: 2px solid var(--tom); outline-offset: 1px; }
 

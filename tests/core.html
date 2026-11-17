@@ -222,7 +222,9 @@
 
   caso('lê a resposta do OpenRouter com o modelo que atendeu e rejeita formato inesperado', () => {
     igual(C.lerResposta({ model: 'google/gemma-4-31b-it:free', choices: [{ message: { content: '{"sugestoes":[{"tipo":"tom"}]}' } }] }),
-      { sugestoes: [{ tipo: 'tom' }], modelo: 'google/gemma-4-31b-it:free', uso: { entrada: 0, saida: 0, custo: 0, segundos: 0 } });
+      { sugestoes: [{ tipo: 'tom' }], tom: '', modelo: 'google/gemma-4-31b-it:free', uso: { entrada: 0, saida: 0, custo: 0, segundos: 0 } });
+    igual(['amigavel', '__proto__', 'grosseiro'].map((tom) => C.lerResposta({ choices: [{ message: { content: JSON.stringify({ sugestoes: [], tom }) } }] }).tom), ['amigavel', '', '']);
+    igual(C.montarRequisicao('oi tudo bem').response_format.json_schema.schema.required, ['sugestoes', 'segundosPoupados', 'tom']);
     let falhas = 0;
     for (const corpo of [{ choices: [] }, { choices: [{ message: { content: 'não é json' } }] }, { choices: [{ message: { content: '{"outra":1}' } }] }]) {
       try { C.lerResposta(corpo); } catch { falhas++; }

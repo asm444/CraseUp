@@ -109,7 +109,7 @@
               return;
             }
             const provisorio = (['duas etapas açim', 'rápida lenta açim', 'sem piscar açim'].includes(msg.texto) && !msg.modelo) || msg.texto === 'o modelo sempre falha açim';
-            setTimeout(() => ouvinteDaPorta({ final: { sugestoes, provisorio } }), msg.texto === 'rápida lenta açim' && !msg.modelo ? 1500 : 0);
+            setTimeout(() => ouvinteDaPorta({ final: { sugestoes, provisorio, ...(msg.texto === 'eu vou mercado' && { tom: 'profissional' }) } }), msg.texto === 'rápida lenta açim' && !msg.modelo ? 1500 : 0);
           },
         };
       },
@@ -131,9 +131,19 @@
     await cliqueReal(r.left + r.width / 2, r.top + r.height / 2);
     await espera(30);
   };
-  const escolherTom = async (seletor, valor) => {
-    seletor.focus();
-    for (let i = 0; i < 15 && seletor.value !== valor; i++) await apertarReal(seletor.selectedIndex < [...seletor.options].findIndex((o) => o.value === valor) ? 'ArrowDown' : 'ArrowUp');
+  const ORDEM_DOS_TONS = ['', 'advogado', 'formal', 'profissional', 'linkedin', 'confiante', 'persuasivo', 'neutro', 'empatico', 'amigavel', 'casual'];
+  const pontoDoTom = (slider, valor) => {
+    const r = slider.getBoundingClientRect();
+    return [r.left + 8 + ((r.width - 16) * ORDEM_DOS_TONS.indexOf(valor)) / (ORDEM_DOS_TONS.length - 1), r.top + r.height / 2];
+  };
+  const segurarTom = async (slider, valor) => {
+    slider.scrollIntoView({ block: 'center' });
+    await segurarReal(...pontoDoTom(slider, slider.value === '0' ? '' : ORDEM_DOS_TONS[slider.value]), ...pontoDoTom(slider, valor));
+    await espera(30);
+  };
+  const escolherTom = async (slider, valor) => {
+    await segurarTom(slider, valor);
+    await soltarReal();
     await espera(30);
   };
   const rico = document.getElementById('editorRico');
@@ -213,16 +223,16 @@
       const cartao = sombra().querySelector('.cartao');
       confere('passar o mouse abre o cartão com a troca', [cartao?.querySelector('.de')?.textContent, cartao?.querySelector('.para')?.textContent], ['vou mercado', 'vou ao mercado']);
       confere('o cartão diz de qual camada veio a sugestão', cartao?.querySelector('.origem')?.textContent, 'Via OpenRouter');
-      confere('motivo e rótulos do cartão começam com maiúscula', [cartao?.querySelector('.motivo')?.textContent, cartao?.querySelector('.escolha-tom option')?.textContent], ['Falta preposição', 'Ajustar…']);
+      confere('motivo e rótulos do cartão começam com maiúscula', [cartao?.querySelector('.motivo')?.textContent, cartao?.querySelector('.escolha-tom')?.getAttribute('aria-valuetext')], ['Falta preposição', 'Original']);
       confere('com um trecho só, o cartão não pagina', cartao?.querySelector('.pagina'), null);
       confere('a página não alcança a camada do cartão pelo shadowRoot', hostDaCamada.shadowRoot, null);
       cartao.querySelector('.aplicar').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true }));
       confere('apertar o mouse dentro do cartão não o fecha', sombra().querySelector('.cartao') === cartao, true);
       const escolhaSintetica = cartao.querySelector('.escolha-tom');
-      escolhaSintetica.value = 'formal';
+      escolhaSintetica.value = '2';
       escolhaSintetica.dispatchEvent(new Event('change'));
       await espera(120);
-      escolhaSintetica.value = '';
+      escolhaSintetica.value = '0';
       cartao.querySelector('.aplicar').click();
       await espera(30);
       confere('clique e troca de tom sintéticos da página não acionam o cartão', [area.value, reescritas.length], ['eu vou mercado', 0]);
@@ -384,9 +394,13 @@
       const seletor = sombra().querySelector('.cartao .escolha-tom');
       const cartaoAntesDoTom = sombra().querySelector('.cartao');
       const topoAntesDoTom = cartaoAntesDoTom.style.top;
-      confere('o seletor de tom do cartão oferece dez tons, com LinkedIn e Advogado', [...seletor.options].slice(1).map((o) => o.value), ['formal', 'profissional', 'neutro', 'amigavel', 'casual', 'confiante', 'empatico', 'persuasivo', 'linkedin', 'advogado']);
-      seletor.focus();
-      await apertarReal('ArrowDown');
+      confere('a régua de tom vai do original ao mais solto, com dez tons e LinkedIn e Advogado', [...sombra().querySelectorAll('.cartao .emoji-tom')].map((e) => e.title), ['Original', 'Advogado', 'Formal', 'Profissional', 'LinkedIn', 'Confiante', 'Persuasivo', 'Neutro', 'Empático', 'Amigável', 'Casual']);
+      confere('o modelo sugeriu o tom e o cartão o destaca na régua', [sombra().querySelector('.cartao .emoji-tom.sugerido')?.title, sombra().querySelector('.cartao .rotulo-tom')?.textContent.endsWith('Profissional')], ['Profissional', true]);
+      await segurarTom(seletor, 'formal');
+      const balao = sombra().querySelector('.cartao .balao-tom');
+      confere('segurar o slider mostra o balão com o tom sob o cursor, sem reescrever ainda', [balao?.hidden, balao?.textContent.endsWith('Formal'), reescritas.length], [false, true, 0]);
+      await soltarReal();
+      await espera(30);
       const avisoEnquantoReescreve = sombra().querySelector('.cartao .motivo-tom')?.textContent;
       await espera(120);
       confere('o aviso e o motivo da reescrita trazem o rótulo do tom com maiúscula', [avisoEnquantoReescreve, sombra().querySelector('.cartao .motivo-tom')?.textContent], ['Reescrevendo no tom Formal…', 'Reescrito no tom Formal']);
@@ -422,7 +436,7 @@
         confere('o cartão da verificação abre colado ao campo, não no ponto do clique', [caixa.top > campo.bottom && caixa.top - campo.bottom < 16, Math.round(caixa.left - campo.left)], [true, 0]);
       }
       confere('a prévia da verificação mostra só as palavras que mudam', [...verificacao().querySelectorAll('.de')].map((e) => e.textContent).concat([...verificacao().querySelectorAll('.para')].map((e) => e.textContent)), ['eu', 'amanha', 'Eu', 'ao ', 'amanhã.']);
-      confere('na verificação, a origem e a opção de manter o tom começam com maiúscula', [verificacao().querySelector('.origem')?.textContent, verificacao().querySelector('.escolha-tom option')?.textContent], ['Via OpenRouter (m)', 'Manter']);
+      confere('na verificação, a origem e a opção de manter o tom começam com maiúscula', [verificacao().querySelector('.origem')?.textContent, verificacao().querySelector('.escolha-tom')?.getAttribute('aria-valuetext')], ['Via OpenRouter (m)', 'Original']);
       confere('a verificação traz o resumo de leitura do campo', /^Leitura (muito fácil|fácil|difícil|muito difícil) \(índice \d+\)$/.test(verificacao().querySelector('.leitura')?.textContent || ''), true);
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
       const verificacaoAntesDoTom = verificacao();

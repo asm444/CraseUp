@@ -23,6 +23,14 @@ async def rodar_pagina(navegador, pagina):
         await aba.mouse.up()
 
     await aba.expose_function('arrastarReal', arrastar)
+
+    async def segurar(x1, y1, x2, y2):
+        await aba.mouse.move(x1, y1)
+        await aba.mouse.down()
+        await aba.mouse.move(x2, y2, steps=10)
+
+    await aba.expose_function('segurarReal', segurar)
+    await aba.expose_function('soltarReal', lambda: aba.mouse.up())
     await aba.goto(pagina.as_uri())
     try:
         await aba.wait_for_function(PRONTO, timeout=180_000)

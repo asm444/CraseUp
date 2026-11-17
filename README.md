@@ -73,7 +73,8 @@ Passe o mouse num sublinhado: o cartão abre colado ao campo, com todas as corre
 
 - **Substituir** troca o trecho de uma vez. Com mais de um trecho no campo, o cartão mostra `1 de N` e, depois de substituir, passa para o seguinte.
 - Parágrafo de até 280 caracteres é um trecho só; parágrafo maior se divide em frases.
-- O seletor **Tom** reescreve o trecho num destes tons: formal, profissional, neutro, amigável, casual, confiante, empático, persuasivo, LinkedIn ou advogado. O texto muda dentro do mesmo cartão, sem ele piscar nem trocar de lugar.
+- O slider **Tom** é uma régua de emojis que vai do original ao mais solto: advogado, formal, profissional, LinkedIn, confiante, persuasivo, neutro, empático, amigável e casual. Segure e arraste: um balão acima do cursor mostra o tom, e o trecho é reescrito nele quando você solta. O texto muda dentro do mesmo cartão, sem ele piscar nem trocar de lugar.
+- Quando o OpenRouter revisa o parágrafo, ele também diz qual tom combina melhor com a mensagem, e esse emoji vem destacado na régua. A sugestão sai da mesma chamada da revisão, sem gastar outra.
   - **LinkedIn** troca verbos vagos (fiz, ajudei, mexi) por verbos de ação e resultado (entreguei, implementei, liderei) e foca no impacto.
   - **Advogado** afirma só o que dá para provar, põe ressalva no lugar de afirmação absoluta e não admite culpa, obrigação nem prazo.
 - Quando o trecho tem dado sensível, o cartão diz quantos dados protegidos não saíram do navegador (veja **Privacidade**).
@@ -86,7 +87,7 @@ Clique com o botão direito num campo de texto, ou num texto selecionado, e esco
 
 - Com texto selecionado, verifica só a seleção; sem seleção, o campo inteiro, até 4000 caracteres.
 - **Substituir** troca só as palavras que mudaram, então negrito, link e menção do resto do texto ficam como estavam.
-- O seletor **Tom** refaz a verificação num dos dez tons; **Manter** volta ao tom do original.
+- O slider **Tom** refaz a verificação num dos dez tons; a primeira posição, **Original**, volta ao tom do original.
 - Fora de um campo editável, o botão é **Copiar**.
 - Se o modelo inventar texto (mais de 10 palavras a mais que o original), o cartão recusa a resposta e pede para tentar de novo.
 
@@ -197,7 +198,7 @@ Each edited paragraph goes through three layers, cheapest first: the offline dic
 
 ### The card
 
-Hover an underline: the card opens next to the field with every fix of the passage already applied in the preview. **Substituir** (Replace) swaps the passage at once; the **Tom** (Tone) picker rewrites it in one of ten tones, changing the text inside the same card without it flashing or moving. Right-click a field or a selection and choose **Verificar com o CraseUp** (Check with CraseUp) to get a full revised version of it.
+Hover an underline: the card opens next to the field with every fix of the passage already applied in the preview. **Substituir** (Replace) swaps the passage at once; the **Tom** (Tone) emoji slider rewrites it in one of ten tones when you release it, highlights the tone the model suggests for the message, changing the text inside the same card without it flashing or moving. Right-click a field or a selection and choose **Verificar com o CraseUp** (Check with CraseUp) to get a full revised version of it.
 
 ### Usage and appearance
 

@@ -192,7 +192,7 @@ async function revisar(texto, abaId, { pedido, modelo, contexto, host }, aoAvanc
   const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, opcoes.perfil, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
   const guardadas = chave && (await RevisorArmazem.ler(chrome.storage.local, 'cache', chave));
   if (cfg.historicoLigado && modelo && !pedido && !guardadas) await contarFrases(texto);
-  if (guardadas) return { sugestoes: semRejeitadas(guardadas), provisorio: false };
+  if (guardadas) return { sugestoes: semRejeitadas(guardadas.sugestoes), tom: guardadas.tom, provisorio: false };
   const offline = await executarCamada(() => camadaOffline(texto));
   aoAvancar({ sugestoes: semRejeitadas(juntarCamadas(texto, { offline: offline.sugestoes }, opcoes)) });
   const languagetool = await executarCamada(() => camadaLanguageTool(texto, offline.idioma, cfg.languagetool));
@@ -204,9 +204,10 @@ async function revisar(texto, abaId, { pedido, modelo, contexto, host }, aoAvanc
   await registrarCamadas({ offline, languagetool, openrouter });
   const resultado = {
     sugestoes: juntarCamadas(texto, { ...rapidas, modelo: openrouter.sugestoes }, comLanguageTool),
+    tom: openrouter.tom,
     provisorio: adiar || [offline, languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado)),
   };
-  if (chave && modelo && ![languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado))) await RevisorArmazem.gravar(chrome.storage.local, 'cache', chave, resultado.sugestoes).catch(() => {});
+  if (chave && modelo && ![languagetool, openrouter].some((camada) => ESTADOS_PASSAGEIROS.has(camada.estado))) await RevisorArmazem.gravar(chrome.storage.local, 'cache', chave, { sugestoes: resultado.sugestoes, tom: resultado.tom }).catch(() => {});
   return { ...resultado, sugestoes: semRejeitadas(resultado.sugestoes) };
 }
 
@@ -372,7 +373,7 @@ async function camadaModelo(texto, idioma, cfg, contexto, semLanguageTool) {
   const r = await lerDoModelo(montarRequisicao(mascarado, { tom: cfg.tom, dicionario, idioma, protecao, nivel: cfg.nivel, contexto: contextoMascarado, repetidas, dificeis: frasesDificeis(texto, cfg), semLanguageTool, perfil: cfg.perfil }), cfg, lerResposta);
   if (r.estado !== 'ativa') return r;
   const sugestoes = r.lida.sugestoes.map((s) => restaurarSugestao(s, itens));
-  return { estado: 'ativa', mensagem: r.lida.modelo, sugestoes: sugestoes.map((s) => ({ ...s, ...(typeof s?.original === 'string' && repetidas.includes(s.original.toLowerCase()) && { categoria: 'repeticao' }), origem: 'openrouter', modelo: r.lida.modelo })) };
+  return { estado: 'ativa', mensagem: r.lida.modelo, tom: r.lida.tom, sugestoes: sugestoes.map((s) => ({ ...s, ...(typeof s?.original === 'string' && repetidas.includes(s.original.toLowerCase()) && { categoria: 'repeticao' }), origem: 'openrouter', modelo: r.lida.modelo })) };
 }
 
 const MOTIVOS_SEM_REESCRITA = {
