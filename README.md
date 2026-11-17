@@ -81,6 +81,7 @@ Passe o mouse num sublinhado: o cartão abre colado ao campo, com todas as corre
   - **Persuasivo** abre pelo ganho de quem lê, sustenta com um argumento do próprio texto e fecha com uma chamada à ação.
   - **Empático** reconhece a situação de quem lê antes do pedido ou da notícia, sem culpar ninguém.
   - **Casual** é leve, como numa conversa, sem fórmula de carta como "prezado" ou "atenciosamente".
+  - Nos tons formal, confiante, persuasivo e empático, palavrão, xingamento, gíria e abreviação (vc, pq, tbm, tá, pra) viram palavras que passam a mesma ideia sem grosseria: a crítica dura vira crítica objetiva. O casual mantém o jeito do original.
   - Depois de reescrever, o CraseUp confere as regras do tom (por exemplo, exclamação no formal ou "talvez" no confiante). Se a reescrita quebrou alguma, ele refaz uma vez dizendo o motivo, o que gasta no máximo uma chamada a mais.
 - Quando o trecho tem dado sensível, o cartão diz quantos dados protegidos não saíram do navegador (veja **Privacidade**).
 - O cartão fecha no ×, no Esc ou com um clique fora dele.

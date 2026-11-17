@@ -28,15 +28,19 @@
   const ROTULOS_DE_TOM = { formal: 'Formal', confiante: 'Confiante', persuasivo: 'Persuasivo', empatico: 'Empático', casual: 'Casual' };
   const EMOJIS_DE_TOM = { formal: '\u{1F3A9}', confiante: '\u{1F3AF}', persuasivo: '\u{1F4E3}', empatico: '\u{1F917}', casual: '\u{1F60E}' };
   const termos = (...lista) => new RegExp(`(?<![\\p{L}])(?:${lista.join('|')})(?![\\p{L}])`, 'iu');
+  const GROSSERIA = ['tem palavrão ou xingamento', termos('merda', 'porra', 'caralho', 'cacete', 'bosta', 'cu', 'cuzão', 'puta', 'puto', 'putaria', 'fod\\p{L}*', 'arromba\\p{L}*', 'babaca', 'idiota', 'imbecil', 'otári[oa]s?', 'retardad[oa]s?', 'desgraç\\p{L}*', 'vagabund[oa]s?', 'fdp', 'pqp', 'vsf', 'tnc', 'krl')];
+  const ABREVIACAO = ['tem abreviação ou gíria', termos('vc', 'vcs', 'pq', 'tb', 'tbm', 'blz', 'tô', 'tá', 'pra', 'né', 'q', 'qdo', 'qnd', 'msg', 'obg', 'vlw', 'flw', 'hj', 'td', 'tds', 'mt', 'mto', 'agr', 'cmg', 'kk+', 'rs', 'mano', 'tipo assim')];
   const REGRAS_DO_TOM = {
     formal: [
       ['tem exclamação', /!/],
       ['tem emoji', /\p{Extended_Pictographic}/u],
-      ['tem gíria ou abreviação', termos('vc', 'vcs', 'pq', 'blz', 'tô', 'tá', 'pra', 'né', 'valeu', 'beleza', 'oi', 'abraços?', 'bjs', 'beijos?')],
+      GROSSERIA,
+      ABREVIACAO,
+      ['tem intimidade', termos('valeu', 'beleza', 'oi', 'abraços?', 'bjs', 'beijos?')],
     ],
-    confiante: [['hesita', termos('acho que', 'eu acho', 'talvez', 'meio que', 'não sei se', 'se possível', 'desculp\\p{L}*', 'só queria', 'pode ser que')]],
-    persuasivo: [['hesita', termos('acho que', 'talvez', 'não sei se', 'se não for incômodo', 'pode ser que')]],
-    empatico: [['soa duro', termos('você deveria', 'obviamente', 'como já (?:disse|falei|expliquei)', 'claramente', 'é simples')]],
+    confiante: [['hesita', termos('acho que', 'eu acho', 'talvez', 'meio que', 'não sei se', 'se possível', 'desculp\\p{L}*', 'só queria', 'pode ser que')], GROSSERIA, ABREVIACAO],
+    persuasivo: [['hesita', termos('acho que', 'talvez', 'não sei se', 'se não for incômodo', 'pode ser que')], GROSSERIA, ABREVIACAO],
+    empatico: [['soa duro', termos('você deveria', 'obviamente', 'como já (?:disse|falei|expliquei)', 'claramente', 'é simples')], GROSSERIA, ABREVIACAO],
     casual: [['soa como carta formal', termos('prezad[oa]s?', 'atenciosamente', 'cordialmente', 'vossa', 'venho por meio desta', 'outrossim', 'solicito')]],
   };
   const quebrasDoTom = (tom, texto) => (Object.hasOwn(REGRAS_DO_TOM, tom) ? REGRAS_DO_TOM[tom].filter(([, regra]) => regra.test(texto)).map(([motivo]) => motivo) : []);
@@ -189,6 +193,7 @@
       '- Mantenha o sentido, os nomes, os números e os fatos; não acrescente informação.',
       `- Não acrescente frase, saudação, despedida, explicação nem conclusão que o original não tem; o resultado tem no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a mais que o original.`,
       '- Mantenha as quebras de linha e o tamanho próximo do original. Se o texto já estiver bom, devolva-o igual.',
+      tom && tom !== 'casual' && '- Troque palavrão, xingamento, gíria e abreviação de internet (vc, pq, tbm, blz, tá, pra) por palavras que passem a mesma ideia sem grosseria: a crítica dura vira crítica objetiva, a irritação vira firmeza, e ninguém é ofendido.',
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para revisar e reescrever sozinha o texto assim.',
       quebras.length && `- A versão anterior saiu do tom porque ${quebras.join(' e ')}; desta vez siga o tom à risca.`,
       protecao,
