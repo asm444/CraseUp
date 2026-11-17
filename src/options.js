@@ -335,7 +335,7 @@ async function iniciar() {
   });
 
   for (const radio of document.querySelectorAll('input[name="tom"]')) {
-    radio.checked = radio.value === tom;
+    radio.checked = radio.value === (Object.hasOwn(RevisorCore.TONS, tom) ? tom : '');
     radio.addEventListener('change', () => chrome.storage.local.set({ tom: radio.value }));
   }
 

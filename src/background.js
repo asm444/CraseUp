@@ -1,6 +1,6 @@
 importScripts('core.js', 'ortografia.js', 'languagetool.js', 'protecao.js', 'armazem.js', 'analise.js', 'vendor/hunspell.js');
 
-const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, montarPedidoDeTom, lerTom, acrescentaDemais, juntarCamadas, aplicarAprendizado, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
+const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrita, lerReescrita, quebrasDoTom, montarPedidoDeTom, lerTom, acrescentaDemais, juntarCamadas, aplicarAprendizado, NIVEL_PADRAO, somarConsumo, precosPagos } = RevisorCore;
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
@@ -388,13 +388,20 @@ async function reescrever(texto, tom, abaId) {
   const offline = await camadaOffline(texto);
   const { texto: mascarado, itens } = mascarar(texto);
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
-  const r = await lerDoModelo(montarReescrita(mascarado, { tom, idioma: offline.idioma, protecao }), cfg, lerReescrita);
-  await registrarCamadas({ offline, openrouter: r.estado === 'ativa' ? { estado: 'ativa', mensagem: r.lida.modelo } : r });
-  if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
-  const volta = restaurar(r.lida.texto, itens);
-  if (volta.desconhecido || itens.some((i) => !volta.usados.includes(i.marcador))) return { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' };
-  if (acrescentaDemais(texto, volta.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
-  return { ...r.lida, texto: volta.texto };
+  const tentar = async (quebras) => {
+    const r = await lerDoModelo(montarReescrita(mascarado, { tom, idioma: offline.idioma, protecao, quebras }), cfg, lerReescrita);
+    await registrarCamadas({ offline, openrouter: r.estado === 'ativa' ? { estado: 'ativa', mensagem: r.lida.modelo } : r });
+    if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
+    const volta = restaurar(r.lida.texto, itens);
+    if (volta.desconhecido || itens.some((i) => !volta.usados.includes(i.marcador))) return { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' };
+    if (acrescentaDemais(texto, volta.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
+    return { ...r.lida, texto: volta.texto };
+  };
+  const primeira = await tentar([]);
+  const quebras = quebrasDoTom(tom, primeira.texto);
+  if (!quebras.length) return primeira;
+  const segunda = await tentar(quebras);
+  return segunda.erro || quebrasDoTom(tom, segunda.texto).length >= quebras.length ? primeira : segunda;
 }
 
 async function sugerirTom(texto, abaId) {

@@ -58,7 +58,7 @@
       confere('sem nível salvo marca o 3, e escolher outro nível grava a escolha', [marcadoAntes, semChave.armazem.nivel], [true, 1]);
       semChave.doc.querySelector('input[name="perfil"][value="tecnico"]').click();
       await espera(50);
-      confere('escolher um perfil grava o perfil, o tom e o nível dele e marca os dois seletores', [semChave.armazem.perfil, semChave.armazem.tom, semChave.armazem.nivel, semChave.doc.querySelector('input[name="tom"]:checked')?.value, semChave.doc.querySelector('input[name="nivel"]:checked')?.value], ['tecnico', 'neutro', 3, 'neutro', '3']);
+      confere('escolher um perfil grava o perfil, o tom e o nível dele e marca os dois seletores', [semChave.armazem.perfil, semChave.armazem.tom, semChave.armazem.nivel, semChave.doc.querySelector('input[name="tom"]:checked')?.value, semChave.doc.querySelector('input[name="nivel"]:checked')?.value], ['tecnico', '', 3, '', '3']);
       const aprendido = { [JSON.stringify(['R', 'demais', ''])]: { valor: { regra: 'R', categoria: 'clareza', original: 'demais', substituicao: '', aceitas: 0, rejeitadas: 3 }, em: 1 }, [JSON.stringify(['M', 'Jusgrok', 'Jugo'])]: { valor: { regra: 'M', categoria: 'ortografia', original: 'Jusgrok', substituicao: 'Jugo', aceitas: 0, rejeitadas: 3 }, em: 1 } };
       const comAprendizado = await montar({ aprendizado: aprendido });
       const textoDaLista = () => [...comAprendizado.doc.querySelectorAll('#trocasSuprimidas li')].map((li) => li.firstChild.textContent.trim());
@@ -118,7 +118,9 @@
       confere('o diagnóstico mostra mediana, p95 e disponibilidade por camada, e avisa quando não há medição', [linhasDoPainel, comHistorico.doc.getElementById('semDiagnostico').hidden, semChave.doc.getElementById('semDiagnostico').hidden, comHistorico.doc.querySelector('#linhasDiagnostico tr:last-child td:last-child').textContent.startsWith('limite por minuto (')], [
         [['LanguageTool', '40 ms', '60 ms', '50%'], ['OpenRouter', '900 ms', '1000 ms', '50%']], true, false, true,
       ]);
-      confere('sem chave salva, a página abre inteira: campo vazio, sem status, com as boas-vindas e o tom marcado', [semChave.doc.getElementById('chave').value, semChave.doc.getElementById('statusChave').textContent, semChave.doc.getElementById('boasVindas').hidden, semChave.doc.querySelector('input[name="tom"]:checked')?.value], ['', '', false, 'neutro']);
+      confere('sem chave salva, a página abre inteira: campo vazio, sem status, com as boas-vindas e o tom marcado', [semChave.doc.getElementById('chave').value, semChave.doc.getElementById('statusChave').textContent, semChave.doc.getElementById('boasVindas').hidden, semChave.doc.querySelector('input[name="tom"]:checked')?.value], ['', '', false, '']);
+      const tomAntigo = await montar({ tom: 'advogado' });
+      confere('um tom que saiu da lista marca Nenhum nas configurações', tomAntigo.doc.querySelector('input[name="tom"]:checked')?.value, '');
     } catch (erro) {
       total++;
       linhas.push(`FALHA exceção: ${erro.message}`);

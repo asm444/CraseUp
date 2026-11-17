@@ -138,7 +138,7 @@
 
   caso('gíria e abreviação são marcadas em formal e neutro e deixadas em paz no casual', () => {
     const marca = (tom) => sistemaDe(C.montarRequisicao('vc vai?', { tom })).includes('marque como "tom" e troque pela forma por extenso');
-    igual([marca('formal'), marca('neutro'), marca('casual'), marca(undefined)], [true, true, false, true]);
+    igual([marca('formal'), marca(''), marca('casual'), marca(undefined)], [true, true, false, true]);
   });
 
   caso('modelo revisa no idioma detectado, aponta pontuação e deixa ortografia para as outras camadas', () => {
@@ -155,9 +155,11 @@
   });
 
   caso('tom LinkedIn pede verbos de ação e tom Advogado pede escrita defensiva', () => {
-    const linkedin = sistemaDe(C.montarReescrita('fiz o projeto', { tom: 'linkedin', idioma: 'pt-BR' }));
-    const advogado = sistemaDe(C.montarReescrita('a culpa foi nossa', { tom: 'advogado', idioma: 'pt-BR' }));
-    igual([linkedin.includes('verbos de ação e de resultado'), advogado.includes('escrita defensiva'), advogado.includes('não admite culpa')], [true, true, true]);
+    const sistemas = ['formal', 'confiante', 'persuasivo', 'empatico', 'casual'].map((tom) => sistemaDe(C.montarReescrita('manda o relatório', { tom, idioma: 'pt-BR' })));
+    igual([Object.keys(C.TONS), sistemas[0].includes('sem exclamação'), sistemas[1].includes('sem pedir desculpa'), sistemas[2].includes('chamada à ação'), sistemas[3].includes('reconhece a situação'), sistemas[4].includes('sem fórmula de carta')], [['formal', 'confiante', 'persuasivo', 'empatico', 'casual'], true, true, true, true, true]);
+    igual([C.quebrasDoTom('formal', 'Oi, tô chegando!'), C.quebrasDoTom('formal', 'Senhor, a entrega ocorre amanhã.'), C.quebrasDoTom('confiante', 'Acho que talvez dê.'), C.quebrasDoTom('casual', 'Prezado, segue.'), C.quebrasDoTom('empatico', 'Obviamente está certo.'), C.quebrasDoTom('__proto__', '!'), C.quebrasDoTom('', '!')],
+      [['tem exclamação', 'tem gíria ou abreviação'], [], ['hesita'], ['soa como carta formal'], ['soa duro'], [], []]);
+    igual(sistemaDe(C.montarReescrita('x y z', { tom: 'casual', idioma: 'pt-BR', quebras: ['soa como carta formal'] })).includes('saiu do tom porque soa como carta formal'), true);
   });
 
   caso('todo tom do seletor tem descrição para o modelo', () => {
@@ -223,7 +225,7 @@
   caso('lê a resposta do OpenRouter com o modelo que atendeu e rejeita formato inesperado', () => {
     igual(C.lerResposta({ model: 'google/gemma-4-31b-it:free', choices: [{ message: { content: '{"sugestoes":[{"tipo":"tom"}]}' } }] }),
       { sugestoes: [{ tipo: 'tom' }], tom: '', modelo: 'google/gemma-4-31b-it:free', uso: { entrada: 0, saida: 0, custo: 0, segundos: 0 } });
-    igual(['amigavel', '__proto__', 'grosseiro'].map((tom) => C.lerResposta({ choices: [{ message: { content: JSON.stringify({ sugestoes: [], tom }) } }] }).tom), ['amigavel', '', '']);
+    igual(['empatico', '__proto__', 'neutro'].map((tom) => C.lerResposta({ choices: [{ message: { content: JSON.stringify({ sugestoes: [], tom }) } }] }).tom), ['empatico', '', '']);
     igual(C.montarRequisicao('oi tudo bem').response_format.json_schema.schema.required, ['sugestoes', 'segundosPoupados', 'tom']);
     igual(['casual', 'constructor', 'zangado'].map((tom) => { try { return C.lerTom({ choices: [{ message: { content: JSON.stringify({ tom }) } }] }).tom; } catch { return 'recusado'; } }), ['casual', 'recusado', 'recusado']);
     let falhas = 0;

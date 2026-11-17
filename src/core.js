@@ -7,10 +7,10 @@
   const NIVEL_PADRAO = 3;
   const PERFIS = {
     casual: { nome: 'Casual', tom: 'casual', nivel: 2, tolera: ['giria', 'abreviacao', 'frase-longa', 'jargao'], suprime: ['legibilidade'] },
-    profissional: { nome: 'Profissional', tom: 'profissional', nivel: 3, tolera: ['jargao'], suprime: [] },
+    profissional: { nome: 'Profissional', tom: 'formal', nivel: 3, tolera: ['jargao'], suprime: [] },
     academico: { nome: 'Acadêmico', tom: 'formal', nivel: 4, tolera: ['frase-longa', 'jargao'], suprime: [] },
-    tecnico: { nome: 'Técnico', tom: 'neutro', nivel: 3, tolera: ['abreviacao', 'jargao'], suprime: ['repeticao'] },
-    informal: { nome: 'Informal', tom: 'amigavel', nivel: 2, tolera: ['giria', 'abreviacao'], suprime: ['tom'] },
+    tecnico: { nome: 'Técnico', tom: '', nivel: 3, tolera: ['abreviacao', 'jargao'], suprime: ['repeticao'] },
+    informal: { nome: 'Informal', tom: 'casual', nivel: 2, tolera: ['giria', 'abreviacao'], suprime: ['tom'] },
   };
   const perfilDe = (id) => (Object.hasOwn(PERFIS, id) ? PERFIS[id] : null);
   const CONFIANCA_DA_ORIGEM = { offline: 0.5, languagetool: 0.8, openrouter: 0.6 };
@@ -19,30 +19,27 @@
   const AJUSTE_POR_CAMADA = 0.2;
   const NOMES_DE_IDIOMA = { 'pt-BR': 'português do Brasil', 'en-US': 'inglês' };
   const TONS = {
-    formal: 'formal (linguagem cuidada, sem gírias nem intimidade)',
-    profissional: 'profissional (objetivo e cortês, como num e-mail de trabalho)',
-    neutro: 'neutro (direto e cordial, sem gírias nem formalidade excessiva)',
-    amigavel: 'amigável (caloroso e gentil, sem perder a clareza)',
-    casual: 'casual (leve e próximo, como numa conversa)',
-    confiante: 'confiante (afirmativo e seguro, sem rodeios nem hesitação)',
-    empatico: 'empático (acolhedor, reconhece o lado de quem lê)',
-    persuasivo: 'persuasivo (convence com argumento claro e chamada à ação)',
-    linkedin: 'LinkedIn (de ambiente de trabalho: verbos de ação e de resultado, como liderei, entreguei, implementei e colaborei, no lugar de verbos vagos, como fiz, ajudei e mexi; foco no impacto, positivo sem exagero, sem gíria nem intimidade)',
-    advogado: 'de advogado (escrita defensiva: afirma só o que dá para provar, troca afirmação absoluta por ressalva, como ao que consta ou até o momento, não admite culpa, não assume obrigação nem promete prazo, e mantém datas e fatos precisos, em linguagem formal)',
+    formal: 'formal (sério e impessoal, como um comunicado de trabalho: frases completas e objetivas, sem emoção, sem exclamação, sem emoji, sem gíria nem abreviação e sem intimidade; quando há destinatário, trata por senhor ou senhora)',
+    confiante: 'confiante (afirmativo e decidido: frases diretas na voz ativa e no indicativo, sem rodeio, sem pedir desculpa e sem "acho que", "talvez" ou "se possível")',
+    persuasivo: 'persuasivo (convence: abre pelo ganho de quem lê, sustenta com um argumento concreto do próprio texto e fecha com uma chamada à ação clara, sem hesitação)',
+    empatico: 'empático (acolhedor: reconhece a situação ou o sentimento de quem lê antes do pedido ou da notícia, fala com "você", não culpa ninguém e evita "obviamente" e "você deveria")',
+    casual: 'casual (leve e próximo, como numa conversa: frases curtas, "você", sem fórmula de carta como "prezado", "atenciosamente" ou "venho por meio desta")',
   };
-  const ROTULOS_DE_TOM = {
-    formal: 'Formal',
-    profissional: 'Profissional',
-    neutro: 'Neutro',
-    amigavel: 'Amigável',
-    casual: 'Casual',
-    confiante: 'Confiante',
-    empatico: 'Empático',
-    persuasivo: 'Persuasivo',
-    linkedin: 'LinkedIn',
-    advogado: 'Advogado',
+  const ROTULOS_DE_TOM = { formal: 'Formal', confiante: 'Confiante', persuasivo: 'Persuasivo', empatico: 'Empático', casual: 'Casual' };
+  const EMOJIS_DE_TOM = { formal: '\u{1F3A9}', confiante: '\u{1F3AF}', persuasivo: '\u{1F4E3}', empatico: '\u{1F917}', casual: '\u{1F60E}' };
+  const termos = (...lista) => new RegExp(`(?<![\\p{L}])(?:${lista.join('|')})(?![\\p{L}])`, 'iu');
+  const REGRAS_DO_TOM = {
+    formal: [
+      ['tem exclamação', /!/],
+      ['tem emoji', /\p{Extended_Pictographic}/u],
+      ['tem gíria ou abreviação', termos('vc', 'vcs', 'pq', 'blz', 'tô', 'tá', 'pra', 'né', 'valeu', 'beleza', 'oi', 'abraços?', 'bjs', 'beijos?')],
+    ],
+    confiante: [['hesita', termos('acho que', 'eu acho', 'talvez', 'meio que', 'não sei se', 'se possível', 'desculp\\p{L}*', 'só queria', 'pode ser que')]],
+    persuasivo: [['hesita', termos('acho que', 'talvez', 'não sei se', 'se não for incômodo', 'pode ser que')]],
+    empatico: [['soa duro', termos('você deveria', 'obviamente', 'como já (?:disse|falei|expliquei)', 'claramente', 'é simples')]],
+    casual: [['soa como carta formal', termos('prezad[oa]s?', 'atenciosamente', 'cordialmente', 'vossa', 'venho por meio desta', 'outrossim', 'solicito')]],
   };
-  const EMOJIS_DE_TOM = { advogado: '\u{2696}\u{FE0F}', formal: '\u{1F3A9}', profissional: '\u{1F4BC}', linkedin: '\u{1F517}', confiante: '\u{1F3AF}', persuasivo: '\u{1F4E3}', neutro: '\u{1F610}', empatico: '\u{1F917}', amigavel: '\u{1F60A}', casual: '\u{1F60E}' };
+  const quebrasDoTom = (tom, texto) => (Object.hasOwn(REGRAS_DO_TOM, tom) ? REGRAS_DO_TOM[tom].filter(([, regra]) => regra.test(texto)).map(([motivo]) => motivo) : []);
   const GIRIA_POR_TOM = {
     neutro: '- Gíria, abreviação de internet (vc, pq, blz, tô) e expressão coloquial destoam do tom: marque como "tom" e troque pela forma por extenso ou neutra.',
     casual: '- Gíria e abreviação de internet combinam com o tom casual: não marque.',
@@ -144,7 +141,7 @@
       '- Na troca de pontuação, "original" leva a palavra antes do sinal e "substituicao" a mesma palavra com o sinal certo (ex.: "Olá João" vira "Olá, João").',
       estilo && '- tipo "clareza": trecho confuso, redundante ou repetido que fica mais claro e mais curto.',
       estilo && '- tipo "palavra": palavra vaga ou repetida que tem opção mais precisa do mesmo tamanho ou menor.',
-      estilo && `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || TONS.neutro}.`,
+      estilo && `- tipo "tom": trecho que destoa claramente do tom ${TONS[tom] || 'direto e cordial, sem gíria nem formalidade excessiva'}.`,
       estilo && (perfilDe(perfil)?.tolera.includes('giria') ? GIRIA_POR_TOM.casual : GIRIA_POR_TOM[tom] || GIRIA_POR_TOM.neutro),
       estilo && repetidas.length && `- Estas palavras se repetem perto demais: ${repetidas.join(', ')}. Para cada repetição, sugira uma alternativa (tipo "palavra", categoria "repeticao") na segunda ocorrência.`,
       estilo && dificeis.length && `- Estas frases estão difíceis de ler: ${dificeis.map((f) => `"${f.inicio}…" (${f.alertas.join(', ')})`).join('; ')}. Sugira dividir a frase longa, cortar o encadeamento de "que" ou passar para a voz ativa (tipo "clareza", categoria "legibilidade").`,
@@ -162,7 +159,7 @@
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para achar e fazer sozinha estas trocas; 0 se não há sugestão.',
       `- "tom" é o tom que melhor serve a esta mensagem, pelo assunto e por quem a lê; um destes: ${Object.keys(TONS).join(', ')}.`,
       protecao,
-      '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0, "tom": "neutro"}, sem texto fora dele.',
+      '- Responda só com o objeto JSON {"sugestoes": [...], "segundosPoupados": 0, "tom": "formal"}, sem texto fora dele.',
     ].filter(Boolean).join('\n');
   }
 
@@ -182,7 +179,7 @@
     };
   }
 
-  function montarReescrita(texto, { tom, idioma, protecao }) {
+  function montarReescrita(texto, { tom, idioma, protecao, quebras = [] }) {
     const instrucao = [
       `Revise e melhore o texto recebido, em ${NOMES_DE_IDIOMA[idioma]}, ${tom ? `no tom ${TONS[tom]}` : 'mantendo o tom do original'}.`,
       REGRA_DE_DADO,
@@ -193,6 +190,7 @@
       `- Não acrescente frase, saudação, despedida, explicação nem conclusão que o original não tem; o resultado tem no máximo ${PALAVRAS_A_MAIS_NO_MAXIMO} palavras a mais que o original.`,
       '- Mantenha as quebras de linha e o tamanho próximo do original. Se o texto já estiver bom, devolva-o igual.',
       '- "segundosPoupados" estima quantos segundos uma pessoa levaria para revisar e reescrever sozinha o texto assim.',
+      quebras.length && `- A versão anterior saiu do tom porque ${quebras.join(' e ')}; desta vez siga o tom à risca.`,
       protecao,
       '- Responda só com o objeto JSON {"texto": "...", "segundosPoupados": 0}, sem texto fora dele.',
     ].filter(Boolean).join('\n');
@@ -216,7 +214,7 @@
       REGRA_DE_DADO,
       `- "tom" é um destes: ${Object.entries(TONS).map(([id, descricao]) => `${id} = ${descricao}`).join('; ')}.`,
       protecao,
-      '- Responda só com o objeto JSON {"tom": "neutro"}, sem texto fora dele.',
+      '- Responda só com o objeto JSON {"tom": "formal"}, sem texto fora dele.',
     ].filter(Boolean).join('\n');
     return {
       models: MODELOS,
@@ -566,6 +564,7 @@
     TONS,
     ROTULOS_DE_TOM,
     EMOJIS_DE_TOM,
+    quebrasDoTom,
     montarPedidoDeTom,
     lerTom,
     MODELOS,

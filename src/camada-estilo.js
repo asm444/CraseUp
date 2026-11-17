@@ -166,26 +166,30 @@ globalThis.RevisorEstiloDaCamada = `:host {
   color: var(--texto-suave);
   font-size: 12px;
 }
-.rotulo-tom { display: block; margin-bottom: 4px; }
-.linha-tom { position: relative; padding-top: 2px; }
+.titulo-tom { display: block; margin-bottom: 4px; color: var(--texto); font-weight: 600; }
+.linha-tom { position: relative; padding: 2px 0; }
 .regua-tom {
   display: flex;
   justify-content: space-between;
   padding: 0 1px;
-  font-size: 15px;
-  line-height: 1;
+  font-size: 17px;
+  line-height: 1.4;
   user-select: none;
 }
-.emoji-tom { width: 18px; text-align: center; opacity: 0.75; }
-.emoji-tom.sugerido { opacity: 1; border-radius: 50%; box-shadow: 0 0 0 2px var(--tom); }
+.emoji-tom { width: 18px; text-align: center; opacity: 0.45; transition: transform 120ms ease-out, opacity 120ms; }
+.emoji-tom.sugerido { opacity: 0.8; }
+.emoji-tom.escolhido { opacity: 1; transform: scale(1.35); }
 .escolha-tom {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  margin: 4px 0 0;
-  accent-color: var(--tom);
+  height: 100%;
+  margin: 0;
+  opacity: 0;
   cursor: grab;
 }
 .escolha-tom:active { cursor: grabbing; }
+.linha-tom:has(.escolha-tom:focus-visible) { outline: 2px solid var(--tom); outline-offset: 2px; border-radius: 8px; }
 .balao-tom {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -214,8 +218,8 @@ globalThis.RevisorEstiloDaCamada = `:host {
 @media (prefers-reduced-motion: reduce) {
   .balao-tom { transition: none; }
   .emoji-do-balao { animation: none; }
+  .emoji-tom { transition: none; }
 }
-.escolha-tom:focus-visible { outline: 2px solid var(--tom); outline-offset: 1px; }
 
 .acoes {
   display: flex;

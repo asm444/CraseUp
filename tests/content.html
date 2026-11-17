@@ -82,7 +82,7 @@
         if (msg.tipo === 'sugerirTom') {
           pedidosDeTom.push(msg.texto);
           await new Promise((pronto) => setTimeout(pronto, 40));
-          return { tom: 'amigavel' };
+          return { tom: 'empatico' };
         }
         if (msg.tipo === 'reescrever') {
           reescritas.push([msg.texto, msg.tom]);
@@ -115,7 +115,7 @@
               return;
             }
             const provisorio = (['duas etapas açim', 'rápida lenta açim', 'sem piscar açim'].includes(msg.texto) && !msg.modelo) || msg.texto === 'o modelo sempre falha açim';
-            setTimeout(() => ouvinteDaPorta({ final: { sugestoes, provisorio, ...(msg.texto === 'eu vou mercado' && { tom: 'profissional' }) } }), msg.texto === 'rápida lenta açim' && !msg.modelo ? 1500 : 0);
+            setTimeout(() => ouvinteDaPorta({ final: { sugestoes, provisorio, ...(msg.texto === 'eu vou mercado' && { tom: 'confiante' }) } }), msg.texto === 'rápida lenta açim' && !msg.modelo ? 1500 : 0);
           },
         };
       },
@@ -137,7 +137,7 @@
     await cliqueReal(r.left + r.width / 2, r.top + r.height / 2);
     await espera(30);
   };
-  const ORDEM_DOS_TONS = ['', 'advogado', 'formal', 'profissional', 'linkedin', 'confiante', 'persuasivo', 'neutro', 'empatico', 'amigavel', 'casual'];
+  const ORDEM_DOS_TONS = ['', 'formal', 'confiante', 'persuasivo', 'empatico', 'casual'];
   const pontoDoTom = (slider, valor) => {
     const r = slider.getBoundingClientRect();
     return [r.left + 8 + ((r.width - 16) * ORDEM_DOS_TONS.indexOf(valor)) / (ORDEM_DOS_TONS.length - 1), r.top + r.height / 2];
@@ -400,11 +400,11 @@
       const seletor = sombra().querySelector('.cartao .escolha-tom');
       const cartaoAntesDoTom = sombra().querySelector('.cartao');
       const topoAntesDoTom = cartaoAntesDoTom.style.top;
-      confere('a régua de tom vai do original ao mais solto, com dez tons e LinkedIn e Advogado', [...sombra().querySelectorAll('.cartao .emoji-tom')].map((e) => e.title), ['Original', 'Advogado', 'Formal', 'Profissional', 'LinkedIn', 'Confiante', 'Persuasivo', 'Neutro', 'Empático', 'Amigável', 'Casual']);
-      confere('o modelo sugeriu o tom e o cartão o destaca na régua', [sombra().querySelector('.cartao .emoji-tom.sugerido')?.title, sombra().querySelector('.cartao .rotulo-tom')?.textContent.endsWith('Profissional')], ['Profissional', true]);
+      confere('a régua de tom vai do original ao mais solto, com cinco tons distintos', [...sombra().querySelectorAll('.cartao .emoji-tom')].map((e) => e.title), ['Original', 'Formal', 'Confiante', 'Persuasivo', 'Empático', 'Casual']);
+      confere('o cartão mostra só o título do tom escolhido e destaca o sugerido pelo modelo', [sombra().querySelector('.cartao .titulo-tom')?.textContent, sombra().querySelector('.cartao .emoji-tom.sugerido')?.title, sombra().querySelector('.cartao .emoji-tom.escolhido')?.title, sombra().querySelector('.cartao .rotulo-tom')], ['Original', 'Confiante', 'Original', null]);
       await segurarTom(seletor, 'formal');
       const balao = sombra().querySelector('.cartao .balao-tom');
-      confere('segurar o slider mostra o balão com o tom sob o cursor, sem reescrever ainda', [balao?.hidden, balao?.textContent.endsWith('Formal'), reescritas.length], [false, true, 0]);
+      confere('segurar o slider mostra o balão com o tom sob o cursor, sem reescrever ainda', [balao?.hidden, balao?.textContent.endsWith('Formal'), sombra().querySelector('.cartao .titulo-tom')?.textContent, reescritas.length], [false, true, 'Formal', 0]);
       await soltarReal();
       await espera(30);
       const avisoEnquantoReescreve = sombra().querySelector('.cartao .motivo-tom')?.textContent;
@@ -442,7 +442,7 @@
         confere('o cartão da verificação abre colado ao campo, não no ponto do clique', [caixa.top > campo.bottom && caixa.top - campo.bottom < 16, Math.round(caixa.left - campo.left)], [true, 0]);
       }
       confere('a prévia da verificação mostra só as palavras que mudam', [...verificacao().querySelectorAll('.de')].map((e) => e.textContent).concat([...verificacao().querySelectorAll('.para')].map((e) => e.textContent)), ['eu', 'amanha', 'Eu', 'ao ', 'amanhã.']);
-      confere('na verificação, a origem e a opção de manter o tom começam com maiúscula', [verificacao().querySelector('.origem')?.textContent, verificacao().querySelector('.escolha-tom')?.getAttribute('aria-valuetext')], ['Via OpenRouter (m)', 'Original']);
+      confere('na verificação, a origem e a opção de manter o tom começam com maiúscula', [verificacao().querySelector('.origem')?.textContent, verificacao().querySelector('.escolha-tom')?.getAttribute('aria-valuetext')], ['Via OpenRouter', 'Original']);
       confere('a verificação traz o resumo de leitura do campo', /^Leitura (muito fácil|fácil|difícil|muito difícil) \(índice \d+\)$/.test(verificacao().querySelector('.leitura')?.textContent || ''), true);
       const tomDaVerificacao = verificacao().querySelector('.escolha-tom');
       const verificacaoAntesDoTom = verificacao();
@@ -451,7 +451,7 @@
       await espera(120);
       confere('trocar o tom na verificação refaz o pedido com o tom', [reescritas.at(-1), textoNovo(verificacao().querySelector('.previa'))], [['eu vou mercado amanha', 'formal'], 'Eu irei ao mercado.']);
       confere('na verificação, o tom troca o texto no mesmo cartão e no mesmo lugar', [verificacao() === verificacaoAntesDoTom, verificacao().style.top === topoDaVerificacao], [true, true]);
-      confere('sem tom da revisão, o cartão pede o tom ao abrir, uma vez só, e destaca o que vier', [pedidosDeTom.filter((t) => t === 'eu vou mercado amanha').length, verificacao().querySelector('.emoji-tom.sugerido')?.title, pedidosDeTom.includes('eu vou mercado')], [1, 'Amigável', false]);
+      confere('sem tom da revisão, o cartão pede o tom ao abrir, uma vez só, e destaca o que vier', [pedidosDeTom.filter((t) => t === 'eu vou mercado amanha').length, verificacao().querySelector('.emoji-tom.sugerido')?.title, pedidosDeTom.includes('eu vou mercado')], [1, 'Empático', false]);
       const reescritasAntesDaTecla = reescritas.length;
       verificacao().querySelector('.escolha-tom').focus();
       await apertarReal('ArrowRight');
@@ -459,7 +459,7 @@
       await espera(200);
       const reescritasDuranteAsTeclas = reescritas.length - reescritasAntesDaTecla;
       await espera(900);
-      confere('pelas setas, o tom espera a pessoa parar e reescreve uma vez no último', [reescritasDuranteAsTeclas, reescritas.slice(reescritasAntesDaTecla)], [0, [['eu vou mercado amanha', 'linkedin']]]);
+      confere('pelas setas, o tom espera a pessoa parar e reescreve uma vez no último', [reescritasDuranteAsTeclas, reescritas.slice(reescritasAntesDaTecla)], [0, [['eu vou mercado amanha', 'persuasivo']]]);
       await clicar(verificacao().querySelector('.aplicar'));
       confere('Substituir da verificação troca o campo inteiro', [area.value, verificacao()], ['Eu irei ao mercado.', null]);
 

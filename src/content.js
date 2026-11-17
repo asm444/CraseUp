@@ -516,7 +516,7 @@
     }
   }
 
-  const ORDEM_DOS_TONS = ['', 'advogado', 'formal', 'profissional', 'linkedin', 'confiante', 'persuasivo', 'neutro', 'empatico', 'amigavel', 'casual'];
+  const ORDEM_DOS_TONS = ['', 'formal', 'confiante', 'persuasivo', 'empatico', 'casual'];
 
   const ESPERA_DA_TECLA_DE_TOM_MS = 700;
   const tonsPedidos = new Set();
@@ -542,7 +542,7 @@
     const nome = (v) => (v ? ROTULOS_DE_TOM[v] : 'Original');
     const emoji = (v) => (v ? EMOJIS_DE_TOM[v] : '\u{270D}\u{FE0F}');
     const tons = elemento('div', 'tons');
-    const rotulo = elemento('span', 'rotulo-tom');
+    const titulo = elemento('span', 'titulo-tom');
     const regua = elemento('div', 'regua-tom');
     regua.append(...ORDEM_DOS_TONS.map((v) => Object.assign(elemento('span', 'emoji-tom', emoji(v)), { title: nome(v) })));
     const escolha = Object.assign(document.createElement('input'), { type: 'range', className: 'escolha-tom', min: 0, max: ORDEM_DOS_TONS.length - 1, step: 1 });
@@ -553,13 +553,14 @@
     const descrever = () => {
       const v = ORDEM_DOS_TONS[escolha.value];
       escolha.setAttribute('aria-valuetext', nome(v));
+      titulo.textContent = nome(v);
+      [...regua.children].forEach((e, i) => e.classList.toggle('escolhido', i === Number(escolha.value)));
       balao.style.left = `calc(9px + (100% - 18px) * ${escolha.value / (ORDEM_DOS_TONS.length - 1)})`;
       balao.replaceChildren(elemento('span', 'emoji-do-balao', emoji(v)), elemento('span', 'nome-do-balao', v === sugerido ? `${nome(v)} · sugerido` : nome(v)));
     };
     const marcar = (tom) => {
       sugerido = tom;
       [...regua.children].forEach((e, i) => e.classList.toggle('sugerido', ORDEM_DOS_TONS[i] === tom));
-      rotulo.textContent = tom ? `Tom · sugerido ${EMOJIS_DE_TOM[tom]} ${ROTULOS_DE_TOM[tom]}` : 'Tom';
       descrever();
     };
     marcar(sugerido);
@@ -595,7 +596,7 @@
     escolha.addEventListener('blur', () => pelaTecla || (balao.hidden = true));
     const linha = elemento('div', 'linha-tom');
     linha.append(regua, escolha, balao);
-    tons.append(rotulo, linha);
+    tons.append(titulo, linha);
     seletorAberto = { texto, marcar };
     if (!sugerido) pedirTom(texto);
     return tons;
@@ -680,7 +681,7 @@
       for (const m of marcas) {
         if (m.motivo) motivos.append(elemento('li', `motivo motivo-${m.tipo}${m.incerta ? ' incerta' : ''}`, m.motivo.charAt(0).toLocaleUpperCase('pt-BR') + m.motivo.slice(1) + (m.incerta ? ' (incerta)' : '')));
       }
-      origens = [...new Set(marcas.map((m) => (m.modelo ? `${ROTULOS_DE_ORIGEM[m.origem]} (${m.modelo})` : ROTULOS_DE_ORIGEM[m.origem])))];
+      origens = [...new Set(marcas.map((m) => ROTULOS_DE_ORIGEM[m.origem]))];
     }
 
     const tons = seletorDeTom(reescrita?.tom, reescrever, trecho.paragrafo, tonsSugeridos.get(trecho.paragrafo));
@@ -935,7 +936,7 @@
         : botao('Copiar', 'aplicar', () => navigator.clipboard.writeText(v.resultado.texto).then(esconderCartao, () => {})));
     }
     const partes = [cabecalho, previa, motivos];
-    if (v.resultado) partes.push(elemento('p', 'origem', v.resultado.modelo ? `Via ${ROTULOS_DE_ORIGEM.openrouter} (${v.resultado.modelo})` : `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
+    if (v.resultado) partes.push(elemento('p', 'origem', `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
     partes.push(...resumoDeLeitura(v.texto), ...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, pedirVerificacao, v.texto, tonsSugeridos.get(v.texto) || dividirParagrafos(v.texto).map((p) => tonsSugeridos.get(p.texto)).find(Boolean)), acoes);
     montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
