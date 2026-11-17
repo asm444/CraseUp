@@ -387,6 +387,32 @@ async function iniciar() {
   dicionario.desenhar();
   sites.desenhar();
 
+  for (const [id, p] of Object.entries(RevisorCore.PERFIS)) $('perfilPersonalizado').append(Object.assign(document.createElement('option'), { value: id, textContent: p.nome }));
+  const listasDoPerfil = () => {
+    const id = $('perfilPersonalizado').value;
+    return { palavras: lista(`dicionarioDoPerfil_${id}`, $('dicionarioDoPerfil'), (v) => v.trim()), sitesDoPerfil: lista(`sitesDoPerfil_${id}`, $('sitesDoPerfil'), normalizarSite) };
+  };
+  const desenharListasDoPerfil = () => {
+    const { palavras, sitesDoPerfil } = listasDoPerfil();
+    palavras.desenhar();
+    sitesDoPerfil.desenhar();
+  };
+  $('perfilPersonalizado').addEventListener('change', desenharListasDoPerfil);
+  $('formDicionarioDoPerfil').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await listasDoPerfil().palavras.adicionar($('novaPalavraDoPerfil').value);
+    e.target.reset();
+    desenharListasDoPerfil();
+  });
+  $('formSitesDoPerfil').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await listasDoPerfil().sitesDoPerfil.adicionar($('novoSiteDoPerfil').value);
+    e.target.reset();
+    desenharListasDoPerfil();
+  });
+  chrome.storage.onChanged.addListener((mudancas, area) => area === 'local' && Object.keys(mudancas).some((k) => /DoPerfil_/.test(k)) && desenharListasDoPerfil());
+  desenharListasDoPerfil();
+
   painelDeConsumo();
 
   if (RevisorConfig.DOACAO_URL) {

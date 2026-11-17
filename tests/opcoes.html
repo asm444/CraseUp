@@ -102,6 +102,17 @@
       h.getElementById('historicoLigado').click();
       await espera(100);
       confere('o histórico sugere a frase repetida 3 vezes, preenche o atalho e, desligado, é apagado', [marcada, sugeridas, preenchido, comFrases.armazem.historicoLigado, comFrases.armazem.historico], [true, ['Fico à disposição para qualquer dúvida. (3 vezes)'], 'Fico à disposição para qualquer dúvida.', false, undefined]);
+      const comPerfis = await montar({});
+      const pd = comPerfis.doc;
+      pd.getElementById('perfilPersonalizado').value = 'tecnico';
+      pd.getElementById('perfilPersonalizado').dispatchEvent(new Event('change'));
+      pd.getElementById('novaPalavraDoPerfil').value = 'endpoint';
+      pd.getElementById('formDicionarioDoPerfil').requestSubmit();
+      await espera(100);
+      pd.getElementById('novoSiteDoPerfil').value = 'https://www.docs.exemplo.com/x';
+      pd.getElementById('formSitesDoPerfil').requestSubmit();
+      await espera(100);
+      confere('personalizar perfil grava palavra e site na lista do perfil escolhido', [comPerfis.armazem.dicionarioDoPerfil_tecnico, comPerfis.armazem.sitesDoPerfil_tecnico, [...pd.querySelectorAll('#sitesDoPerfil .chip')].map((c) => c.firstChild.textContent)], [['endpoint'], ['docs.exemplo.com'], ['docs.exemplo.com']]);
       const comHistorico = await montar({ historicoDasCamadas: { languagetool: [{ ms: 40, erro: null, em: 1 }, { ms: 60, erro: 'falha', em: 2 }], openrouter: [{ ms: 900, erro: null, em: 3 }, { ms: 1000, erro: 'limite_por_minuto', em: 4 }] } });
       const linhasDoPainel = [...comHistorico.doc.querySelectorAll('#linhasDiagnostico tr')].map((tr) => [...tr.children].slice(0, 4).map((td) => td.textContent));
       confere('o diagnóstico mostra mediana, p95 e disponibilidade por camada, e avisa quando não há medição', [linhasDoPainel, comHistorico.doc.getElementById('semDiagnostico').hidden, semChave.doc.getElementById('semDiagnostico').hidden, comHistorico.doc.querySelector('#linhasDiagnostico tr:last-child td:last-child').textContent.startsWith('limite por minuto (')], [

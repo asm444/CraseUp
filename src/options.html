@@ -179,6 +179,14 @@
         <div class="segmentos" id="perfis">
           <label><input type="radio" name="perfil" value=""><span>Nenhum</span></label>
         </div>
+        <h3 style="font-size:14px;margin:16px 0 6px">Personalizar perfil</h3>
+        <select id="perfilPersonalizado"></select>
+        <p class="suave" style="margin:10px 0 0">Palavras que este perfil não corrige, além do dicionário pessoal.</p>
+        <form class="adicionar" id="formDicionarioDoPerfil"><input type="text" id="novaPalavraDoPerfil" autocomplete="off"><button>Adicionar</button></form>
+        <div class="chips" id="dicionarioDoPerfil"></div>
+        <p class="suave" style="margin:10px 0 0">Sites onde este perfil vale sozinho, qualquer que seja o escolhido acima.</p>
+        <form class="adicionar" id="formSitesDoPerfil"><input type="text" id="novoSiteDoPerfil" placeholder="exemplo.com.br" autocomplete="off"><button>Adicionar</button></form>
+        <div class="chips" id="sitesDoPerfil"></div>
       </section>
 
       <section class="bloco largo" id="tom">

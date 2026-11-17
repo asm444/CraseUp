@@ -60,7 +60,7 @@ chrome.tabs.onRemoved.addListener(async (abaId) => {
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === 'local' && 'cota' in mudancas) atualizarSeloGlobal();
-  if (area === 'local' && ['tom', 'nivel', 'dicionario', 'perfil'].some((k) => k in mudancas)) chrome.storage.local.remove('cache');
+  if (area === 'local' && Object.keys(mudancas).some((k) => ['tom', 'nivel', 'dicionario', 'perfil'].includes(k) || /^(dicionario|sites)DoPerfil_/.test(k))) chrome.storage.local.remove('cache');
 });
 
 async function abaPausada(abaId) {
@@ -175,9 +175,18 @@ function registrarDecisao({ decisao, regra, categoria, original, substituicao })
   return filaDeDecisoes;
 }
 
-async function revisar(texto, abaId, { pedido, modelo, contexto }, aoAvancar) {
+async function comPerfilDoSite(cfg, host) {
+  const ids = Object.keys(RevisorCore.PERFIS);
+  const listas = await chrome.storage.local.get(ids.flatMap((id) => [`sitesDoPerfil_${id}`, `dicionarioDoPerfil_${id}`]));
+  const doSite = host && ids.find((id) => (listas[`sitesDoPerfil_${id}`] || []).some((s) => host === s || host.endsWith(`.${s}`)));
+  const perfil = doSite || cfg.perfil;
+  const dicionario = [...(cfg.dicionario || []), ...(listas[`dicionarioDoPerfil_${perfil}`] || [])];
+  return doSite ? { ...cfg, perfil, tom: RevisorCore.PERFIS[perfil].tom, nivel: RevisorCore.PERFIS[perfil].nivel, dicionario } : { ...cfg, dicionario };
+}
+
+async function revisar(texto, abaId, { pedido, modelo, contexto, host }, aoAvancar) {
   if (abaId !== undefined && (await abaPausada(abaId))) return { erro: 'pausado' };
-  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil', 'aprendizado', 'historicoLigado'])), abaId };
+  const cfg = await comPerfilDoSite({ ...(await chrome.storage.local.get(['chaveOpenrouter', 'tom', 'dicionario', 'cota', 'esperaAte', 'languagetool', 'nivel', 'perfil', 'aprendizado', 'historicoLigado'])), abaId }, host);
   const semRejeitadas = (sugestoes) => aplicarAprendizado(sugestoes, cfg.aprendizado);
   const opcoes = { tom: cfg.tom, dicionario: cfg.dicionario || [], nivel: cfg.nivel || NIVEL_PADRAO, perfil: cfg.perfil };
   const chave = !pedido && !mascarar(texto).itens.length ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([texto, opcoes.tom, opcoes.nivel, opcoes.dicionario, opcoes.perfil, chrome.runtime.getManifest().version]))))].map((b) => b.toString(16).padStart(2, '0')).join('') : null;
@@ -406,6 +415,12 @@ function paginaDaExtensao(remetente) {
   return (remetente.url || '').startsWith(chrome.runtime.getURL(''));
 }
 
+function hostDe(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {}
+}
+
 chrome.runtime.onConnect.addListener((porta) => {
   if (porta.name !== 'revisar') return;
   const enviar = (mensagem) => {
@@ -415,7 +430,7 @@ chrome.runtime.onConnect.addListener((porta) => {
   };
   porta.onMessage.addListener(async (msg) => {
     if (typeof msg?.texto !== 'string') return;
-    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false, contexto: typeof msg.contexto === 'string' ? msg.contexto.slice(-300) : '' };
+    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false, contexto: typeof msg.contexto === 'string' ? msg.contexto.slice(-300) : '', host: hostDe(porta.sender?.url) };
     enviar({ final: await revisar(msg.texto, porta.sender?.tab?.id, opcoes, (parcial) => enviar({ parcial })) });
   });
 });
