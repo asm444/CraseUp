@@ -107,6 +107,10 @@
   confere('valor com cara de senha antes do rótulo é mascarado; palavra comum antes do rótulo não', [
     mascara('hunter2 é a senha'), mascara('Xk9#mPq2 is the password'), mascara('essa é a senha'), mascara('ana@x.com é o token'),
   ], ['[SENHA_1] é a senha', '[SENHA_1] is the password', 'essa é a senha', '[EMAIL_1] é o token']);
+  const comInvisivel = P.mascarar('fala com ana\u200B@x.com hoje');
+  confere('caractere invisível, dígito de largura inteira e letra parecida de outro alfabeto não tiram o dado da proteção, e o dado volta como foi escrito', [
+    comInvisivel.texto, mascara('ana@x\u00AD.com'), mascara('cpf \uFF15\uFF12\uFF19.\uFF19\uFF18\uFF12.\uFF12\uFF14\uFF17-\uFF12\uFF15'), mascara('s\u0435nha: hunter2'), P.restaurar(comInvisivel.texto, comInvisivel.itens).texto,
+  ], ['fala com [EMAIL_1] hoje', '[EMAIL_1]', 'cpf [CPF_1]', 's\u0435nha: [SENHA_1]', 'fala com ana\u200B@x.com hoje']);
   const piores = ['senha' + ' '.repeat(3990) + 'x', ' '.repeat(4000), 'protocolo' + ' '.repeat(3990) + '1', 'senha ' + '= '.repeat(1990) + 'x', 'senha ' + 'é '.repeat(1990) + 'x', 'senha ' + 'ab '.repeat(1330) + 'x1', 'senha' + ' a:'.repeat(1330) + ' x1', 'a@ '.repeat(1330), 'ab1 é a '.repeat(500)];
   const tempos = piores.map((t) => { const t0 = performance.now(); P.mascarar(t); return performance.now() - t0; });
   confere('mascarar termina em menos de 200 ms mesmo com 4000 caracteres escolhidos pela página', tempos.map((ms) => ms < 200), [true, true, true, true, true, true, true, true, true]);

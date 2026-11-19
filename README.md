@@ -134,6 +134,7 @@ podman run -d --name languagetool -p "$(tailscale ip -4):8010:8010" docker.io/er
 - O dicionário offline não envia nada para fora do navegador.
 - Antes de qualquer envio, inclusive ao LanguageTool local, dados sensíveis viram marcadores como `[EMAIL_1]`, `[SENHA_1]`, `[CPF_1]`, `[TELEFONE_1]` ou `[NUMERO_1]`, e o valor real volta só no navegador. Entram e-mail (também escrito como `ana arroba x ponto com`), link, senha, token e chave de API pelo rótulo ou pela forma, CPF, CNPJ, cartão, IBAN, telefone, CEP, data, valor em dinheiro, protocolo, processo, conta, placa, IP e números de 4 ou mais dígitos. O modelo pode reorganizar a frase; cada marcador volta no lugar novo.
 - A proteção reconhece a senha pela forma do valor (dígito, pontuação ou símbolo) e não pega senha de várias palavras comuns nem de 1 a 3 caracteres. Os limites estão em `docs/seguranca/auditoria-1.md`.
+- O que o CraseUp protege, de quem, e os riscos ainda abertos estão em `SECURITY.md`.
 - O parágrafo vai para o servidor LanguageTool e, quando o OpenRouter é chamado, para o provedor do modelo gratuito que atender. Provedores gratuitos podem registrar os textos; a política de cada um aparece na página do modelo no OpenRouter. Não use a revisão de estilo em texto que não pode sair do seu controle.
 - Você desliga a extensão numa aba pelo popup, ou exclui sites inteiros em **Configurações → Sites sem revisão**.
 

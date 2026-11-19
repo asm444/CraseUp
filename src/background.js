@@ -4,6 +4,8 @@ const { ENDPOINT, TONS, revisavel, montarRequisicao, lerResposta, montarReescrit
 const { IDIOMAS, IDIOMA_PADRAO, detectarIdioma, sugestoesOrtograficas } = RevisorOrtografia;
 const { INSTRUCAO: INSTRUCAO_DE_PROTECAO, mascarar, restaurar, posicaoOriginal } = RevisorProtecao;
 const { ENDERECO_LOCAL, enderecoDeVerificacao, enderecoDeIdiomas, pareceLanguageTool, padraoDePermissao, montarCorpo, lerMatches } = RevisorLanguageTool;
+const CONTEXTO_LIDO = 4000;
+const TAMANHO_DO_CONTEXTO = 300;
 const CONFERENCIA_DO_SERVIDOR_VALE_MS = 10 * 60_000;
 const servidoresConferidos = new Map();
 const ESPERA_LIMITE_POR_MINUTO_MS = 60_000;
@@ -90,7 +92,7 @@ function contarChamada() {
     const { uso } = await chrome.storage.local.get('uso');
     const chamadas = uso?.data === hoje() ? uso.chamadas + 1 : 1;
     await chrome.storage.local.set({ uso: { data: hoje(), chamadas } });
-  });
+  }).catch(() => {});
   return filaDeContagem;
 }
 
@@ -366,7 +368,7 @@ function restaurarSugestao(s, itens) {
 
 async function camadaModelo(texto, idioma, cfg, contexto, semLanguageTool) {
   const { texto: mascarado, itens } = mascarar(texto);
-  const contextoMascarado = mascarar(contexto).texto.replace(/\[[A-Z_]+_\d+\]/g, '[DADO]');
+  const contextoMascarado = mascarar(contexto).texto.replace(/\[[A-Z_]+_\d+\]/g, '[DADO]').slice(-TAMANHO_DO_CONTEXTO);
   const protecao = itens.length ? INSTRUCAO_DE_PROTECAO : '';
   const dicionario = (cfg.dicionario || []).filter((termo) => !mascarar(termo).itens.length);
   const repetidas = palavrasRepetidas(texto, cfg, idioma);
@@ -394,6 +396,7 @@ async function reescrever(texto, tom, abaId) {
     if (r.estado !== 'ativa') return { erro: MOTIVOS_SEM_REESCRITA[r.estado] || r.mensagem };
     const volta = restaurar(r.lida.texto, itens);
     if (volta.desconhecido || itens.some((i) => !volta.usados.includes(i.marcador))) return { erro: 'o modelo perdeu um dado protegido do texto; tente de novo' };
+    if (new Set(volta.usados).size !== volta.usados.length) return { erro: 'o modelo repetiu um dado protegido do texto; tente de novo' };
     if (acrescentaDemais(texto, volta.texto)) return { erro: 'o modelo inventou texto que não estava no original; tente de novo' };
     return { ...r.lida, texto: volta.texto };
   };
@@ -404,9 +407,10 @@ async function reescrever(texto, tom, abaId) {
   return segunda.erro || quebrasDoTom(tom, segunda.texto).length >= quebras.length ? primeira : segunda;
 }
 
-async function sugerirTom(texto, abaId) {
+async function sugerirTom(texto, abaId, host) {
   if (await abaPausada(abaId)) return {};
-  const cfg = { ...(await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte'])), abaId };
+  const cfg = await comPerfilDoSite({ ...(await chrome.storage.local.get(['chaveOpenrouter', 'cota', 'esperaAte', 'nivel'])), abaId }, host);
+  if ((cfg.nivel || NIVEL_PADRAO) < 2) return {};
   const { texto: mascarado, itens } = mascarar(texto);
   const r = await lerDoModelo(montarPedidoDeTom(mascarado, { idioma: (await camadaOffline(texto)).idioma, protecao: itens.length ? INSTRUCAO_DE_PROTECAO : '' }), cfg, lerTom);
   return r.estado === 'ativa' ? { tom: r.lida.tom } : {};
@@ -446,8 +450,8 @@ chrome.runtime.onConnect.addListener((porta) => {
   };
   porta.onMessage.addListener(async (msg) => {
     if (typeof msg?.texto !== 'string') return;
-    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false, contexto: typeof msg.contexto === 'string' ? msg.contexto.slice(-300) : '', host: hostDe(porta.sender?.url) };
-    enviar({ final: await revisar(msg.texto, porta.sender?.tab?.id, opcoes, (parcial) => enviar({ parcial })) });
+    const opcoes = { pedido: msg.pedido === true, modelo: msg.modelo !== false, contexto: typeof msg.contexto === 'string' ? msg.contexto.slice(-CONTEXTO_LIDO) : '', host: hostDe(porta.sender?.url) };
+    enviar({ final: await revisar(msg.texto, porta.sender?.tab?.id, opcoes, (parcial) => enviar({ parcial })).catch(() => ({ erro: 'falha' })) });
   });
 });
 
@@ -466,7 +470,7 @@ chrome.runtime.onMessage.addListener((msg, remetente, responder) => {
     return true;
   }
   if (msg?.tipo === 'sugerirTom' && abaId !== undefined && typeof msg.texto === 'string' && revisavel(msg.texto)) {
-    sugerirTom(msg.texto, abaId).then(responder);
+    sugerirTom(msg.texto, abaId, hostDe(remetente.url)).then(responder);
     return true;
   }
   if (msg?.tipo === 'pausar' && Number.isInteger(msg.abaId) && paginaDaExtensao(remetente)) {

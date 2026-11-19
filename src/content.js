@@ -7,6 +7,9 @@
   const ESPERA_MODELO_MS = 1200;
   const INTERACAO_VALE_MS = 15_000;
   const MUTACAO_SEGUE_TECLA_MS = 1000;
+  const TECLAS_QUE_NAO_ESCREVEM = ['Shift', 'CapsLock', 'AltGraph', 'Dead'];
+  const MAIOR_GATILHO = 64;
+  const PREVIA_DA_VERIFICACAO = 4000;
   const REENVIO_INICIAL_MS = 5000;
   const REENVIO_MAXIMO_MS = 5 * 60_000;
   const NOME_DA_CAMADA = 'craseup-camada';
@@ -104,7 +107,7 @@
     if (campos.has(el)) return campos.get(el);
     const tipo = tipoDoCampo(el);
     if (!tipo) return null;
-    const estado = { el, tipo, timer: 0, ignoradas: new Set(), marcas: [], mapa: [], ranges: [], espelho: null, observador: null };
+    const estado = { el, tipo, timer: 0, teclado: '', ignoradas: new Set(), marcas: [], mapa: [], ranges: [], espelho: null, observador: null };
     campos.set(el, estado);
     return estado;
   }
@@ -344,6 +347,7 @@
     if (!ativo || !estado.el.isConnected) return;
     if (!pedido && !(Date.now() - estado.interagiuEm < INTERACAO_VALE_MS)) return;
     const texto = lerCampo(estado);
+    if (!pedido && texto !== estado.agendado) return;
     const cursor = posicaoDoCursor(estado, texto);
     const paragrafos = dividirParagrafos(texto);
     const candidatos = paragrafos
@@ -401,7 +405,8 @@
     const texto = lerCampo(estado);
     const cursor = posicaoDoCursor(estado, texto);
     const gatilho = texto.slice(0, cursor).match(/(?:^|\s)(;[\p{L}\p{N}_-]+)$/u)?.[1];
-    if (!atalhos.has(gatilho)) return;
+    if (!atalhos.has(gatilho) || !estado.teclado.endsWith(gatilho)) return;
+    estado.teclado = '';
     const agora = new Date();
     estado.expandindo = true;
     try {
@@ -420,7 +425,10 @@
   function marcarInteracao(evento) {
     if (!ativo || !evento.isTrusted) return;
     const estado = campoDoEvento(evento);
-    if (estado) estado.interagiuEm = Date.now();
+    if (!estado) return;
+    estado.interagiuEm = Date.now();
+    if (evento.type !== 'keydown' || TECLAS_QUE_NAO_ESCREVEM.includes(evento.key)) return;
+    estado.teclado = evento.key.length === 1 && !evento.ctrlKey && !evento.metaKey && !evento.isComposing ? (estado.teclado + evento.key).slice(-MAIOR_GATILHO) : evento.key === 'Backspace' ? estado.teclado.slice(0, -1) : '';
   }
 
   function aoFocar(evento) {
@@ -432,6 +440,7 @@
   }
 
   function agendarRevisao(estado) {
+    estado.agendado = lerCampo(estado);
     desenhar(estado);
     clearTimeout(estado.timer);
     clearTimeout(estado.timerModelo);
@@ -827,7 +836,9 @@
     aplicando = true;
     try {
       if (tipo === 'texto') {
+        const antes = el.value;
         el.focus();
+        if (el.value !== antes) return;
         for (const e of ordem) el.setRangeText(e.texto, e.inicio, e.fim, 'end');
         el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
         return;
@@ -850,11 +861,18 @@
     }
   }
 
+  function limitesDaSelecao(sel) {
+    const r = sel.rangeCount ? sel.getRangeAt(0) : null;
+    return [r?.startContainer, r?.startOffset, r?.endContainer, r?.endOffset];
+  }
+
   async function selecionarESubstituir(el, range, texto) {
     el.focus();
     const sel = getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
+    const posta = limitesDaSelecao(sel);
+    const lido = lerTextoEditavel(el).texto;
     await new Promise((pronto) => setTimeout(pronto, 0));
     const antes = new InputEvent('beforeinput', {
       bubbles: true,
@@ -865,6 +883,7 @@
       targetRanges: [new StaticRange(range)],
     });
     if (!el.dispatchEvent(antes)) return;
+    if (limitesDaSelecao(sel).some((v, i) => v !== posta[i]) || lerTextoEditavel(el).texto !== lido) return;
     if (texto) document.execCommand('insertText', false, texto);
     else document.execCommand('delete');
   }
@@ -926,7 +945,7 @@
     const acoes = elemento('div', 'acoes');
     const mudou = v.resultado && v.resultado.texto !== v.texto;
     if (v.resultado) desenharPartes(previa, diferencaDePalavras(v.texto, v.resultado.texto));
-    else previa.append(v.texto);
+    else previa.append(v.texto.slice(0, PREVIA_DA_VERIFICACAO));
     if (v.erro) motivos.append(elemento('li', 'motivo motivo-gramatica', `Não deu para verificar: ${v.erro}`));
     else if (!v.resultado) motivos.append(elemento('li', 'motivo motivo-clareza', 'Verificando ortografia, pontuação, maiúsculas e a escrita…'));
     else if (!mudou) motivos.append(elemento('li', 'motivo motivo-clareza', 'Nada a corrigir.'));
@@ -937,7 +956,8 @@
     }
     const partes = [cabecalho, previa, motivos];
     if (v.resultado) partes.push(elemento('p', 'origem', `Via ${ROTULOS_DE_ORIGEM.openrouter}`));
-    partes.push(...resumoDeLeitura(v.texto), ...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, pedirVerificacao, v.texto, tonsSugeridos.get(v.texto) || dividirParagrafos(v.texto).map((p) => tonsSugeridos.get(p.texto)).find(Boolean)), acoes);
+    if (revisavel(v.texto)) partes.push(...resumoDeLeitura(v.texto), ...avisoDeProtegidos(v.texto), seletorDeTom(v.tom, pedirVerificacao, v.texto, tonsSugeridos.get(v.texto) || dividirParagrafos(v.texto).map((p) => tonsSugeridos.get(p.texto)).find(Boolean)));
+    partes.push(acoes);
     montarCartao('cartao cartao-gramatica cartao-verificacao', partes);
   }
 
@@ -1021,7 +1041,7 @@
   }
 
   function aoMoverMouse(evento) {
-    if (!ativo || !campos.size) return;
+    if (!ativo || !campos.size || !evento.isTrusted) return;
     const { clientX: x, clientY: y } = evento;
     if (quadroPendente) return;
     quadroPendente = requestAnimationFrame(() => {

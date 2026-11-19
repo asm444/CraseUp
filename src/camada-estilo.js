@@ -58,6 +58,7 @@ globalThis.RevisorEstiloDaCamada = `:host {
 
 .cartao {
   --cor: var(--gramatica);
+  user-select: none;
   position: absolute;
   width: max-content;
   max-width: min(360px, calc(100vw - 16px));

@@ -161,16 +161,29 @@
     return token.length >= 12 && digitos >= 3 && classes >= 2;
   }
 
+  const INVISIVEL = /[\u00AD\u200B-\u200D\u2060\uFEFF]/;
+  const SOSIAS = Object.fromEntries([...'аaеeоoрpсcхxуyіiѕsјjАAВBЕEКKМMНHОOРPСCТTХXІIЅSЈJ'].reduce((pares, c, i, todos) => (i % 2 ? pares : [...pares, [c, todos[i + 1]]]), []));
+
   function encontrar(texto) {
     const achados = [];
     const livre = (inicio, fim) => achados.every((a) => fim <= a.inicio || inicio >= a.fim);
+    const mapa = [];
+    let limpo = '';
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      if (INVISIVEL.test(c)) continue;
+      const codigo = c.charCodeAt(0);
+      limpo += codigo >= 0xff01 && codigo <= 0xff5e ? String.fromCharCode(codigo - 0xfee0) : SOSIAS[c] || c;
+      mapa.push(i);
+    }
     for (const regra of REGRAS) {
-      for (const m of texto.matchAll(regra.re)) {
-        const valor = regra.limpar ? m[0].replace(FIM_DE_TOKEN, '') : m[0];
-        const inicio = m.index;
-        const fim = inicio + valor.length;
-        if (!valor || (regra.valido && !regra.valido(valor, m)) || !livre(inicio, fim)) continue;
-        achados.push({ tipo: regra.tipo || regra.tipoDe(m), inicio, fim, valor });
+      for (const m of limpo.matchAll(regra.re)) {
+        const casado = regra.limpar ? m[0].replace(FIM_DE_TOKEN, '') : m[0];
+        if (!casado || (regra.valido && !regra.valido(casado, m))) continue;
+        const inicio = mapa[m.index];
+        const fim = mapa[m.index + casado.length - 1] + 1;
+        if (!livre(inicio, fim)) continue;
+        achados.push({ tipo: regra.tipo || regra.tipoDe(m), inicio, fim, valor: texto.slice(inicio, fim) });
       }
     }
     return achados.sort((a, b) => a.inicio - b.inicio);

@@ -161,6 +161,7 @@
     e.preventDefault();
     modeloRico = modeloRico.slice(0, alvo.startOffset) + (e.data ?? '') + modeloRico.slice(alvo.endOffset);
     rico.textContent = modeloRico;
+    if (rico.firstChild) getSelection().collapse(rico.firstChild, Math.min(alvo.startOffset + (e.data ?? '').length, modeloRico.length));
     rico.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
   });
   rico.addEventListener('input', () => {
@@ -176,18 +177,18 @@
     if (JSON.stringify(valor) === JSON.stringify(esperado)) { ok++; linhas.push(`ok   ${nome}`); }
     else linhas.push(`FALHA ${nome}: esperado ${JSON.stringify(esperado)}, veio ${JSON.stringify(valor)}`);
   };
-  const digitar = async (el, texto) => {
+  const digitar = async (el, texto, reais = 1) => {
     el.focus();
     if ('value' in el) {
-      el.value = texto.slice(0, -1);
+      el.value = texto.slice(0, -reais);
       el.setSelectionRange(el.value.length, el.value.length);
     } else {
-      el.textContent = texto.slice(0, -1);
+      el.textContent = texto.slice(0, -reais);
       const sel = el.getRootNode().getSelection ? el.getRootNode().getSelection() : getSelection();
       sel.selectAllChildren(el);
       sel.collapseToEnd();
     }
-    await teclarReal(texto.slice(-1));
+    await teclarReal(texto.slice(-reais));
     if ('value' in el) {
       el.setSelectionRange(0, 0);
       el.scrollTop = 0;
@@ -201,9 +202,10 @@
     const y = r.top + r.height / 2;
     return x >= c.left && x <= c.right && y >= c.top && y <= c.bottom;
   });
-  const passarMouse = (rect) => {
+  const passarMouseFalso = (rect) => {
     document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }));
   };
+  const passarMouse = (rect) => moverReal(rect.left + rect.width / 2, rect.top + rect.height / 2);
 
   (async () => {
     try {
@@ -620,15 +622,15 @@
       salvoNoTeste.nome = 'Ana $& $$';
       ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: salvoNoTeste.atalhos } }, 'local'));
       await espera(100);
-      await digitar(area, 'oi ;ass');
+      await digitar(area, 'oi ;ass', 4);
       await espera(200);
-      await digitar(editavel, 'até ;hoje');
+      await digitar(editavel, 'até\u00A0;hoje', 5);
       await espera(200);
-      modeloRico = 'nota ;as';
-      await digitar(rico, 'nota ;ass');
+      modeloRico = 'nota\u00A0';
+      await digitar(rico, 'nota\u00A0;ass', 4);
       await espera(200);
-      const comAtalho = [area.value, editavel.textContent, rico.textContent];
-      await digitar(area, 'sem ;nada');
+      const comAtalho = [area.value, editavel.textContent, rico.textContent].map((v) => v.replaceAll('\u00A0', ' '));
+      await digitar(area, 'sem ;nada', 5);
       await espera(200);
       confere('o atalho digitado expande no textarea, no contenteditable e no editor rico, com nome e data, e gatilho desconhecido fica', [...comAtalho, area.value], ['oi Atenciosamente, Ana $& $$', `até em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 'nota Atenciosamente, Ana $& $$', 'sem ;nada']);
       delete salvoNoTeste.atalhos;
@@ -796,6 +798,72 @@
       await espera(1600);
       confere('depois de uma tecla real, troca de texto feita pela página não vira revisão', [0, 1, 2, 3].map((i) => `a pagina trocou o texto ${i}`).concat('a pagina trocou o editor depois').filter((t) => enviados.includes(t)), []);
       await clicar(sombra().querySelector('.cartao-verificacao .fechar'));
+
+      salvoNoTeste.atalhos = { ';ass': { valor: { gatilho: ';ass', texto: 'Atenciosamente, {nome}' }, em: 1 } };
+      ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: salvoNoTeste.atalhos } }, 'local'));
+      await espera(100);
+      const atalhoDaPagina = novo('textarea');
+      atalhoDaPagina.focus();
+      document.execCommand('insertText', false, 'oi ;ass');
+      await espera(200);
+      const atalhoDepoisDaTecla = novo('textarea');
+      atalhoDepoisDaTecla.focus();
+      await teclarReal('x');
+      document.execCommand('insertText', false, ' ;ass');
+      await espera(200);
+      const atalhoPlantado = novo('textarea');
+      await digitar(atalhoPlantado, 'oi ;ass');
+      await espera(200);
+      confere('gatilho escrito pela página, sozinho, logo depois de uma tecla real ou completado por uma tecla real, não expande o atalho', [atalhoDaPagina.value, atalhoDepoisDaTecla.value, atalhoPlantado.value], ['oi ;ass', 'x ;ass', 'oi ;ass']);
+      delete salvoNoTeste.atalhos;
+      ouvintesDoStorage.forEach((fn) => fn({ atalhos: { newValue: undefined } }, 'local'));
+      await espera(100);
+
+      const trocaSilenciosa = novo('textarea');
+      await digitar(trocaSilenciosa, 'a pessoa digitou isto aqui');
+      trocaSilenciosa.value = 'a pagina trocou em silencio';
+      await espera(1600);
+      confere('texto trocado pela página sem evento, entre a tecla real e a revisão, não é enviado', enviados.includes('a pagina trocou em silencio'), false);
+
+      const enorme = novo('textarea');
+      enorme.value = '-'.repeat(20000);
+      await menu(enorme);
+      const antesDoEnorme = performance.now();
+      ouvinte({ tipo: 'verificarAqui' });
+      const msDoEnorme = performance.now() - antesDoEnorme;
+      await espera(50);
+      confere('verificação de texto acima do teto avisa sem analisar o texto, e não trava a aba', [sombra().querySelector('.cartao-verificacao .motivo')?.textContent, sombra().querySelector('.cartao-verificacao .previa')?.textContent.length, msDoEnorme < 500], ['Não deu para verificar: selecione um texto de até 4000 caracteres', 4000, true]);
+      await clicar(sombra().querySelector('.cartao-verificacao .fechar'));
+
+      await digitar(area, 'isso é açim mesmo');
+      await espera(1500);
+      const pedidosAntesDoFalso = pedidosDeTom.length;
+      passarMouseFalso(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(150);
+      confere('mousemove sintético da página não abre o cartão nem pede tom ao modelo', [Boolean(sombra().querySelector('.cartao')), pedidosDeTom.length - pedidosAntesDoFalso], [false, 0]);
+
+      await passarMouse(sombra().querySelector('.marca').getBoundingClientRect());
+      await espera(150);
+      getSelection().removeAllRanges();
+      window.find('grafia');
+      const lidoDoCartao = String(getSelection());
+      getSelection().removeAllRanges();
+      confere('window.find da página não seleciona nem lê o texto do cartão', [Boolean(sombra().querySelector('.cartao')), lidoDoCartao], [true, '']);
+
+      area.addEventListener('focus', () => (area.value = 'a pagina trocou no foco'), { once: true });
+      area.blur();
+      await clicar(sombra().querySelector('.cartao .aplicar'));
+      await espera(100);
+      confere('Substituir desiste quando a página troca o textarea ao receber o foco', area.value, 'a pagina trocou no foco');
+
+      await digitar(editavel, 'isso é açim mesmo');
+      await espera(1500);
+      await passarMouse(tracos('gramatica', editavel)[0].getBoundingClientRect());
+      await espera(150);
+      editavel.addEventListener('beforeinput', () => getSelection().collapse(editavel.firstChild, 0), { once: true });
+      await clicar(sombra().querySelector('.cartao .aplicar'));
+      await espera(200);
+      confere('Substituir desiste quando a página move a seleção do editor no beforeinput', editavel.textContent, 'isso é açim mesmo');
     } catch (e) {
       linhas.push(`FALHA execução: ${e.message}`);
       total++;

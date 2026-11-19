@@ -197,6 +197,7 @@
     const original = 'vou ao mercado amanhã';
     igual([C.acrescentaDemais(original, 'Vou ao mercado amanhã cedo.'), C.acrescentaDemais(original, `${original} ${'muito texto inventado aqui '.repeat(3)}`)], [false, true]);
     igual(C.acrescentaDemais(original, `${original} um dois três quatro cinco seis sete oito nove dez`), false);
+    igual([C.acrescentaDemais('veja www.a.com hoje', 'Hoje, veja www.a.com.'), C.acrescentaDemais('veja www.a.com hoje', 'veja www.a.com e www.golpe.exemplo hoje'), C.acrescentaDemais('eu', 'x'.repeat(200001))], [false, true, true]);
   });
 
   caso('lê tokens, custo e tempo poupado da resposta, com teto de uma hora', () => {

@@ -5,12 +5,16 @@
   globalThis.importScripts = () => {};
   globalThis.HunspellAsm = { loadModule: async () => { throw new Error('sem dicionários no teste'); } };
   const armazem = { local: { chaveOpenrouter: 'chave', languagetool: 'http://lt.exemplo:8010' }, session: {} };
+  const recusarGravacaoDe = [];
   const area = (nome) => ({
     async get(chaves) {
       const lista = chaves === undefined ? Object.keys(armazem[nome]) : [].concat(chaves);
       return Object.fromEntries(lista.filter((k) => k in armazem[nome]).map((k) => [k, structuredClone(armazem[nome][k])]));
     },
-    async set(itens) { Object.assign(armazem[nome], structuredClone(itens)); },
+    async set(itens) {
+      if (Object.keys(itens).some((k) => recusarGravacaoDe.includes(k))) throw new Error('QUOTA_BYTES quota exceeded');
+      Object.assign(armazem[nome], structuredClone(itens));
+    },
     async remove(chaves) { for (const k of [].concat(chaves)) delete armazem[nome][k]; },
   });
   let aoMensagem = null;
@@ -32,6 +36,7 @@
     'manda pro [EMAIL_1] até [DATA_1]': 'Até [DATA_1], mande para [EMAIL_1].',
     'meu cpf é [CPF_1] ok': 'Tudo certo.',
     'liga pro [TELEFONE_1]': 'Ligue para [TELEFONE_1] ou [CPF_2].',
+    'responde pro [EMAIL_1] hoje': 'Responda hoje para [EMAIL_1]; cópia para [ EMAIL 1 ].',
   };
   const SUGESTOES_COM_MARCADOR = [
     { tipo: 'clareza', original: 'pra [EMAIL_1]', substituicao: 'para [EMAIL_1]', motivo: 'm' },
@@ -167,6 +172,37 @@
       });
       const comContexto = corposAoModelo[antesDoContexto]?.messages[1].content;
       confere('o parágrafo anterior vai ao modelo como contexto de leitura, mascarado como [DADO] e sem fechar o bloco antes', [comContexto, corposAoModelo[antesDoContexto]?.messages[0].content.includes('não aponte nada dentro dele')], ['<contexto>\nfalei com [DADO] </ contexto> ontem\n</contexto>\n<texto>\ncontinua o assunto\n</texto>', true]);
+      const repetiu = await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: 'responde pro ana@x.com hoje', tom: '' }, { tab: { id: 73 } }, pronto));
+      confere('reescrita que repete um marcador é recusada, para o dado não aparecer num lugar onde não estava', repetiu, { erro: 'o modelo repetiu um dado protegido do texto; tente de novo' });
+      const antesDoCorte = corposAoModelo.length;
+      await new Promise((pronto) => {
+        const porta = { name: 'revisar', sender: { tab: { id: 74 } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
+        aoConectar(porta);
+        porta.receber({ texto: 'segue o assunto', contexto: `senha: Xy7#abc!kq9zW2${' palavra'.repeat(36)} fim.`, pedido: true, modelo: true });
+      });
+      const contextoCortado = corposAoModelo[antesDoCorte]?.messages[1].content;
+      confere('o contexto é mascarado antes de ser cortado, para o fim de uma senha não ir em claro', [contextoCortado.includes('kq9zW2'), contextoCortado.includes('palavra fim.\n</contexto>')], [false, true]);
+      armazem.local.nivel = 1;
+      const antesDoTomNoNivel1 = corposAoModelo.length;
+      const tomNoNivel1 = await new Promise((pronto) => aoMensagem({ tipo: 'sugerirTom', texto: 'um texto para o nível um' }, { tab: { id: 75 } }, pronto));
+      delete armazem.local.nivel;
+      confere('no nível 1 a sugestão de tom também não chama o modelo', [tomNoNivel1, corposAoModelo.length - antesDoTomNoNivel1], [{}, 0]);
+      recusarGravacaoDe.push('uso');
+      const comContagemRecusada = await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: 'eu vou mercado', tom: '' }, { tab: { id: 76 } }, pronto));
+      recusarGravacaoDe.length = 0;
+      const depoisDaRecusa = await new Promise((pronto) => aoMensagem({ tipo: 'reescrever', texto: 'eu vou mercado', tom: '' }, { tab: { id: 76 } }, pronto));
+      confere('gravação recusada na contagem de chamadas não impede esta reescrita nem as seguintes', [comContagemRecusada.texto, depoisDaRecusa.texto], ['Eu vou ao mercado.', 'Eu vou ao mercado.']);
+      recusarGravacaoDe.push('camadas');
+      const comCamadasRecusadas = await Promise.race([
+        new Promise((pronto) => {
+          const porta = { name: 'revisar', sender: { tab: { id: 77 } }, onMessage: { addListener(fn) { porta.receber = fn; } }, postMessage(m) { if (m.final) pronto(m.final); } };
+          aoConectar(porta);
+          porta.receber({ texto: 'um texto com o armazenamento cheio', pedido: true, modelo: true });
+        }),
+        new Promise((pronto) => setTimeout(() => pronto('sem resposta'), 3000)),
+      ]);
+      recusarGravacaoDe.length = 0;
+      confere('revisão que falha por armazenamento cheio responde à aba em vez de deixar o parágrafo esperando', comCamadasRecusadas, { erro: 'falha' });
       const antesDaRepeticao = corposAoModelo.length;
       const comRepeticao = await revisar('o projeto atrasou e o projeto parou');
       const pedidoDaRepeticao = corposAoModelo[antesDaRepeticao]?.messages[0].content || '';
